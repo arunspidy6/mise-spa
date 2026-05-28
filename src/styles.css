@@ -1,0 +1,136 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+
+  --color-background: var(--bg-base);
+  --color-foreground: var(--text-primary);
+  --color-card: var(--bg-surface);
+  --color-card-foreground: var(--text-primary);
+  --color-popover: var(--bg-overlay);
+  --color-popover-foreground: var(--text-primary);
+  --color-primary: var(--ember);
+  --color-primary-foreground: var(--bg-base);
+  --color-secondary: var(--bg-raised);
+  --color-secondary-foreground: var(--text-primary);
+  --color-muted: var(--bg-raised);
+  --color-muted-foreground: var(--text-secondary);
+  --color-accent: var(--ember-glow);
+  --color-accent-foreground: var(--ember-text);
+  --color-destructive: var(--error);
+  --color-destructive-foreground: var(--text-primary);
+  --color-border: var(--border-subtle);
+  --color-input: var(--bg-surface);
+  --color-ring: var(--ember);
+
+  --color-bg-base: var(--bg-base);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-raised: var(--bg-raised);
+  --color-bg-overlay: var(--bg-overlay);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-default: var(--border-default);
+  --color-border-strong: var(--border-strong);
+  --color-ember: var(--ember);
+  --color-ember-dim: var(--ember-dim);
+  --color-ember-glow: var(--ember-glow);
+  --color-ember-text: var(--ember-text);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
+}
+
+:root {
+  /* Backgrounds */
+  --bg-base: oklch(0.18 0.008 60);
+  --bg-surface: oklch(0.22 0.009 60);
+  --bg-raised: oklch(0.27 0.010 60);
+  --bg-overlay: oklch(0.31 0.011 60);
+
+  /* Text — all values pass WCAG AA (4.5:1) on bg-base */
+  --text-primary:   oklch(0.94 0.012 75);   /* #F0EDE8 — ratio ~13:1 */
+  --text-secondary: oklch(0.74 0.014 75);   /* lifted from 0.68 — ratio ~7:1 */
+  --text-tertiary:  oklch(0.58 0.012 70);   /* lifted from 0.46 — ratio ~4.6:1 */
+
+  /* Borders */
+  --border-subtle: oklch(0.31 0.011 60);
+  --border-default: oklch(0.37 0.012 60);
+  --border-strong: oklch(0.46 0.012 60);
+
+  /* Brand — Ember */
+  --ember: oklch(0.71 0.165 48);
+  --ember-dim: oklch(0.42 0.12 45);
+  --ember-glow: oklch(0.71 0.165 48 / 0.14);
+  --ember-text: oklch(0.82 0.13 60);
+
+  /* Semantic */
+  --success: oklch(0.66 0.12 150);
+  --warning: oklch(0.78 0.14 85);
+  --error: oklch(0.62 0.18 25);
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px oklch(0 0 0 / 0.4);
+  --shadow-md: 0 4px 16px oklch(0 0 0 / 0.5);
+  --shadow-lg: 0 8px 32px oklch(0 0 0 / 0.6);
+  --shadow-ember: 0 4px 24px oklch(0.71 0.165 48 / 0.32);
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@layer base {
+  html, body {
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  * { border-color: var(--border-subtle); }
+  ::selection { background: var(--ember-glow); color: var(--ember-text); }
+}
+
+@layer utilities {
+  .font-display { font-family: var(--font-display); font-feature-settings: "ss01"; }
+  .label-eyebrow {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+  .shadow-ember { box-shadow: var(--shadow-ember); }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { scrollbar-width: none; }
+}
+
+@keyframes ember-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(0.85); }
+}
+.animate-ember-pulse { animation: ember-pulse 1.4s var(--ease-out) infinite; }
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-raised) 25%, var(--bg-overlay) 50%, var(--bg-raised) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s linear infinite;
+}
