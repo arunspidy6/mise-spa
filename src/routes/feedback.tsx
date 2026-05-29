@@ -100,7 +100,7 @@ function FeedbackPage() {
         </div>{/* end scrollable content */}
 
         {/* Sticky bottom buttons */}
-        <div className="flex-shrink-0 px-6 pb-10 pt-3 bg-bg-base border-t border-border-subtle space-y-3">
+        <div className="flex-shrink-0 px-6 pb-safe pt-3 bg-bg-base border-t border-border-subtle space-y-3">
           <button
             onClick={submit}
             disabled={!selected}

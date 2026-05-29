@@ -134,7 +134,7 @@ function PrepScreen({ recipe, onStart }: { recipe: any; onStart: () => void }) {
         )}
       </div>
 
-      <div className="flex-shrink-0 px-4 pb-10 pt-3 bg-bg-base border-t border-border-subtle">
+      <div className="flex-shrink-0 px-4 pb-safe pt-3 bg-bg-base border-t border-border-subtle">
         {prepItems.length > 0 && !allDone && (
           <p className="text-[11px] text-text-tertiary text-center mb-2.5">
             {prepItems.length - checked.size} item{prepItems.length - checked.size !== 1 ? "s" : ""} unchecked — you can still start
@@ -359,7 +359,7 @@ function TimerModal({
         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
         transition={{ type: "spring", stiffness: 360, damping: 30 }}
         onClick={e => e.stopPropagation()}
-        className="w-full bg-bg-surface rounded-t-3xl px-6 pt-6 pb-12"
+        className="w-full bg-bg-surface rounded-t-3xl px-6 pt-6 pb-safe-lg"
       >
         <div className="w-10 h-1 bg-border-default rounded-full mx-auto mb-6" />
 
@@ -929,7 +929,7 @@ function CookMode() {
         </AnimatePresence>
 
         {/* ── Sticky nav buttons ────────────────────────────────────────── */}
-        <div className="flex-shrink-0 flex gap-3 px-4 pb-10 pt-3 border-t border-border-subtle bg-bg-base">
+        <div className="flex-shrink-0 flex gap-3 px-4 pb-safe pt-3 border-t border-border-subtle bg-bg-base">
           <button onClick={() => goTo(step - 1)} disabled={step === 0}
             className="flex-1 h-12 rounded-xl bg-bg-surface border border-border-default text-text-secondary flex items-center justify-center gap-2 text-[14px] active:scale-95 transition disabled:opacity-30 disabled:active:scale-100">
             <ArrowLeft className="w-4 h-4" /> Back
@@ -998,7 +998,7 @@ function CookMode() {
               className="absolute inset-0 bg-black/75 flex items-end z-50">
               <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
                 transition={{ type: "spring", stiffness: 360, damping: 30 }}
-                className="w-full bg-bg-surface rounded-t-3xl p-8 pb-12">
+                className="w-full bg-bg-surface rounded-t-3xl p-8 pb-safe-lg">
                 <div className="w-12 h-1 bg-border-default rounded-full mx-auto mb-6" />
                 <div className="text-center mb-6">
                   <motion.span animate={{ rotate: [0, -10, 10, -5, 5, 0] }} transition={{ duration: 0.6, delay: 0.1 }}
@@ -1047,7 +1047,7 @@ function CookMode() {
               className="absolute inset-0 bg-black/75 flex items-end z-50">
               <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
                 transition={{ type: "spring", stiffness: 360, damping: 30 }}
-                className="w-full bg-bg-surface rounded-t-3xl p-8 pb-12">
+                className="w-full bg-bg-surface rounded-t-3xl p-8 pb-safe-lg">
                 <div className="w-12 h-1 bg-border-default rounded-full mx-auto mb-8" />
                 <h2 className="font-display text-[28px] font-light text-text-primary text-center">All done?</h2>
                 <p className="text-[14px] text-text-secondary text-center mt-3">Confirm if you've finished cooking.</p>
@@ -1073,7 +1073,7 @@ function CookMode() {
               className="absolute inset-0 bg-black/75 flex items-end z-50">
               <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
                 transition={{ type: "spring", stiffness: 360, damping: 30 }}
-                className="w-full bg-bg-surface rounded-t-3xl p-8 pb-12">
+                className="w-full bg-bg-surface rounded-t-3xl p-8 pb-safe-lg">
                 <div className="w-12 h-1 bg-border-default rounded-full mx-auto mb-6" />
                 <div className="text-center mb-6">
                   <span className="text-3xl block mb-3">🍳</span>

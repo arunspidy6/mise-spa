@@ -32,7 +32,7 @@ function Home() {
 
   return (
     <MobileFrame>
-      <div className="flex-1 flex flex-col px-5 pt-14 pb-10 gap-8">
+      <div className="flex-1 flex flex-col px-5 pt-14 pb-safe gap-8">
 
         {/* ── Header ── */}
         <motion.div

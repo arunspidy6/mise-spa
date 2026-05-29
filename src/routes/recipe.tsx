@@ -275,7 +275,7 @@ function RecipeCard() {
         </div>{/* end scroll */}
 
         {/* Sticky bottom CTAs — always visible */}
-        <div className="flex-shrink-0 px-4 pb-10 pt-3 bg-bg-base border-t border-border-subtle space-y-2">
+        <div className="flex-shrink-0 px-4 pb-safe pt-3 bg-bg-base border-t border-border-subtle space-y-2">
           <div className="flex gap-3">
             <button onClick={swap} disabled={rerolling}
               className="flex-1 h-14 rounded-xl bg-bg-surface border border-border-default text-text-secondary flex items-center justify-center gap-2 text-[14px] active:scale-95 transition disabled:opacity-50">

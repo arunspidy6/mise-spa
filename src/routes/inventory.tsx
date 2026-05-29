@@ -213,7 +213,7 @@ function InventoryFlow() {
         </AnimatePresence>
 
         {/* Sticky CTA — always visible, never scrolls away */}
-        <div className="flex-shrink-0 px-4 pb-10 pt-3 bg-bg-base border-t border-border-subtle safe-area-bottom">
+        <div className="flex-shrink-0 px-4 pb-safe pt-3 bg-bg-base border-t border-border-subtle">
           <EmberButton size="lg" className="w-full" onClick={next}>
             {isLast ? "Done — show me recipes" : "Next"}
             <ArrowRight className="w-4 h-4" />

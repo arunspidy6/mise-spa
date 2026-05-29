@@ -251,7 +251,7 @@ function SessionSetup() {
         </div>
 
         </div>{/* end scrollable */}
-        <div className="flex-shrink-0 px-6 pb-10 pt-3 bg-bg-base border-t border-border-subtle">
+        <div className="flex-shrink-0 px-6 pb-safe pt-3 bg-bg-base border-t border-border-subtle">
           {err && (
             <div className="mb-4 rounded-xl bg-bg-surface border border-border-default p-4 space-y-3">
               <p className="text-[13px] font-semibold text-text-primary">
