@@ -42,6 +42,14 @@ const SR = typeof window !== "undefined"
   ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
   : null;
 
+// On iOS, Chrome is a WebKit wrapper — Apple doesn't expose SpeechRecognition
+// to third-party browsers. Only Safari on iOS gets the API.
+const IS_IOS = typeof navigator !== "undefined" &&
+  /iP(hone|ad|od)/.test(navigator.userAgent);
+const VOICE_UNAVAILABLE_MSG = IS_IOS && !SR
+  ? "Voice works in Safari on iOS — Chrome doesn't have mic access here."
+  : "Voice isn't available in this browser.";
+
 type TimerState = { remaining: number; total: number; running: boolean; done: boolean };
 
 // ── Prep helpers ───────────────────────────────────────────────────────────
@@ -723,9 +731,9 @@ function CookMode() {
     } else {
       if (!SR) {
         // Show a dismissible message explaining the limitation
-        setVoiceTranscript("Voice not available in this browser. Try Chrome.");
+        setVoiceTranscript(VOICE_UNAVAILABLE_MSG);
         setVoiceStatus("heard");
-        setTimeout(() => { setVoiceTranscript(""); setVoiceStatus("idle"); }, 3500);
+        setTimeout(() => { setVoiceTranscript(""); setVoiceStatus("idle"); }, 4000);
         return;
       }
       voiceActiveRef.current = true;
@@ -793,12 +801,15 @@ function CookMode() {
             {recipe.name}
           </span>
           <div className="flex items-center gap-2">
-            <button onClick={toggleVoice}
+            <button
+              onClick={toggleVoice}
+              title={!SR ? VOICE_UNAVAILABLE_MSG : undefined}
               className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 ${
                 voiceActive
                   ? "bg-ember text-bg-base shadow-[0_0_14px_rgba(232,117,26,0.6)]"
                   : "bg-bg-raised border border-border-default text-text-secondary"
-              }`}>
+              } ${!SR ? "opacity-40 cursor-not-allowed active:scale-100" : ""}`}
+            >
               {voiceActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
             </button>
             <button onClick={() => setShowExitConfirm(true)}
