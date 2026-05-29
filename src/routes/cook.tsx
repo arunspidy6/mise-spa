@@ -95,7 +95,7 @@ function PrepScreen({ recipe, onStart }: { recipe: any; onStart: () => void }) {
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 space-y-5 pb-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 space-y-5 pb-4">
         {prepItems.length > 0 && (
           <div>
             <p className="label-eyebrow mb-2.5">Needs prep</p>
@@ -870,7 +870,7 @@ function CookMode() {
           <motion.div key={step}
             initial={{ opacity: 0, x: 32 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -32 }}
             transition={{ type: "spring", stiffness: 360, damping: 30 }}
-            className="flex-1 flex flex-col px-6 pt-2 overflow-y-auto pb-4"
+            className="flex-1 min-h-0 flex flex-col px-6 pt-2 overflow-y-auto pb-4"
           >
             <div className="relative mb-5">
               <span className="absolute right-0 top-0 font-display text-[96px] font-light text-bg-surface leading-none select-none pointer-events-none">

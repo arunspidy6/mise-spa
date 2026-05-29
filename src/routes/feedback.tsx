@@ -56,7 +56,7 @@ function FeedbackPage() {
     <MobileFrame>
       <div className="flex flex-col flex-1 overflow-hidden">
         {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto px-6 pt-16 pb-4">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-16 pb-4">
 
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
           <span className="text-[44px]">🍽️</span>

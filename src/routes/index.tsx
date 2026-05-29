@@ -82,8 +82,8 @@ function Home() {
       <div className="flex-1 flex flex-col relative overflow-hidden">
         <HomeBackground />
 
-        {/* ── Vertically centred main content ── */}
-        <div className="flex-1 flex flex-col justify-center px-5 gap-7 relative z-10 min-h-0">
+        {/* ── Vertically centred main content — scrollable on short screens ── */}
+        <div className="flex-1 min-h-0 flex flex-col justify-center overflow-y-auto px-5 gap-7 relative z-10 py-8">
 
           {/* Header */}
           <motion.div

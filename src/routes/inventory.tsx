@@ -118,7 +118,7 @@ function InventoryFlow() {
           <motion.div key={step}
             initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 overflow-y-auto px-4 pb-8">
+            className="flex-1 min-h-0 overflow-y-auto px-4 pb-8">
 
             <span className="label-eyebrow text-ember-text">{cur.label}</span>
             <h1 className="font-display text-[28px] font-light text-text-primary mt-2 leading-tight">{cur.title}</h1>

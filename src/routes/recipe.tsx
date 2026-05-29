@@ -151,7 +151,7 @@ function RecipeCard() {
           {rerolling && <RerollLoaderContent />}
         </motion.div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
         <motion.div key={recipe.name}
           initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
           className="px-4 space-y-4 pt-2 pb-4">
