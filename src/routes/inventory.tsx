@@ -61,7 +61,7 @@ function InventoryFlow() {
   const [custom, setCustom] = useState("");
 
   const cur = STEPS[step];
-  const selected = inventory[cur.key] as string[];
+  const selected = (inventory[cur.key] as string[] | undefined) ?? [];
   const allItems = cur.sections.flatMap(s => s.items);
   const isLast = step === STEPS.length - 1;
   const selectedCount = selected.filter(i => allItems.includes(i)).length;

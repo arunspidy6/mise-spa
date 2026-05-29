@@ -96,7 +96,7 @@ function PrepScreen({ recipe, onStart }: { recipe: any; onStart: () => void }) {
                 const done = checked.has(i);
                 return (
                   <motion.button key={i} onClick={() => toggle(i)} layout
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors active:scale-[0.99]
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors active:scale-[0.99]
                       ${done ? "bg-success/10 border-success/30" : "bg-bg-surface border-border-subtle"}`}
                   >
                     <motion.div animate={done ? { scale: [1, 1.25, 1] } : {}}
@@ -119,7 +119,7 @@ function PrepScreen({ recipe, onStart }: { recipe: any; onStart: () => void }) {
         {grabItems.length > 0 && (
           <div>
             <p className="label-eyebrow mb-2.5">{prepItems.length > 0 ? "Also grab" : "Gather these"}</p>
-            <div className="bg-bg-surface border border-border-subtle rounded-2xl overflow-hidden divide-y divide-border-subtle">
+            <div className="bg-bg-surface border border-border-subtle rounded-xl overflow-hidden divide-y divide-border-subtle">
               {grabItems.map((ing, i) => (
                 <div key={i} className="flex items-center justify-between px-4 py-2.5">
                   <span className="text-[13px] text-text-secondary">{ing.name}</span>
@@ -141,7 +141,7 @@ function PrepScreen({ recipe, onStart }: { recipe: any; onStart: () => void }) {
           </p>
         )}
         <button onClick={onStart}
-          className="w-full h-14 rounded-2xl bg-ember text-bg-base text-[15px] font-semibold active:scale-[0.98] transition shadow-[0_4px_16px_rgba(232,117,26,0.35)]">
+          className="w-full h-14 rounded-xl btn-ember text-[15px] font-semibold active:scale-[0.98] transition">
           {allDone ? "All prepped — let's cook →" : prepItems.length === 0 ? "Let's cook →" : "Start cooking →"}
         </button>
       </div>
@@ -211,7 +211,7 @@ function VoiceHintOverlay({ onDismiss }: { onDismiss: () => void }) {
             key={cmd.intent}
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
             transition={{ type: "spring", stiffness: 340, damping: 28, delay: 0.2 + i * 0.07 }}
-            className="flex items-center gap-3 bg-bg-raised/80 border border-border-subtle rounded-2xl px-4 py-3"
+            className="flex items-center gap-3 bg-bg-raised/80 border border-border-subtle rounded-xl px-4 py-3"
           >
             <span className="text-[18px] w-7 text-center flex-shrink-0">{cmd.icon}</span>
             <div className="flex-1 min-w-0">
@@ -373,7 +373,7 @@ function TimerModal({
         {(() => {
           const progress = t.total > 0 ? (t.total - t.remaining) / t.total : 0;
           return (
-            <div className={`relative rounded-2xl border p-5 flex items-center justify-between mb-5 overflow-hidden ${
+            <div className={`relative rounded-xl border p-5 flex items-center justify-between mb-5 overflow-hidden ${
               t.done ? "bg-success/10 border-success"
               : urgent ? "bg-warning/10 border-warning"
               : t.running ? "bg-bg-raised border-ember-dim"
@@ -398,7 +398,7 @@ function TimerModal({
               {!t.done && (
                 <button
                   onClick={() => onToggle(timerIdx)}
-                  className="relative z-10 h-12 px-5 rounded-xl bg-ember text-bg-base text-[14px] font-semibold active:scale-95 transition flex items-center gap-2"
+                  className="relative z-10 h-12 px-5 rounded-xl btn-ember text-[14px] font-semibold active:scale-95 transition flex items-center gap-2"
                 >
                   {t.running
                     ? <><Pause className="w-4 h-4" />Pause</>
@@ -900,7 +900,7 @@ function CookMode() {
                   </div>
                   {!curTimer?.done && (
                     <button onClick={() => toggleTimerByRef(step)}
-                      className="relative z-10 h-11 px-5 rounded-xl bg-ember text-bg-base text-[14px] font-semibold active:scale-95 transition flex items-center gap-2">
+                      className="relative z-10 h-11 px-5 rounded-xl btn-ember text-[14px] font-semibold active:scale-95 transition flex items-center gap-2">
                       {curTimer?.running
                         ? <><Pause className="w-4 h-4" />Pause</>
                         : <><Play className="w-4 h-4" />{curTimer ? "Resume" : "Start"}</>}
@@ -935,7 +935,7 @@ function CookMode() {
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
           <button onClick={() => goTo(step + 1)}
-            className="flex-1 h-12 rounded-xl bg-ember text-bg-base flex items-center justify-center gap-2 text-[14px] font-semibold active:scale-95 transition shadow-[0_4px_16px_rgba(232,117,26,0.35)]">
+            className="flex-1 h-12 rounded-xl btn-ember flex items-center justify-center gap-2 text-[14px] font-semibold active:scale-95 transition">
             {step === total - 1 ? "Finish" : "Next"} <ArrowRight className="w-4 h-4" />
           </button>
         </div>
@@ -1020,7 +1020,7 @@ function CookMode() {
                       if (ps >= total) setShowFinish(true);
                       else { hapticStep(); setStep(ps); stepRef.current = ps; }
                     }
-                  }} className="w-full h-14 rounded-2xl bg-ember text-bg-base text-[15px] font-semibold active:scale-[0.98] transition">
+                  }} className="w-full h-14 rounded-xl btn-ember text-[15px] font-semibold active:scale-[0.98] transition">
                     Start timer and continue
                   </button>
                   <button onClick={() => {
@@ -1031,7 +1031,7 @@ function CookMode() {
                       if (ps >= total) setShowFinish(true);
                       else { hapticStep(); setStep(ps); stepRef.current = ps; }
                     }
-                  }} className="w-full h-14 rounded-2xl bg-bg-raised border border-border-default text-text-primary text-[14px] active:scale-[0.98] transition">
+                  }} className="w-full h-14 rounded-xl bg-bg-raised border border-border-default text-text-primary text-[14px] active:scale-[0.98] transition">
                     Skip — move on
                   </button>
                 </div>
@@ -1053,11 +1053,11 @@ function CookMode() {
                 <p className="text-[14px] text-text-secondary text-center mt-3">Confirm if you've finished cooking.</p>
                 <div className="mt-8 space-y-3">
                   <button onClick={() => { setShowFinish(false); setShowAchieve(true); }}
-                    className="w-full h-14 rounded-2xl bg-ember text-bg-base text-[15px] font-semibold active:scale-[0.98] transition">
+                    className="w-full h-14 rounded-xl btn-ember text-[15px] font-semibold active:scale-[0.98] transition">
                     Yes, I'm done ✓
                   </button>
                   <button onClick={() => setShowFinish(false)}
-                    className="w-full h-14 rounded-2xl bg-bg-raised border border-border-default text-text-primary text-[14px] active:scale-[0.98] transition">
+                    className="w-full h-14 rounded-xl bg-bg-raised border border-border-default text-text-primary text-[14px] active:scale-[0.98] transition">
                     Go back
                   </button>
                 </div>
@@ -1084,11 +1084,11 @@ function CookMode() {
                 </div>
                 <div className="space-y-3">
                   <button onClick={() => setShowExitConfirm(false)}
-                    className="w-full h-14 rounded-2xl bg-ember text-bg-base text-[15px] font-semibold active:scale-[0.98] transition">
+                    className="w-full h-14 rounded-xl btn-ember text-[15px] font-semibold active:scale-[0.98] transition">
                     Keep cooking
                   </button>
                   <button onClick={() => { stopVoice(); navigate({ to: "/" }); }}
-                    className="w-full h-14 rounded-2xl bg-bg-raised border border-border-default text-text-secondary text-[14px] active:scale-[0.98] transition">
+                    className="w-full h-14 rounded-xl bg-bg-raised border border-border-default text-text-secondary text-[14px] active:scale-[0.98] transition">
                     Exit anyway
                   </button>
                 </div>
@@ -1116,7 +1116,7 @@ function CookMode() {
                 className="w-16 h-[2px] bg-ember rounded-full my-8" />
               <motion.button initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }}
                 onClick={finish}
-                className="w-full h-14 rounded-2xl bg-ember text-bg-base text-[15px] font-semibold active:scale-[0.98] transition shadow-[0_4px_20px_rgba(232,117,26,0.35)]">
+                className="w-full h-14 rounded-xl btn-ember text-[15px] font-semibold active:scale-[0.98] transition">
                 How did it go? →
               </motion.button>
             </motion.div>

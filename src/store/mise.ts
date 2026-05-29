@@ -93,7 +93,7 @@ export const useMise = create<Store>()(
       setInventory: (i) => set((s) => ({ inventory: { ...s.inventory, ...i } })),
       toggleItem: (cat, item) =>
         set((s) => {
-          const list = s.inventory[cat] as string[];
+          const list = (s.inventory[cat] as string[] | undefined) ?? [];
           const next = list.includes(item)
             ? list.filter((x) => x !== item)
             : [...list, item];

@@ -77,7 +77,7 @@ function FeedbackPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 + i * 0.08 }}
               onClick={() => setSelected(r.id)}
-              className={`h-20 rounded-2xl border-2 px-5 flex items-center gap-4 transition-all active:scale-[0.98]
+              className={`h-20 rounded-xl border-2 px-5 flex items-center gap-4 transition-all active:scale-[0.98]
                 ${selected === r.id ? r.color + " scale-[0.99]" : "border-border-default bg-bg-surface"}`}
             >
               <span className="text-[32px]">{r.emoji}</span>
@@ -104,7 +104,8 @@ function FeedbackPage() {
           <button
             onClick={submit}
             disabled={!selected}
-            className="w-full h-14 rounded-2xl bg-ember text-bg-base text-[15px] font-semibold active:scale-[0.98] transition disabled:opacity-40 shadow-[0_4px_20px_rgba(232,117,26,0.3)]">
+            style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.08) 0%, transparent 40%), var(--ember)", boxShadow: "var(--shadow-button)", color: "#0C0806" }}
+            className="w-full h-14 rounded-xl text-[15px] font-semibold active:scale-[0.98] transition disabled:opacity-40">
             Save feedback →
           </button>
           <button

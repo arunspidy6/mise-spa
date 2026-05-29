@@ -152,7 +152,7 @@ function RecipeCard() {
           className="px-4 space-y-4 pt-2 pb-4">
 
           {/* Recipe card */}
-          <div className="rounded-2xl overflow-hidden bg-bg-surface border border-border-subtle">
+          <div className="rounded-xl overflow-hidden bg-bg-surface border border-border-subtle">
             <RecipeImage src={recipe.image} cuisine={recipe.cuisine} alt={recipe.name} height={220}>
               <div className="p-4 flex flex-col justify-end gap-2">
                 <div className="flex gap-2 flex-wrap">
@@ -208,7 +208,7 @@ function RecipeCard() {
           </div>
 
           {/* Recipe preview dropdown */}
-          <div className="rounded-2xl bg-bg-surface border border-border-subtle overflow-hidden">
+          <div className="rounded-xl bg-bg-surface border border-border-subtle overflow-hidden">
             <button
               onClick={() => setPreviewOpen(o => !o)}
               className="w-full flex items-center justify-between px-4 py-3.5 active:opacity-70 transition-opacity"
