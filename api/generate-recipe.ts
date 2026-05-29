@@ -116,7 +116,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ error: "API key not configured" });
 
-  const { inventory, session } = req.body ?? {};
+  const { inventory, session, excludeName } = req.body ?? {};
   if (!inventory) return res.status(400).json({ error: "Missing inventory" });
 
   const ingredients = [
@@ -137,7 +137,7 @@ AVAILABLE: ${ingredients.join(", ")}
 APPLIANCES: ${(inventory.appliances || ["Hob/Stove"]).join(", ")}
 TIME: max ${session?.timeMinutes ?? 30} minutes
 SERVINGS: ${session?.servings ?? 2}
-${session?.cuisine ? `CUISINE: ${session.cuisine}` : "CUISINE: your choice — be creative, avoid repeating the same cuisine twice"}`;
+${session?.cuisine ? `CUISINE: ${session.cuisine}` : "CUISINE: your choice — be creative, avoid repeating the same cuisine twice"}${excludeName ? `\n\nDo NOT generate "${excludeName}" — the user has already seen that recipe and wants something different.` : ""}`;
 
   // ── Anthropic call with prompt caching ─────────────────────────────────
   // The system block is sent with cache_control so Anthropic caches it after

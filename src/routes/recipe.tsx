@@ -104,7 +104,7 @@ function RecipeCard() {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 4000);
       try {
-        next = await getRecipeFromAPI(inventory, session, controller.signal);
+        next = await getRecipeFromAPI(inventory, session, controller.signal, recipe.name);
       } catch {
         // API unavailable or timed out — use local library
       } finally {
@@ -112,12 +112,17 @@ function RecipeCard() {
       }
 
       if (!next) {
-        next = getRecipe(inventory, session);
+        next = getRecipe(inventory, session, [], recipe.name);
       }
 
       setRecipe(next);
-    } catch {
-      setErrMsg("No more recipes found for your kitchen.");
+    } catch (e: any) {
+      const reason = (e.message ?? "").split("|")[0];
+      if (reason === "no_more_recipes") {
+        setErrMsg("You've seen all recipes for your kitchen — add more ingredients to unlock new ones.");
+      } else {
+        setErrMsg("Couldn't find another recipe. Try adjusting your kitchen.");
+      }
     } finally {
       setRerolling(false);
     }
@@ -270,7 +275,17 @@ function RecipeCard() {
             </AnimatePresence>
           </div>
 
-          {errMsg && <p className="text-center text-[13px] text-error">{errMsg}</p>}
+          {errMsg && (
+            <div className="rounded-xl bg-bg-surface border border-border-default p-4 text-center space-y-2">
+              <p className="text-[13px] text-text-secondary">{errMsg}</p>
+              <button
+                onClick={() => navigate({ to: "/inventory" })}
+                className="text-[12px] font-semibold text-ember underline underline-offset-2 active:opacity-70"
+              >
+                Update my kitchen →
+              </button>
+            </div>
+          )}
         </motion.div>
         </div>{/* end scroll */}
 

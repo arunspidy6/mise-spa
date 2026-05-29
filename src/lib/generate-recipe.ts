@@ -803,20 +803,40 @@ function buildRecipe(m: Match, session: SessionPayload, sparse: boolean): Recipe
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-export function getRecipe(inventory: Inventory, session: SessionPayload, history: CookHistory = []): Recipe {
+export function getRecipe(
+  inventory: Inventory,
+  session: SessionPayload,
+  history: CookHistory = [],
+  excludeName?: string,
+): Recipe {
   const result = findRecipes(inventory, history);
   if (!result.ok) throw new Error(`${result.reason}|${result.detail}`);
   const { matches, sparse } = result;
-  const pick = matches[rerollIdx % matches.length];
+
+  // Exclude the recipe the user just rejected so "Not this" always shows something new
+  const pool = excludeName ? matches.filter(m => m.template.name !== excludeName) : matches;
+
+  if (pool.length === 0) {
+    throw new Error(
+      "no_more_recipes|You've seen everything that works with your current kitchen. Add more ingredients to unlock new recipes."
+    );
+  }
+
+  const pick = pool[rerollIdx % pool.length];
   rerollIdx++;
   return buildRecipe(pick, session, sparse);
 }
 
-export async function getRecipeFromAPI(inventory: Inventory, session: SessionPayload, signal?: AbortSignal): Promise<Recipe> {
+export async function getRecipeFromAPI(
+  inventory: Inventory,
+  session: SessionPayload,
+  signal?: AbortSignal,
+  excludeName?: string,
+): Promise<Recipe> {
   const res = await fetch("/api/generate-recipe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ inventory, session }),
+    body: JSON.stringify({ inventory, session, excludeName }),
     signal,
   });
   if (!res.ok) throw new Error("api_failed");
