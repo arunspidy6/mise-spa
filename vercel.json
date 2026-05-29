@@ -1,4 +1,5 @@
 {
+  "alias": ["mise-spa.vercel.app"],
   "functions": {
     "api/generate-recipe.ts": {
       "runtime": "@vercel/node@3.2.23"
