@@ -1,0 +1,11 @@
+# .coderabbit.yaml
+language: "en"
+tone: "professional"
+reviews:
+  profile: "chill" # Options: chill, assertive (chill is better for AI code to avoid nitpicking)
+  collapse_walkthrough: false
+  path_filters:
+    - "!dist/**"
+    - "!package-lock.json"
+chat:
+  auto_reply: true # Allows you to chat with CodeRabbit to fix Claude's mistakes
