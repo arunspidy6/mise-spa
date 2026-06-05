@@ -1,10 +1,14 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-// ── IP Rate Limiter ────────────────────────────────────────────────────────
-// Best-effort on serverless (each warm instance enforces independently).
-// Still stops a single browser/script from hammering the endpoint.
-const RATE_WINDOW_MS = 2 * 60_000;  // 2-minute sliding window
-const RATE_MAX_CALLS = 6;            // max 6 AI calls per IP per 2 minutes
+// ── Cost guards ──────────────────────────────────────────────────────────────
+// IMPORTANT: in-memory guards are best-effort only — each warm serverless
+// instance enforces them independently and they reset on cold start. They stop
+// casual spamming, but the ONLY hard guarantee against a runaway bill is a
+// monthly spend limit set in the Anthropic Console (Settings → Limits).
+
+// Per-IP sliding window — stops one browser/script hammering the endpoint.
+const RATE_WINDOW_MS = 5 * 60_000;  // 5-minute window
+const RATE_MAX_CALLS = 12;           // max 12 AI calls per IP per 5 minutes
 
 const rateMap = new Map<string, number[]>();
 
@@ -13,12 +17,26 @@ function isRateLimited(ip: string): boolean {
   const prev = (rateMap.get(ip) ?? []).filter(t => now - t < RATE_WINDOW_MS);
   if (prev.length >= RATE_MAX_CALLS) return true;
   rateMap.set(ip, [...prev, now]);
-  // Prune dead entries ~1% of requests to avoid unbounded growth
   if (Math.random() < 0.01) {
     for (const [k, v] of rateMap) {
       if (v.every(t => now - t >= RATE_WINDOW_MS)) rateMap.delete(k);
     }
   }
+  return false;
+}
+
+// Global circuit breaker — caps total generations per warm instance per hour,
+// so even a distributed spam burst can't loop one instance into a huge bill.
+const GLOBAL_WINDOW_MS = 60 * 60_000;   // 1 hour
+const GLOBAL_MAX_CALLS = 200;           // max 200 generations / instance / hour
+let globalWindowStart = Date.now();
+let globalCount = 0;
+
+function globalCapReached(): boolean {
+  const now = Date.now();
+  if (now - globalWindowStart > GLOBAL_WINDOW_MS) { globalWindowStart = now; globalCount = 0; }
+  if (globalCount >= GLOBAL_MAX_CALLS) return true;
+  globalCount++;
   return false;
 }
 
@@ -112,11 +130,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   }
 
+  // Global circuit breaker — protects the bill if traffic spikes across many IPs.
+  if (globalCapReached()) {
+    console.warn("Global hourly generation cap hit — shedding load.");
+    return res.status(429).json({
+      error: "The kitchen's a little busy right now. Please try again shortly.",
+    });
+  }
+
   // ── Auth & validation ───────────────────────────────────────────────────
   const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "API key not configured" });
+  if (!apiKey) {
+    console.error("FATAL: ANTHROPIC_API_KEY env var is not set in Vercel Environment Variables");
+    return res.status(500).json({ error: "API key not configured" });
+  }
 
-  const { inventory, session, excludeName } = req.body ?? {};
+  const { inventory, session, excludeName, avoidRecipes } = req.body ?? {};
   if (!inventory) return res.status(400).json({ error: "Missing inventory" });
 
   const ingredients = [
@@ -129,15 +158,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (ingredients.length === 0) return res.status(400).json({ error: "No ingredients" });
 
+  // Dishes the user has recently cooked — generate something genuinely different.
+  const avoidList: string[] = Array.isArray(avoidRecipes)
+    ? avoidRecipes.filter((n: unknown) => typeof n === "string" && n.trim()).slice(0, 10)
+    : [];
+
   // ── Dynamic user message (changes per request — not cached) ────────────
   const userMessage =
-    `Generate a recipe using ONLY the ingredients below.
+    `Generate a recipe using the ingredients below.
 
 AVAILABLE: ${ingredients.join(", ")}
 APPLIANCES: ${(inventory.appliances || ["Hob/Stove"]).join(", ")}
 TIME: max ${session?.timeMinutes ?? 30} minutes
 SERVINGS: ${session?.servings ?? 2}
-${session?.cuisine ? `CUISINE: ${session.cuisine}` : "CUISINE: your choice — be creative, avoid repeating the same cuisine twice"}${excludeName ? `\n\nDo NOT generate "${excludeName}" — the user has already seen that recipe and wants something different.` : ""}`;
+${session?.cuisine ? `CUISINE: ${session.cuisine}` : "CUISINE: your choice — be creative, avoid repeating the same cuisine twice"}
+
+You do NOT need to use every ingredient — choose the combination that makes the best single dish. Treat different cuts of the same meat as interchangeable (e.g. lamb chops, lamb diced and lamb mince are all just "lamb"); the cut should not change which dish you pick.${excludeName ? `\n\nDo NOT generate "${excludeName}" — the user has already seen that recipe and wants something different.` : ""}${avoidList.length ? `\n\nThe user has RECENTLY COOKED the dishes below. You MUST generate something clearly different — a different cooking method, flavour profile, or cuisine. Do not produce a near-duplicate or a minor variation of any of these, even if a different cut of the same protein is now selected:\n${avoidList.map(n => `- ${n}`).join("\n")}` : ""}`;
 
   // ── Anthropic call with prompt caching ─────────────────────────────────
   // The system block is sent with cache_control so Anthropic caches it after

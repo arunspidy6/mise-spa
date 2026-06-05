@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ArrowLeft, ArrowRight, Plus, X, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
@@ -9,6 +9,349 @@ import {
   STAPLE_SECTIONS, PROTEIN_SECTIONS, CARB_SECTIONS,
   VEG_SECTIONS, FRIDGE_SECTIONS, APPLIANCE_SECTIONS,
 } from "@/lib/mise-data";
+
+function sanitiseIngredient(raw: string): string | null {
+  if (!raw) return null;
+  let clean = raw.replace(/[\u{1F000}-\u{1FFFF}]/gu, "");
+  clean = clean.replace(/[^a-zA-Z\s\-']/g, "");
+  clean = clean.replace(/\s+/g, " ").trim();
+  if (clean.length < 2) return null;
+  if (!/[a-zA-Z]/.test(clean)) return null;
+  if (clean.length > 40) return null;
+  return clean.replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// Instant ingredient lookup — key is lowercase display name.
+// category: where to route it in inventory. satToken: which SAT key to use for recipe matching.
+const MASTER_INGREDIENTS: Record<string, { category: string; satToken: string }> = {
+  // ── Chicken ─────────────────────────────────────────────────────────────────
+  "chicken thighs":     { category: "proteins", satToken: "chicken thighs" },
+  "chicken breast":     { category: "proteins", satToken: "chicken breast" },
+  "chicken wings":      { category: "proteins", satToken: "chicken thighs" },
+  "chicken drumsticks": { category: "proteins", satToken: "chicken thighs" },
+  "chicken legs":       { category: "proteins", satToken: "chicken thighs" },
+  "chicken mince":      { category: "proteins", satToken: "chicken thighs" },
+  "chicken pieces":     { category: "proteins", satToken: "chicken thighs" },
+  "chicken strips":     { category: "proteins", satToken: "chicken breast" },
+  "chicken goujons":    { category: "proteins", satToken: "chicken breast" },
+  // ── Beef ────────────────────────────────────────────────────────────────────
+  "beef mince":         { category: "proteins", satToken: "beef mince" },
+  "mince":              { category: "proteins", satToken: "beef mince" },
+  "ground beef":        { category: "proteins", satToken: "beef mince" },
+  "steak":              { category: "proteins", satToken: "steak" },
+  "beef diced":         { category: "proteins", satToken: "steak" },
+  "diced beef":         { category: "proteins", satToken: "steak" },
+  "sirloin":            { category: "proteins", satToken: "steak" },
+  "ribeye":             { category: "proteins", satToken: "steak" },
+  "rump steak":         { category: "proteins", satToken: "steak" },
+  "fillet steak":       { category: "proteins", satToken: "steak" },
+  "braising steak":     { category: "proteins", satToken: "steak" },
+  // ── Pork ────────────────────────────────────────────────────────────────────
+  "pork chops":         { category: "proteins", satToken: "pork chops" },
+  "pork mince":         { category: "proteins", satToken: "pork chops" },
+  "pork diced":         { category: "proteins", satToken: "pork chops" },
+  "pork belly":         { category: "proteins", satToken: "pork belly" },
+  "sausages":           { category: "proteins", satToken: "sausages" },
+  "chipolatas":         { category: "proteins", satToken: "sausages" },
+  "chorizo":            { category: "proteins", satToken: "sausages" },
+  "bacon":              { category: "proteins", satToken: "bacon" },
+  "streaky bacon":      { category: "proteins", satToken: "bacon" },
+  "pancetta":           { category: "proteins", satToken: "bacon" },
+  "lardons":            { category: "proteins", satToken: "bacon" },
+  // ── Lamb ────────────────────────────────────────────────────────────────────
+  "lamb":               { category: "proteins", satToken: "lamb" },
+  "lamb mince":         { category: "proteins", satToken: "lamb" },
+  "lamb chops":         { category: "proteins", satToken: "lamb" },
+  "lamb diced":         { category: "proteins", satToken: "lamb" },
+  "lamb shoulder":      { category: "proteins", satToken: "lamb" },
+  "lamb leg":           { category: "proteins", satToken: "lamb" },
+  // ── Other meat ──────────────────────────────────────────────────────────────
+  "duck":               { category: "proteins", satToken: "chicken thighs" },
+  "duck breast":        { category: "proteins", satToken: "chicken thighs" },
+  "turkey":             { category: "proteins", satToken: "chicken breast" },
+  "turkey mince":       { category: "proteins", satToken: "beef mince" },
+  "venison":            { category: "proteins", satToken: "lamb" },
+  "rabbit":             { category: "proteins", satToken: "chicken thighs" },
+  // ── Fish ────────────────────────────────────────────────────────────────────
+  "salmon":             { category: "proteins", satToken: "salmon" },
+  "white fish":         { category: "proteins", satToken: "white fish" },
+  "cod":                { category: "proteins", satToken: "white fish" },
+  "haddock":            { category: "proteins", satToken: "white fish" },
+  "sea bass":           { category: "proteins", satToken: "white fish" },
+  "pollock":            { category: "proteins", satToken: "white fish" },
+  "coley":              { category: "proteins", satToken: "white fish" },
+  "tilapia":            { category: "proteins", satToken: "white fish" },
+  "trout":              { category: "proteins", satToken: "salmon" },
+  "oily fish":          { category: "proteins", satToken: "oily fish" },
+  "mackerel":           { category: "proteins", satToken: "oily fish" },
+  "sardines":           { category: "proteins", satToken: "oily fish" },
+  "herring":            { category: "proteins", satToken: "oily fish" },
+  "smoked salmon":      { category: "proteins", satToken: "smoked salmon" },
+  // ── Seafood ─────────────────────────────────────────────────────────────────
+  "prawns":             { category: "proteins", satToken: "prawns" },
+  "shrimp":             { category: "proteins", satToken: "prawns" },
+  "king prawns":        { category: "proteins", satToken: "prawns" },
+  "tiger prawns":       { category: "proteins", satToken: "prawns" },
+  "canned tuna":        { category: "proteins", satToken: "canned tuna" },
+  "tinned tuna":        { category: "proteins", satToken: "canned tuna" },
+  "squid":              { category: "proteins", satToken: "prawns" },
+  "mussels":            { category: "proteins", satToken: "prawns" },
+  "clams":              { category: "proteins", satToken: "prawns" },
+  "crab":               { category: "proteins", satToken: "prawns" },
+  "lobster":            { category: "proteins", satToken: "prawns" },
+  "scallops":           { category: "proteins", satToken: "prawns" },
+  // ── Plant-based proteins ────────────────────────────────────────────────────
+  "eggs":               { category: "proteins", satToken: "eggs" },
+  "tofu":               { category: "proteins", satToken: "tofu" },
+  "firm tofu":          { category: "proteins", satToken: "tofu" },
+  "silken tofu":        { category: "proteins", satToken: "tofu" },
+  "tempeh":             { category: "proteins", satToken: "tofu" },
+  "seitan":             { category: "proteins", satToken: "tofu" },
+  "quorn":              { category: "proteins", satToken: "tofu" },
+  "quorn mince":        { category: "proteins", satToken: "beef mince" },
+  "chickpeas":          { category: "proteins", satToken: "chickpeas" },
+  "lentils":            { category: "proteins", satToken: "lentils" },
+  "red lentils":        { category: "proteins", satToken: "lentils" },
+  "green lentils":      { category: "proteins", satToken: "lentils" },
+  "puy lentils":        { category: "proteins", satToken: "lentils" },
+  "kidney beans":       { category: "proteins", satToken: "chickpeas" },
+  "black beans":        { category: "proteins", satToken: "chickpeas" },
+  "cannellini beans":   { category: "proteins", satToken: "chickpeas" },
+  "butter beans":       { category: "proteins", satToken: "chickpeas" },
+  "borlotti beans":     { category: "proteins", satToken: "chickpeas" },
+  "edamame":            { category: "proteins", satToken: "chickpeas" },
+  "split peas":         { category: "proteins", satToken: "lentils" },
+  // ── Carbs ───────────────────────────────────────────────────────────────────
+  "pasta":              { category: "carbs", satToken: "pasta" },
+  "spaghetti":          { category: "carbs", satToken: "pasta" },
+  "penne":              { category: "carbs", satToken: "pasta" },
+  "fusilli":            { category: "carbs", satToken: "pasta" },
+  "tagliatelle":        { category: "carbs", satToken: "pasta" },
+  "rigatoni":           { category: "carbs", satToken: "pasta" },
+  "linguine":           { category: "carbs", satToken: "pasta" },
+  "orzo":               { category: "carbs", satToken: "pasta" },
+  "rice":               { category: "carbs", satToken: "rice" },
+  "basmati rice":       { category: "carbs", satToken: "rice" },
+  "jasmine rice":       { category: "carbs", satToken: "rice" },
+  "brown rice":         { category: "carbs", satToken: "rice" },
+  "arborio rice":       { category: "carbs", satToken: "rice" },
+  "noodles":            { category: "carbs", satToken: "noodles" },
+  "egg noodles":        { category: "carbs", satToken: "noodles" },
+  "rice noodles":       { category: "carbs", satToken: "noodles" },
+  "udon":               { category: "carbs", satToken: "noodles" },
+  "soba":               { category: "carbs", satToken: "noodles" },
+  "couscous":           { category: "carbs", satToken: "pasta" },
+  "quinoa":             { category: "carbs", satToken: "rice" },
+  "bulgur wheat":       { category: "carbs", satToken: "couscous" },
+  "polenta":            { category: "carbs", satToken: "rice" },
+  "potatoes":           { category: "carbs", satToken: "potatoes" },
+  "sweet potato":       { category: "carbs", satToken: "potatoes" },
+  "bread":              { category: "carbs", satToken: "bread" },
+  "sourdough":          { category: "carbs", satToken: "bread" },
+  "baguette":           { category: "carbs", satToken: "bread" },
+  "pitta":              { category: "carbs", satToken: "bread" },
+  "naan":               { category: "carbs", satToken: "bread" },
+  "tortillas":          { category: "carbs", satToken: "tortillas" },
+  "wraps":              { category: "carbs", satToken: "tortillas" },
+  "oats":               { category: "carbs", satToken: "rice" },
+  // ── Vegetables ──────────────────────────────────────────────────────────────
+  "tomatoes":           { category: "vegetables", satToken: "tomatoes" },
+  "cherry tomatoes":    { category: "vegetables", satToken: "tomatoes" },
+  "vine tomatoes":      { category: "vegetables", satToken: "tomatoes" },
+  "sun-dried tomatoes": { category: "vegetables", satToken: "tomatoes" },
+  "peppers":            { category: "vegetables", satToken: "peppers" },
+  "red pepper":         { category: "vegetables", satToken: "peppers" },
+  "green pepper":       { category: "vegetables", satToken: "peppers" },
+  "yellow pepper":      { category: "vegetables", satToken: "peppers" },
+  "capsicum":           { category: "vegetables", satToken: "peppers" },
+  "jalapeño":           { category: "vegetables", satToken: "peppers" },
+  "jalapeno":           { category: "vegetables", satToken: "peppers" },
+  "chilli pepper":      { category: "vegetables", satToken: "peppers" },
+  "spinach":            { category: "vegetables", satToken: "spinach" },
+  "baby spinach":       { category: "vegetables", satToken: "spinach" },
+  "kale":               { category: "vegetables", satToken: "spinach" },
+  "rocket":             { category: "vegetables", satToken: "spinach" },
+  "arugula":            { category: "vegetables", satToken: "spinach" },
+  "watercress":         { category: "vegetables", satToken: "spinach" },
+  "chard":              { category: "vegetables", satToken: "spinach" },
+  "cavolo nero":        { category: "vegetables", satToken: "spinach" },
+  "broccoli":           { category: "vegetables", satToken: "broccoli" },
+  "tenderstem broccoli":{ category: "vegetables", satToken: "broccoli" },
+  "cauliflower":        { category: "vegetables", satToken: "broccoli" },
+  "cabbage":            { category: "vegetables", satToken: "spinach" },
+  "red cabbage":        { category: "vegetables", satToken: "spinach" },
+  "savoy cabbage":      { category: "vegetables", satToken: "spinach" },
+  "brussels sprouts":   { category: "vegetables", satToken: "broccoli" },
+  "pak choi":           { category: "vegetables", satToken: "spinach" },
+  "bok choy":           { category: "vegetables", satToken: "spinach" },
+  "mushrooms":          { category: "vegetables", satToken: "mushrooms" },
+  "portobello":         { category: "vegetables", satToken: "mushrooms" },
+  "shiitake":           { category: "vegetables", satToken: "mushrooms" },
+  "courgette":          { category: "vegetables", satToken: "courgette" },
+  "zucchini":           { category: "vegetables", satToken: "courgette" },
+  "aubergine":          { category: "vegetables", satToken: "courgette" },
+  "eggplant":           { category: "vegetables", satToken: "courgette" },
+  "butternut squash":   { category: "vegetables", satToken: "carrots" },
+  "squash":             { category: "vegetables", satToken: "carrots" },
+  "pumpkin":            { category: "vegetables", satToken: "carrots" },
+  "carrots":            { category: "vegetables", satToken: "carrots" },
+  "parsnip":            { category: "vegetables", satToken: "carrots" },
+  "turnip":             { category: "vegetables", satToken: "carrots" },
+  "swede":              { category: "vegetables", satToken: "carrots" },
+  "beetroot":           { category: "vegetables", satToken: "carrots" },
+  "radish":             { category: "vegetables", satToken: "carrots" },
+  "celeriac":           { category: "vegetables", satToken: "carrots" },
+  "peas":               { category: "vegetables", satToken: "spinach" },
+  "sugar snap peas":    { category: "vegetables", satToken: "spinach" },
+  "mangetout":          { category: "vegetables", satToken: "spinach" },
+  "green beans":        { category: "vegetables", satToken: "broccoli" },
+  "french beans":       { category: "vegetables", satToken: "broccoli" },
+  "asparagus":          { category: "vegetables", satToken: "broccoli" },
+  "leeks":              { category: "vegetables", satToken: "onion" },
+  "spring onions":      { category: "vegetables", satToken: "onion" },
+  "red onion":          { category: "vegetables", satToken: "onion" },
+  "shallots":           { category: "vegetables", satToken: "onion" },
+  "fennel":             { category: "vegetables", satToken: "onion" },
+  "celery":             { category: "vegetables", satToken: "onion" },
+  "sweetcorn":          { category: "vegetables", satToken: "tomatoes" },
+  "corn":               { category: "vegetables", satToken: "tomatoes" },
+  "cucumber":           { category: "vegetables", satToken: "tomatoes" },
+  "avocado":            { category: "vegetables", satToken: "tomatoes" },
+  "artichoke":          { category: "vegetables", satToken: "broccoli" },
+  "okra":               { category: "vegetables", satToken: "courgette" },
+  // ── Fridge & fresh ──────────────────────────────────────────────────────────
+  "milk":               { category: "fridge", satToken: "milk" },
+  "oat milk":           { category: "fridge", satToken: "milk" },
+  "almond milk":        { category: "fridge", satToken: "milk" },
+  "cream":              { category: "fridge", satToken: "cream" },
+  "double cream":       { category: "fridge", satToken: "cream" },
+  "single cream":       { category: "fridge", satToken: "cream" },
+  "cheddar":            { category: "fridge", satToken: "cheddar" },
+  "parmesan":           { category: "fridge", satToken: "parmesan" },
+  "mozzarella":         { category: "fridge", satToken: "cheddar" },
+  "feta":               { category: "fridge", satToken: "cheddar" },
+  "halloumi":           { category: "fridge", satToken: "cheddar" },
+  "brie":               { category: "fridge", satToken: "cheddar" },
+  "ricotta":            { category: "fridge", satToken: "cream" },
+  "cream cheese":       { category: "fridge", satToken: "cream" },
+  "yoghurt":            { category: "fridge", satToken: "yoghurt" },
+  "yogurt":             { category: "fridge", satToken: "yoghurt" },
+  "greek yoghurt":      { category: "fridge", satToken: "yoghurt" },
+  "sour cream":         { category: "fridge", satToken: "cream" },
+  "crème fraîche":      { category: "fridge", satToken: "cream" },
+  "creme fraiche":      { category: "fridge", satToken: "cream" },
+  "butter":             { category: "fridge", satToken: "butter" },
+  "lemon":              { category: "fridge", satToken: "lemons" },
+  "lemons":             { category: "fridge", satToken: "lemons" },
+  "lime":               { category: "fridge", satToken: "lemons" },
+  "limes":              { category: "fridge", satToken: "lemons" },
+  "ginger":             { category: "fridge", satToken: "ginger" },
+  "fresh ginger":       { category: "fridge", satToken: "ginger" },
+  "chilli":             { category: "fridge", satToken: "chilli flakes" },
+  "fresh chilli":       { category: "fridge", satToken: "chilli flakes" },
+  "coconut milk":       { category: "fridge", satToken: "coconut milk" },
+  "sesame oil":         { category: "fridge", satToken: "olive oil" },
+  "honey":              { category: "fridge", satToken: "honey" },
+  "fish sauce":         { category: "fridge", satToken: "fish sauce" },
+  "oyster sauce":       { category: "fridge", satToken: "soy sauce" },
+  "tahini":             { category: "fridge", satToken: "olive oil" },
+  "mustard":            { category: "fridge", satToken: "vinegar" },
+  "dijon mustard":      { category: "fridge", satToken: "vinegar" },
+  "miso":               { category: "fridge", satToken: "miso paste" },
+  "miso paste":         { category: "fridge", satToken: "miso paste" },
+  "lemongrass":         { category: "fridge", satToken: "ginger" },
+  // ── Staples — oils & fats ───────────────────────────────────────────────────
+  "olive oil":          { category: "staples", satToken: "olive oil" },
+  "vegetable oil":      { category: "staples", satToken: "olive oil" },
+  "sunflower oil":      { category: "staples", satToken: "olive oil" },
+  "rapeseed oil":       { category: "staples", satToken: "olive oil" },
+  "coconut oil":        { category: "staples", satToken: "olive oil" },
+  // ── Staples — sauces & pantry ───────────────────────────────────────────────
+  "soy sauce":          { category: "staples", satToken: "soy sauce" },
+  "tamari":             { category: "staples", satToken: "soy sauce" },
+  "tomato paste":       { category: "staples", satToken: "tomato paste" },
+  "tomato puree":       { category: "staples", satToken: "tomato paste" },
+  "passata":            { category: "staples", satToken: "tomato paste" },
+  "stock cubes":        { category: "staples", satToken: "stock cubes" },
+  "vinegar":            { category: "staples", satToken: "vinegar" },
+  "balsamic vinegar":   { category: "staples", satToken: "vinegar" },
+  "red wine vinegar":   { category: "staples", satToken: "vinegar" },
+  "flour":              { category: "staples", satToken: "flour" },
+  "plain flour":        { category: "staples", satToken: "flour" },
+  "sugar":              { category: "staples", satToken: "sugar" },
+  "caster sugar":       { category: "staples", satToken: "sugar" },
+  "worcestershire":     { category: "staples", satToken: "worcestershire" },
+  "worcestershire sauce":{ category: "staples", satToken: "worcestershire" },
+  "msg":                { category: "staples", satToken: "salt" },
+  // ── Staples — spices & herbs (persist between sessions) ────────────────────
+  "salt":               { category: "staples", satToken: "salt" },
+  "pepper":             { category: "staples", satToken: "pepper" },
+  "black pepper":       { category: "staples", satToken: "pepper" },
+  "white pepper":       { category: "staples", satToken: "pepper" },
+  "chilli flakes":      { category: "staples", satToken: "chilli flakes" },
+  "red pepper flakes":  { category: "staples", satToken: "chilli flakes" },
+  "cumin":              { category: "staples", satToken: "cumin" },
+  "ground cumin":       { category: "staples", satToken: "cumin" },
+  "cumin seeds":        { category: "staples", satToken: "cumin" },
+  "paprika":            { category: "staples", satToken: "paprika" },
+  "smoked paprika":     { category: "staples", satToken: "paprika" },
+  "sweet paprika":      { category: "staples", satToken: "paprika" },
+  "turmeric":           { category: "staples", satToken: "turmeric" },
+  "ground turmeric":    { category: "staples", satToken: "turmeric" },
+  "coriander":          { category: "staples", satToken: "coriander" },
+  "ground coriander":   { category: "staples", satToken: "coriander" },
+  "coriander seeds":    { category: "staples", satToken: "coriander" },
+  "garam masala":       { category: "staples", satToken: "garam masala" },
+  "curry powder":       { category: "staples", satToken: "curry powder" },
+  "chilli powder":      { category: "staples", satToken: "chilli powder" },
+  "cayenne":            { category: "staples", satToken: "cayenne" },
+  "cayenne pepper":     { category: "staples", satToken: "cayenne" },
+  "oregano":            { category: "staples", satToken: "oregano" },
+  "dried oregano":      { category: "staples", satToken: "oregano" },
+  "thyme":              { category: "staples", satToken: "thyme" },
+  "dried thyme":        { category: "staples", satToken: "thyme" },
+  "rosemary":           { category: "staples", satToken: "rosemary" },
+  "dried rosemary":     { category: "staples", satToken: "rosemary" },
+  "basil":              { category: "staples", satToken: "oregano" },
+  "dried basil":        { category: "staples", satToken: "oregano" },
+  "bay leaves":         { category: "staples", satToken: "thyme" },
+  "mixed herbs":        { category: "staples", satToken: "oregano" },
+  "herbs de provence":  { category: "staples", satToken: "oregano" },
+  "italian seasoning":  { category: "staples", satToken: "oregano" },
+  "cinnamon":           { category: "staples", satToken: "garam masala" },
+  "ground cinnamon":    { category: "staples", satToken: "garam masala" },
+  "cinnamon sticks":    { category: "staples", satToken: "garam masala" },
+  "cardamom":           { category: "staples", satToken: "garam masala" },
+  "ground cardamom":    { category: "staples", satToken: "garam masala" },
+  "cloves":             { category: "staples", satToken: "garam masala" },
+  "ground cloves":      { category: "staples", satToken: "garam masala" },
+  "nutmeg":             { category: "staples", satToken: "garam masala" },
+  "ground nutmeg":      { category: "staples", satToken: "garam masala" },
+  "allspice":           { category: "staples", satToken: "garam masala" },
+  "star anise":         { category: "staples", satToken: "garam masala" },
+  "five spice":         { category: "staples", satToken: "garam masala" },
+  "chinese five spice": { category: "staples", satToken: "garam masala" },
+  "fennel seeds":       { category: "staples", satToken: "cumin" },
+  "mustard seeds":      { category: "staples", satToken: "cumin" },
+  "fenugreek":          { category: "staples", satToken: "cumin" },
+  "fenugreek seeds":    { category: "staples", satToken: "cumin" },
+  "garlic powder":      { category: "staples", satToken: "garlic" },
+  "onion powder":       { category: "staples", satToken: "onion" },
+  "ras el hanout":      { category: "staples", satToken: "garam masala" },
+  "za'atar":            { category: "staples", satToken: "oregano" },
+  "sumac":              { category: "staples", satToken: "vinegar" },
+  "harissa":            { category: "staples", satToken: "chilli powder" },
+  "za atar":            { category: "staples", satToken: "oregano" },
+  "baharat":            { category: "staples", satToken: "garam masala" },
+  "berbere":            { category: "staples", satToken: "garam masala" },
+  "saffron":            { category: "staples", satToken: "turmeric" },
+  "vanilla":            { category: "staples", satToken: "sugar" },
+  "vanilla extract":    { category: "staples", satToken: "sugar" },
+  "nutritional yeast":  { category: "staples", satToken: "parmesan" },
+  // ── Aromatics (can go in staples or fridge) ─────────────────────────────────
+  "garlic":             { category: "staples", satToken: "garlic" },
+  "onion":              { category: "staples", satToken: "onion" },
+};
 
 export const Route = createFileRoute("/inventory")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -38,14 +381,202 @@ function Chip({ label, active, mode, onClick }: {
     <button type="button" onClick={onClick}
       className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-[13px] font-medium transition-all active:scale-95 border
         ${mode === "remove"
-          ? active ? "bg-ember border-ember text-bg-base" : "bg-bg-raised border-border-subtle text-text-tertiary line-through"
-          : active ? "bg-ember border-ember text-bg-base" : "bg-bg-raised border-border-default text-text-secondary"
+          ? active ? "bg-ember border-ember text-on-ember" : "bg-bg-raised border-border-subtle text-text-tertiary line-through"
+          : active ? "bg-ember border-ember text-on-ember" : "bg-bg-raised border-border-default text-text-secondary"
         }`}
     >
       {active && mode === "add" && <CheckCircle2 className="w-3 h-3" />}
       {label}
       {active && mode === "remove" && <X className="w-3 h-3 opacity-50" />}
     </button>
+  );
+}
+
+// Items commonly typed into the wrong category — auto-redirect with a toast
+const MISPLACED: Partial<Record<string, "proteins" | "carbs" | "vegetables" | "fridge">> = {
+  // Vegetables entered as protein / other
+  parsnip:"vegetables", carrot:"vegetables", broccoli:"vegetables",
+  spinach:"vegetables", courgette:"vegetables", zucchini:"vegetables",
+  aubergine:"vegetables", eggplant:"vegetables", cucumber:"vegetables",
+  celery:"vegetables", leek:"vegetables", asparagus:"vegetables",
+  kale:"vegetables", cabbage:"vegetables", cauliflower:"vegetables",
+  squash:"vegetables", pumpkin:"vegetables", beetroot:"vegetables",
+  radish:"vegetables", fennel:"vegetables", okra:"vegetables",
+  "bok choy":"vegetables", "pak choi":"vegetables", turnip:"vegetables",
+  swede:"vegetables", sweetcorn:"vegetables", artichoke:"vegetables",
+  // Carbs entered as protein
+  sourdough:"carbs", baguette:"carbs", oats:"carbs",
+  quinoa:"carbs", barley:"carbs", polenta:"carbs", flatbread:"carbs",
+  // Proteins entered as veg / other
+  chicken:"proteins", beef:"proteins", pork:"proteins", lamb:"proteins",
+  salmon:"proteins", tuna:"proteins", shrimp:"proteins", prawns:"proteins",
+  bacon:"proteins", tofu:"proteins", tempeh:"proteins",
+  // Dairy entered as protein
+  milk:"fridge", cheese:"fridge", yogurt:"fridge", yoghurt:"fridge", cream:"fridge",
+};
+
+const CATEGORY_LABEL: Record<string, string> = {
+  proteins:"proteins", carbs:"carbs", vegetables:"vegetables",
+  fridge:"fridge", staples:"pantry", appliances:"appliances",
+};
+
+// Fuzzy ingredient search — handles typos like "tumeric" → "turmeric",
+// "chiken" → "chicken". Uses sequential character matching so partial
+// out-of-order characters still score well.
+function fuzzyMatchIngredients(query: string, limit = 6): string[] {
+  const q = query.toLowerCase().trim();
+  if (q.length < 2) return [];
+  return Object.keys(MASTER_INGREDIENTS)
+    .map(key => {
+      const k = key.toLowerCase();
+      // Exact substring → highest score
+      if (k.includes(q)) return { key, score: 1 + (k.startsWith(q) ? 0.1 : 0) };
+      // Sequential character matching for typo tolerance
+      let qi = 0, matches = 0;
+      for (let ki = 0; ki < k.length && qi < q.length; ki++) {
+        if (k[ki] === q[qi]) { matches++; qi++; }
+      }
+      const seqScore = qi === q.length
+        ? 0.8 + matches / (k.length + 1)   // all query chars found in order
+        : (matches / Math.max(q.length, k.length)) * 0.75;
+      return { key, score: seqScore };
+    })
+    .filter(({ score }) => score > 0.6)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(({ key }) => key.replace(/\b\w/g, c => c.toUpperCase()));
+}
+
+function CustomItemInput({
+  onAdd,
+  addMapping,
+}: {
+  onAdd: (item: string) => void;
+  addMapping: (displayLabel: string, satToken: string) => void;
+}) {
+  const [value, setValue] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [msg, setMsg] = useState<{ text: string; type: "error" | "info" } | null>(null);
+  const [status, setStatus] = useState<"idle" | "checking">("idle");
+  const msgTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => { if (msgTimeout.current) clearTimeout(msgTimeout.current); };
+  }, []);
+
+  const showMsg = (text: string, type: "error" | "info" = "error", ms = 3000) => {
+    setMsg({ text, type });
+    if (msgTimeout.current) clearTimeout(msgTimeout.current);
+    msgTimeout.current = setTimeout(() => setMsg(null), ms);
+  };
+
+  const handleChange = (val: string) => {
+    setValue(val);
+    setSuggestions(fuzzyMatchIngredients(val));
+  };
+
+  const resolveAndAdd = async (raw: string) => {
+    const clean = sanitiseIngredient(raw);
+    if (!clean) { showMsg("Letters only — no numbers or symbols"); return; }
+    const lower = clean.toLowerCase();
+
+    // ① Instant lookup — MASTER_INGREDIENTS (no API call needed)
+    const masterEntry = MASTER_INGREDIENTS[lower];
+    if (masterEntry) {
+      addMapping(lower, masterEntry.satToken);
+      onAdd(clean);
+      setValue(""); setSuggestions([]);
+      return;
+    }
+
+    // ② localStorage cache (API result from a previous visit)
+    try {
+      const cached = localStorage.getItem(`mise-cls-${lower}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed.satToken) addMapping(lower, parsed.satToken);
+        // Even if previously marked invalid, add now — user insists
+        onAdd(clean);
+        setValue(""); setSuggestions([]);
+        if (!parsed.isValid) showMsg(`Added "${clean}" — we don't have recipes for this yet`, "info");
+        return;
+      }
+    } catch { /* ignore */ }
+
+    // ③ API classification (once per device, then cached)
+    setStatus("checking");
+    try {
+      const res = await fetch("/api/classify-ingredient", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ingredient: lower }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        try { localStorage.setItem(`mise-cls-${lower}`, JSON.stringify(result)); } catch {}
+        if (result.satToken) addMapping(lower, result.satToken);
+        if (result.isValid === false) {
+          // Don't block — add it and explain gracefully
+          showMsg(`Added "${clean}" — we don't have recipes for this ingredient yet`, "info");
+        }
+      }
+    } catch { /* API unavailable — add without mapping, no message */ }
+
+    setStatus("idle");
+    onAdd(clean);
+    setValue(""); setSuggestions([]);
+  };
+
+  return (
+    <div className="mb-4">
+      <div className="flex gap-2">
+        <div className="flex-1 relative">
+          <input
+            value={value}
+            onChange={e => handleChange(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && !e.repeat && resolveAndAdd(value)}
+            placeholder="Not listed? Type to search or add…"
+            autoCorrect="on"
+            autoCapitalize="words"
+            maxLength={40}
+            disabled={status === "checking"}
+            className="w-full h-11 bg-bg-surface border border-border-subtle rounded-xl px-4 pr-10 text-[14px] text-text-primary placeholder:text-text-tertiary focus:border-ember focus:outline-none disabled:opacity-60 transition-opacity"
+          />
+          {status === "checking" && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+              <div className="w-4 h-4 border-2 border-ember border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+        </div>
+        <button
+          onClick={() => resolveAndAdd(value)}
+          disabled={status === "checking"}
+          className="w-11 h-11 rounded-xl bg-bg-raised border border-border-default flex items-center justify-center text-text-secondary active:scale-95 disabled:opacity-60"
+        >
+          <Plus className="w-4 h-4" />
+        </button>
+      </div>
+
+      {msg && (
+        <p className={`text-[12px] mt-1.5 px-1 ${msg.type === "error" ? "text-red-400" : "text-text-secondary"}`}>
+          {msg.text}
+        </p>
+      )}
+
+      {suggestions.length > 0 && status === "idle" && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {suggestions.map(s => (
+            <button
+              key={s}
+              onMouseDown={e => { e.preventDefault(); resolveAndAdd(s); }}
+              className="h-8 px-3 rounded-full bg-bg-raised border border-border-default text-[12px] text-text-secondary active:bg-ember active:text-bg-base active:border-ember transition-colors"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -57,14 +588,21 @@ function InventoryFlow() {
   const toggleItem = useMise(s => s.toggleItem);
   const finalize = useMise(s => s.finalizeInventory);
   const setInventory = useMise(s => s.setInventory);
+  const addCustomItem = useMise(s => s.addCustomItem);
+  const addCustomTokenMapping = useMise(s => s.addCustomTokenMapping);
   const [step, setStep] = useState(initStep ?? 0);
-  const [custom, setCustom] = useState("");
+  const [toast, setToast] = useState<string | null>(null);
 
   const cur = STEPS[step];
   const selected = (inventory[cur.key] as string[] | undefined) ?? [];
   const allItems = cur.sections.flatMap(s => s.items);
   const isLast = step === STEPS.length - 1;
   const selectedCount = selected.filter(i => allItems.includes(i)).length;
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const goBack = () => {
     if (from === "session") navigate({ to: "/session" });
@@ -78,16 +616,25 @@ function InventoryFlow() {
     else setStep(s => s + 1);
   };
 
-  const addCustom = () => {
-    const v = custom.trim();
-    if (!v) return;
-    const list = inventory[cur.key] as string[];
-    if (!list.includes(v)) setInventory({ [cur.key]: [...list, v] } as never);
-    setCustom("");
-  };
 
   return (
     <MobileFrame>
+      {/* Toast notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ type: "spring", stiffness: 400, damping: 28 }}
+            className="absolute top-4 inset-x-4 z-50 rounded-xl bg-bg-elevated border border-border-default px-4 py-3 flex items-center gap-3 shadow-md"
+          >
+            <span className="text-base flex-shrink-0">✨</span>
+            <p className="text-[13px] text-text-primary leading-snug">{toast}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-12 pb-3">
@@ -154,7 +701,47 @@ function InventoryFlow() {
               }
             </p>
 
-            {/* Categorised sections */}
+            {cur.key !== "appliances" && (
+              <CustomItemInput
+                addMapping={addCustomTokenMapping}
+                onAdd={(item) => {
+                  const targetCat = MISPLACED[item.toLowerCase()];
+                  if (targetCat && targetCat !== cur.key) {
+                    const targetList = (inventory[targetCat] as string[]) ?? [];
+                    if (!targetList.map(s => s.toLowerCase()).includes(item.toLowerCase())) {
+                      setInventory({ [targetCat]: [...targetList, item] } as never);
+                      addCustomItem(item);
+                    }
+                    showToast(`"${item}" moved to ${CATEGORY_LABEL[targetCat]} ✓`);
+                    return;
+                  }
+                  const list = (inventory[cur.key] as string[]) ?? [];
+                  if (!list.map(s => s.toLowerCase()).includes(item.toLowerCase())) {
+                    setInventory({ [cur.key]: [...list, item] } as never);
+                    addCustomItem(item);
+                    showToast(`"${item}" added ✓`);
+                  } else {
+                    showToast(`"${item}" is already in your kitchen`);
+                  }
+                }}
+              />
+            )}
+
+            {/* Added by you — shown directly below the input, above default chips */}
+            {selected.filter(s => !allItems.includes(s)).length > 0 && (
+              <div className="mb-5">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary mb-2">
+                  Added by you
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {selected.filter(s => !allItems.includes(s)).map(c => (
+                    <Chip key={c} label={c} active mode={cur.mode} onClick={() => toggleItem(cur.key, c)} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Default sections */}
             <div className="flex flex-col gap-5">
               {cur.sections.map(section => (
                 <div key={section.label}>
@@ -171,37 +758,13 @@ function InventoryFlow() {
                   </div>
                 </div>
               ))}
-
-              {selected.filter(s => !allItems.includes(s)).length > 0 && (
-                <div>
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary mb-2">Added by you</p>
-                  <div className="flex flex-wrap gap-2">
-                    {selected.filter(s => !allItems.includes(s)).map(c => (
-                      <Chip key={c} label={c} active mode={cur.mode} onClick={() => toggleItem(cur.key, c)} />
-                    ))}
-                  </div>
-                </div>
-              )}
             </div>
-
-            {cur.key !== "appliances" && cur.key !== "staples" && (
-              <div className="mt-5 flex gap-2">
-                <input value={custom} onChange={e => setCustom(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && addCustom()}
-                  placeholder="Something not listed? Add it…"
-                  className="flex-1 h-11 bg-bg-surface border border-border-subtle rounded-xl px-4 text-[14px] text-text-primary placeholder:text-text-tertiary focus:border-ember focus:outline-none" />
-                <button onClick={addCustom}
-                  className="w-11 h-11 rounded-xl bg-bg-raised border border-border-default flex items-center justify-center text-text-secondary active:scale-95">
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
-            )}
 
             {cur.key === "proteins" && selectedCount === 0 && (
               <div className="mt-4 rounded-lg bg-bg-surface border border-border-subtle px-4 py-3">
                 <p className="text-[12px] text-text-secondary leading-relaxed">
                   <span className="text-text-primary font-medium">No protein?</span>{" "}
-                  That's fine — we have recipes for eggs, chickpeas and lentils too.
+                  No protein? No problem. We have recipes for eggs, chickpeas and lentils.
                 </p>
               </div>
             )}
@@ -215,7 +778,7 @@ function InventoryFlow() {
         {/* Sticky CTA — always visible, never scrolls away */}
         <div className="flex-shrink-0 px-4 pb-safe pt-3 bg-bg-base border-t border-border-subtle">
           <EmberButton size="lg" className="w-full" onClick={next}>
-            {isLast ? "Done — show me recipes" : "Next"}
+            {isLast ? "Show me recipes" : "Next"}
             <ArrowRight className="w-4 h-4" />
           </EmberButton>
         </div>

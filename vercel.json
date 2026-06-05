@@ -2,11 +2,15 @@
   "alias": ["mise-spa.vercel.app"],
   "functions": {
     "api/generate-recipe.ts": {
-      "runtime": "@vercel/node@3.2.23"
+      "runtime": "@vercel/node@3.2.23",
+      "maxDuration": 30
+    },
+    "api/classify-ingredient.ts": {
+      "runtime": "@vercel/node@3.2.23",
+      "maxDuration": 10
     }
   },
   "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }

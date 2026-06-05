@@ -19,14 +19,16 @@ function FeedbackPage() {
   const recipe = useMise(s => s.recipe);
   const addHistory = useMise(s => s.addHistory);
   const history = useMise(s => s.history);
+  const clearProteinsAndVeggies = useMise(s => s.clearProteinsAndVeggies);
   const [selected, setSelected] = useState<RatingId | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   const submit = () => {
     if (!selected || !recipe) return;
-    // Update the last history entry with the real rating
-    // (cook.tsx already added it with "good", we update it here)
     addHistory({ name: recipe.name, cuisine: recipe.cuisine, rating: selected, ts: Date.now() });
+    // Proteins and veg run out after cooking — reset them so the user
+    // picks fresh ingredients next time. Staples/spices are kept.
+    clearProteinsAndVeggies();
     setSubmitted(true);
     setTimeout(() => navigate({ to: "/" }), 1800);
   };
@@ -41,7 +43,7 @@ function FeedbackPage() {
           </motion.div>
           <motion.p initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
             className="font-display text-[22px] font-light text-text-primary text-center">
-            Thanks — we'll remember that.
+            Thanks! We'll remember that.
           </motion.p>
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }}
             className="text-[13px] text-text-tertiary text-center">
@@ -54,7 +56,7 @@ function FeedbackPage() {
 
   return (
     <MobileFrame>
-      <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Scrollable content */}
         <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-16 pb-4">
 
@@ -111,7 +113,7 @@ function FeedbackPage() {
           <button
             onClick={() => navigate({ to: "/" })}
             className="w-full h-12 text-[13px] text-text-tertiary active:opacity-70">
-            Skip — go home
+            Go home
           </button>
         </div>
       </div>

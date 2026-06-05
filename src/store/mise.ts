@@ -45,6 +45,8 @@ export type Inventory = {
   vegetables: string[];
   fridge: string[];
   appliances: string[];
+  customItems: string[];
+  customTokenMap: Record<string, string>;
   lastUpdated: number | null;
 };
 
@@ -68,11 +70,16 @@ type Store = {
   recipe: Recipe | null;
   history: HistoryEntry[];
   setInventory: (i: Partial<Inventory>) => void;
-  toggleItem: (cat: keyof Omit<Inventory, "lastUpdated">, item: string) => void;
+  toggleItem: (cat: keyof Omit<Inventory, "lastUpdated" | "customItems" | "customTokenMap">, item: string) => void;
   finalizeInventory: () => void;
   setSession: (s: Partial<Session>) => void;
   setRecipe: (r: Recipe | null) => void;
   addHistory: (e: HistoryEntry) => void;
+  addCustomItem: (item: string) => void;
+  clearCustomItems: () => void;
+  addCustomTokenMapping: (displayLabel: string, satToken: string) => void;
+  // After cooking, proteins & veg are "used up". Staples/spices persist.
+  clearProteinsAndVeggies: () => void;
 };
 
 export const useMise = create<Store>()(
@@ -85,6 +92,8 @@ export const useMise = create<Store>()(
         vegetables: [],
         fridge: [],
         appliances: ["Hob / Stove", "Oven"],
+        customItems: [],
+        customTokenMap: {},
         lastUpdated: null,
       },
       session: { timeMinutes: 30, servings: 2, cuisine: null, vibes: [] },
@@ -105,14 +114,49 @@ export const useMise = create<Store>()(
       setRecipe: (r) => set({ recipe: r }),
       addHistory: (e) =>
         set((s) => ({ history: [e, ...s.history].slice(0, 50) })),
+      addCustomItem: (item) =>
+        set((s) => ({
+          inventory: {
+            ...s.inventory,
+            customItems: [...(s.inventory.customItems ?? []), item.toLowerCase().trim()],
+          },
+        })),
+      clearCustomItems: () =>
+        set((s) => ({ inventory: { ...s.inventory, customItems: [] } })),
+      addCustomTokenMapping: (displayLabel, satToken) =>
+        set((s) => ({
+          inventory: {
+            ...s.inventory,
+            customTokenMap: {
+              ...(s.inventory.customTokenMap ?? {}),
+              [displayLabel.toLowerCase().trim()]: satToken,
+            },
+          },
+        })),
+      clearProteinsAndVeggies: () =>
+        set((s) => ({
+          inventory: { ...s.inventory, proteins: [], vegetables: [] },
+        })),
     }),
     {
       name: "mise-v3",
-      onRehydrateStorage: () => () => {
+      onRehydrateStorage: () => (state) => {
         // Clear all old store versions on first load
         ["mise-store-v1", "mise-store-v2", "mise-v1", "mise-v2"].forEach(k => {
           try { localStorage.removeItem(k); } catch {}
         });
+        // Fresh kitchen every visit: the user re-picks what they actually have.
+        // ONLY spices (staples) and appliances are remembered between sessions —
+        // proteins, carbs, vegetables and fridge items are all forgotten.
+        if (state) {
+          state.inventory.proteins = [];
+          state.inventory.carbs = [];
+          state.inventory.vegetables = [];
+          state.inventory.fridge = [];
+          state.inventory.customItems = [];
+          // Force the home flow back through inventory setup for the fresh items.
+          state.inventory.lastUpdated = null;
+        }
       },
     }
   )

@@ -7,3 +7,7 @@ build/
 .vercel/
 graphify-out/
 *.log
+
+.vercel
+.expo/
+.claude/

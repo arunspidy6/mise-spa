@@ -18,7 +18,7 @@ export function EmberButton({
     // Layered background: subtle top highlight + flat ember — matches the home CTA
     background: "linear-gradient(to bottom, rgba(255,255,255,0.08) 0%, transparent 40%), var(--ember)",
     boxShadow: "var(--shadow-button)",
-    color: "#0C0806",
+    color: "var(--on-ember)",
   };
 
   return (

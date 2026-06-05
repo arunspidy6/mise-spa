@@ -18,53 +18,6 @@ function getGreeting() {
   return "🌙 Good night";
 }
 
-// ── Decorative background ──────────────────────────────────────────────────
-function HomeBackground() {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none select-none" aria-hidden="true">
-      {/* Ember radial orb — upper right */}
-      <div
-        className="absolute -top-28 -right-28 w-80 h-80 rounded-full"
-        style={{
-          background: "radial-gradient(circle at center, oklch(0.71 0.165 48 / 0.16) 0%, transparent 70%)",
-          filter: "blur(48px)",
-        }}
-      />
-      {/* Warm secondary orb — mid left */}
-      <div
-        className="absolute top-[40%] -left-24 w-56 h-56 rounded-full"
-        style={{
-          background: "radial-gradient(circle at center, oklch(0.78 0.14 85 / 0.07) 0%, transparent 70%)",
-          filter: "blur(36px)",
-        }}
-      />
-      {/* Fine dot grid */}
-      <div
-        className="absolute inset-0"
-        style={{
-          backgroundImage: "radial-gradient(circle, oklch(0.94 0.012 75 / 0.055) 1px, transparent 1px)",
-          backgroundSize: "28px 28px",
-        }}
-      />
-      {/* Watermark wordmark */}
-      <div className="absolute inset-x-0 bottom-24 flex justify-center overflow-hidden">
-        <span
-          className="font-display font-light"
-          style={{
-            fontSize: "clamp(96px, 38vw, 172px)",
-            color: "oklch(0.94 0.012 75 / 0.028)",
-            letterSpacing: "-0.03em",
-            lineHeight: 1,
-            userSelect: "none",
-          }}
-        >
-          Mise
-        </span>
-      </div>
-    </div>
-  );
-}
-
 function Home() {
   const inventory = useMise(s => s.inventory);
   const history   = useMise(s => s.history);
@@ -75,13 +28,24 @@ function Home() {
     (inventory.vegetables?.length ?? 0) +
     (inventory.fridge?.length     ?? 0);
 
-  const hasSetup = (inventory.lastUpdated ?? 0) > 0;
+  // lastUpdated is set when user completes the inventory flow ("Show me recipes")
+  const hasSetup      = (inventory.lastUpdated ?? 0) > 0;
+  // "Update kitchen" only surfaces once the user has cooked at least once —
+  // they've completed the full loop so the button makes contextual sense.
+  const showUpdateKitchen = hasSetup && history.length > 0;
+  // First-timers: "Cook something" is their on-ramp into inventory setup.
+  // Returning users: go straight to the recipe-finding session.
+  const mainCTATo     = hasSetup ? "/session" : "/inventory";
+  const mainCTASub    = hasSetup
+    ? "Best match from your pantry →"
+    : "First, let's see what you've got →";
+  const homeSubtitle  = hasSetup
+    ? "What are you cooking?"
+    : "Let's get you cooking.";
 
   return (
     <MobileFrame>
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        <HomeBackground />
-
         {/* ── Vertically centred main content — scrollable on short screens ── */}
         <div className="flex-1 min-h-0 flex flex-col justify-center overflow-y-auto px-5 gap-7 relative z-10 py-8">
 
@@ -100,7 +64,7 @@ function Home() {
               transition={{ ...SPRING_SLOW, delay: 0.14 }}
               className="mt-2 text-[15px] text-text-secondary"
             >
-              {getGreeting()} — what are you making?
+              {getGreeting()}! {homeSubtitle}
             </motion.p>
           </motion.div>
 
@@ -111,8 +75,8 @@ function Home() {
             transition={{ ...SPRING, delay: 0.1 }}
             className="flex flex-col gap-2"
           >
-            {/* Main CTA */}
-            <Link to={hasSetup ? "/session" : "/inventory"} className="block">
+            {/* Main CTA — destination and subtitle adapt to onboarding state */}
+            <Link to={mainCTATo} className="block">
               <motion.div
                 whileHover={{ scale: 1.016, transition: { type: "spring", stiffness: 500, damping: 22 } }}
                 whileTap={{ scale: 0.963, transition: { duration: 0.1 } }}
@@ -139,49 +103,54 @@ function Home() {
                     🍽️
                   </motion.div>
                   <div className="flex-1">
-                    <p className="font-display text-[22px] font-light leading-tight" style={{ color: "#0C0806" }}>
-                      Just cook something
+                    <p className="font-display text-[22px] font-light leading-tight" style={{ color: "var(--on-ember)" }}>
+                      Cook something
                     </p>
-                    <p className="text-[13px] mt-1" style={{ color: "#3D180A" }}>
-                      Best match from your pantry →
+                    <p className="text-[13px] mt-1" style={{ color: "var(--on-ember)", opacity: 0.75 }}>
+                      {mainCTASub}
                     </p>
                   </div>
                 </div>
               </motion.div>
             </Link>
 
-            {/* Update kitchen */}
-            <Link to="/inventory" search={{ from: "home" }} className="block">
-              <motion.div
-                whileTap={{ scale: 0.97 }}
-                className="h-12 rounded-lg flex items-center px-4 gap-3"
-                style={{
-                  background: "var(--bg-elevated)",
-                  border: "1px solid var(--border-default)",
-                  boxShadow: "var(--shadow-card)",
-                }}
-              >
-                <div
-                  className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
-                  style={{ background: "var(--bg-raised)" }}
+            {/* Update kitchen — only shown after first recipe is cooked */}
+            {showUpdateKitchen && (
+              <Link to="/inventory" search={{ from: "home" }} className="block">
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...SPRING, delay: 0.18 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="h-12 rounded-lg flex items-center px-4 gap-3"
+                  style={{
+                    background: "var(--bg-elevated)",
+                    border: "1px solid var(--border-default)",
+                    boxShadow: "var(--shadow-card)",
+                  }}
                 >
-                  <Package className="w-3.5 h-3.5 text-text-secondary" />
-                </div>
-                <span className="text-[14px] text-text-primary font-medium flex-1">
-                  {hasSetup ? "Update my kitchen" : "Set up your kitchen"}
-                </span>
-                {itemCount > 0 && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ ...SPRING, delay: 0.4 }}
-                    className="text-[11px] font-semibold text-ember-text bg-ember-glow px-2.5 py-1 rounded-full border border-ember-dim"
+                  <div
+                    className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
+                    style={{ background: "var(--bg-raised)" }}
                   >
-                    {itemCount} items
-                  </motion.span>
-                )}
-              </motion.div>
-            </Link>
+                    <Package className="w-3.5 h-3.5 text-text-secondary" />
+                  </div>
+                  <span className="text-[14px] text-text-primary font-medium flex-1">
+                    Update my kitchen
+                  </span>
+                  {itemCount > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ ...SPRING, delay: 0.4 }}
+                      className="text-[11px] font-semibold text-ember-text bg-ember-glow px-2.5 py-1 rounded-full border border-ember-dim"
+                    >
+                      {itemCount} items
+                    </motion.span>
+                  )}
+                </motion.div>
+              </Link>
+            )}
           </motion.div>
         </div>
 

@@ -100,9 +100,8 @@ function RecipeCard() {
 
     let next = null;
     try {
-      // Abort the API call after 4 s so the loader never gets stuck
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
+      const timeout = setTimeout(() => controller.abort(), 10000);
       try {
         next = await getRecipeFromAPI(inventory, session, controller.signal, recipe.name);
       } catch {
@@ -119,7 +118,7 @@ function RecipeCard() {
     } catch (e: any) {
       const reason = (e.message ?? "").split("|")[0];
       if (reason === "no_more_recipes") {
-        setErrMsg("You've seen all recipes for your kitchen — add more ingredients to unlock new ones.");
+        setErrMsg("You've seen all recipes for your kitchen. Add more ingredients to unlock new options.");
       } else {
         setErrMsg("Couldn't find another recipe. Try adjusting your kitchen.");
       }
@@ -130,7 +129,7 @@ function RecipeCard() {
 
   return (
     <MobileFrame>
-      <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <div className="flex-shrink-0 px-4 pt-12 pb-2">
           <button onClick={() => navigate({ to: "/session" })}
             className="w-10 h-10 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
@@ -197,7 +196,7 @@ function RecipeCard() {
               )}
               {optional.length > 0 && swaps.length === 0 && (
                 <p className="text-[11px] text-text-tertiary italic">
-                  {optional.join(", ")} missing — optional, dish works without {optional.length === 1 ? "it" : "them"}.
+                  {optional.join(", ")} not needed. The dish works fine without {optional.length === 1 ? "it" : "them"}.
                 </p>
               )}
 
@@ -304,7 +303,7 @@ function RecipeCard() {
           {swaps.length > 0 && (
             <button onClick={() => navigate({ to: "/session" })}
               className="w-full text-center text-[12px] text-text-tertiary py-1 active:opacity-70">
-              These swaps don't work for me — try a different recipe
+              These swaps don't work for me. Try a different recipe.
             </button>
           )}
         </div>
