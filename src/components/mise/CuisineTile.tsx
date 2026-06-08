@@ -21,6 +21,7 @@ export function CuisineTile({
   return (
     <motion.button
       onClick={onPress}
+      aria-pressed={selected}
       initial={{ opacity: 0, y: 18, scale: 0.9 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: "spring", stiffness: 340, damping: 22, delay }}
