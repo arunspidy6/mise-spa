@@ -141,12 +141,14 @@ function SessionSetup() {
     setLoading(true);
     setErr(null);
 
-    // Basic sanity: need at least a handful of ingredients
-    const allIngredients = [
-      ...inventory.staples, ...inventory.proteins, ...inventory.carbs,
+    // Staples (salt, oil, spices) are always preselected, so they don't prove
+    // the user actually added anything. Require at least one real, non-staple
+    // ingredient before calling the API.
+    const nonStaples = [
+      ...inventory.proteins, ...inventory.carbs,
       ...inventory.vegetables, ...inventory.fridge,
     ];
-    if (allIngredients.length < 3) {
+    if (nonStaples.length < 1) {
       setLoading(false);
       setErr({ reason: "no_ingredients", detail: "Add some ingredients to your kitchen first." });
       return;
