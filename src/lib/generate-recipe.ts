@@ -170,7 +170,8 @@ function scaleIngredientQty(qty: string, factor: number): string {
 // vague counts without recognised cooking units ("a pinch", "1 whole head").
 function scaleStepText(text: string, factor: number): string {
   if (factor === 1) return text;
-  return text.replace(
+  // Pass 1 — amounts with recognised cooking units.
+  let out = text.replace(
     /([¼½¾⅓⅔⅛]|\d+(?:\.\d+)?(?:\/\d+)?)\s*(g|ml|kg|litres?|liters?|tbsp|tsp|cloves?|eggs?)(?![a-zA-Z])/gi,
     (_, raw, unit) => {
       const scaled = parseQtyNum(raw) * factor;
@@ -182,6 +183,18 @@ function scaleStepText(text: string, factor: number): string {
       return `${fmtQtyNum(n)} ${unit}`;
     },
   );
+  // Pass 2 — unitless protein counts ("4 chicken thighs", "2 salmon fillets",
+  // "2 steaks"). Scaled to whole numbers. An optional protein word may sit
+  // between the number and the count noun. "pieces"/"slices" are intentionally
+  // excluded — those describe how to cut one item, not a per-serving quantity.
+  out = out.replace(
+    /([¼½¾⅓⅔⅛]|\d+(?:\.\d+)?(?:\/\d+)?)\s+((?:chicken|salmon|pork|beef|lamb|turkey|tuna|white\s+fish)\s+)?(thighs?|fillets?|steaks?|breasts?|wings?|sausages?|chops?|drumsticks?)\b/gi,
+    (_, raw, qualifier, noun) => {
+      const n = Math.round(parseQtyNum(raw) * factor);
+      return `${fmtQtyNum(n)} ${qualifier ?? ""}${noun}`;
+    },
+  );
+  return out;
 }
 
 function normaliseToken(s: string): string {
@@ -983,7 +996,22 @@ function buildRecipe(m: Match, session: SessionPayload, sparse: boolean): Recipe
 
   const ingredients: RecipeIngredient[] = t.ingredients.map(ing => {
     const tokenGuess = ing.name.toLowerCase().replace(/\s*\(.*\)/, "").trim();
-    const req = t.reqs.find(r => r.token === tokenGuess || r.label.toLowerCase() === ing.name.toLowerCase());
+    const nameLower = ing.name.toLowerCase();
+    // Relaxed match: exact token/label, or a whole-word overlap in either
+    // direction, so a specific ingredient name ("Jasmine rice", "Cooked rice")
+    // still resolves to its generic req ("rice"). Word boundaries prevent false
+    // matches like "eggplant" → "egg".
+    const escRe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const req = t.reqs.find(r => {
+      const tok = r.token.toLowerCase();
+      const lbl = r.label.toLowerCase();
+      return (
+        tok === tokenGuess ||
+        lbl === nameLower ||
+        new RegExp(`\\b${escRe(tok)}\\b`).test(tokenGuess) ||
+        new RegExp(`\\b${escRe(tokenGuess)}\\b`).test(lbl)
+      );
+    });
     return {
       name: ing.name,
       quantity: scaleIngredientQty(ing.quantity, servingFactor),
