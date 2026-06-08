@@ -156,6 +156,13 @@ function PrepScreen({ recipe, onStart, onBack }: { recipe: any; onStart: () => v
   const prepItems: any[] = [];
   const grabItems: any[] = [];
   ings.forEach((ing) => {
+    // A swapped-out ingredient (not in the kitchen, but with a suggested
+    // substitute) isn't something to prep — the user isn't using the original.
+    // List it under "grab" with the substitute instead of a prep instruction.
+    if (ing.inInventory === false && ing.substituteNote) {
+      grabItems.push(ing);
+      return;
+    }
     const prep = derivePrepNote(ing.name, steps);
     if (prep) prepItems.push({ ...ing, prep });
     else grabItems.push(ing);
@@ -234,9 +241,11 @@ function PrepScreen({ recipe, onStart, onBack }: { recipe: any; onStart: () => v
             <p className="label-eyebrow mb-2.5">{prepItems.length > 0 ? "Also grab" : "Gather these"}</p>
             <div className="bg-bg-surface border border-border-subtle rounded-xl overflow-hidden divide-y divide-border-subtle">
               {grabItems.map((ing, i) => (
-                <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                <div key={i} className="flex items-center justify-between gap-3 px-4 py-2.5">
                   <span className="text-[13px] text-text-secondary">{ing.name}</span>
-                  <span className="text-[11px] text-text-tertiary font-mono">{ing.quantity}</span>
+                  <span className={`text-[11px] font-mono flex-shrink-0 text-right ${ing.substituteNote ? "text-ember-text" : "text-text-tertiary"}`}>
+                    {ing.substituteNote ? `use ${ing.substituteNote}` : ing.quantity}
+                  </span>
                 </div>
               ))}
             </div>

@@ -20,6 +20,7 @@ export function CuisineTile({
 }: CuisineTileProps) {
   return (
     <motion.button
+      type="button"
       onClick={onPress}
       aria-pressed={selected}
       initial={{ opacity: 0, y: 18, scale: 0.9 }}
