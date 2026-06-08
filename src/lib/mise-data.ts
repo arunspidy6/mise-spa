@@ -1,27 +1,30 @@
 // ── Inventory data ─────────────────────────────────────────────────────────
 
+// Preselected staples — common in Irish households (shown already "in kitchen").
 export const STAPLES_DEFAULTS = [
-  // Oils
+  // Oils & fats
   "Olive oil", "Butter",
-  // Core
-  "Salt", "Pepper", "Chilli flakes",
+  // Core seasonings
+  "Black pepper", "Chilli flakes",
   // Aromatics
   "Garlic", "Onion",
-  // Warm spices — most common
-  "Cumin", "Paprika",
-  // Baking
+  // Warm spices
+  "Paprika",
+  // Herbs
+  "Thyme", "Parsley", "Rosemary", "Bay leaves", "Mixed herbs",
+  // Baking & dry goods
   "Flour", "Sugar",
-  // Sauces
-  "Soy sauce", "Tomato paste", "Stock cubes", "Vinegar",
+  // Sauces & stock
+  "Tomato paste", "Stock cubes", "Vinegar",
 ];
 
 // Categorised sections for inventory UI
 export const STAPLE_SECTIONS = [
   { label: "Oils & fats",       items: ["Olive oil", "Butter", "Vegetable oil", "Sesame oil"] },
-  { label: "Core seasonings",   items: ["Salt", "Pepper", "Chilli flakes"] },
+  { label: "Core seasonings",   items: ["Salt", "Black pepper", "Chilli flakes"] },
   { label: "Aromatics",         items: ["Garlic", "Onion", "Ginger"] },
   { label: "Warm spices",       items: ["Cumin", "Coriander", "Turmeric", "Garam masala", "Paprika", "Smoked paprika"] },
-  { label: "Herbs",             items: ["Oregano", "Thyme", "Rosemary", "Bay leaves", "Mixed herbs"] },
+  { label: "Herbs",             items: ["Oregano", "Thyme", "Parsley", "Rosemary", "Bay leaves", "Mixed herbs"] },
   { label: "Heat",              items: ["Cayenne", "Chilli powder", "Curry powder"] },
   { label: "Asian",             items: ["Soy sauce", "Fish sauce", "Oyster sauce", "Miso paste"] },
   { label: "Baking & dry goods",items: ["Flour", "Sugar", "Baking powder"] },
