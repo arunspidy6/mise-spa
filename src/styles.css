@@ -149,6 +149,10 @@
 }
 .animate-ember-pulse { animation: ember-pulse 1.4s var(--ease-out) infinite; }
 
+/* INTENTIONAL global type bump: every Tailwind text-[Npx] utility renders at
+   N+1px. This nudges all body/caption text up 1px app-wide without editing
+   hundreds of classNames. Not an off-by-one bug — making these 1:1 would shrink
+   all small text and undo the tuned typography. */
 .text-\[10px\] { font-size: 11px; }
 .text-\[11px\] { font-size: 12px; }
 .text-\[12px\] { font-size: 13px; }

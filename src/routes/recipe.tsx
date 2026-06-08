@@ -71,6 +71,7 @@ function RecipeCard() {
   const inventory = useMise(s => s.inventory);
   const session = useMise(s => s.session);
   const setRecipe = useMise(s => s.setRecipe);
+  const history = useMise(s => s.history);
   const [rerolling, setRerolling] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -102,8 +103,11 @@ function RecipeCard() {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
+      // Recently-cooked dishes so reroll respects the history-based dedupe,
+      // just like the initial generation in session.tsx.
+      const avoidRecipes = [...new Set(history.map(h => h.name))];
       try {
-        next = await getRecipeFromAPI(inventory, session, controller.signal, recipe.name);
+        next = await getRecipeFromAPI(inventory, session, controller.signal, recipe.name, avoidRecipes);
       } catch {
         // API unavailable or timed out — use local library
       } finally {
@@ -111,7 +115,7 @@ function RecipeCard() {
       }
 
       if (!next) {
-        next = getRecipe(inventory, session, [], recipe.name);
+        next = getRecipe(inventory, session, history, recipe.name);
       }
 
       setRecipe(next);
