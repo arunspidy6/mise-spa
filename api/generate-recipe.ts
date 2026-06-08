@@ -145,8 +145,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: "API key not configured" });
   }
 
-  const { inventory, session, excludeName, avoidRecipes } = req.body ?? {};
+  const { inventory, session, excludeName, avoidRecipes, mealType } = req.body ?? {};
   if (!inventory) return res.status(400).json({ error: "Missing inventory" });
+
+  // Time-of-day meal (computed client-side from the user's local clock).
+  const meal: string | null = ["breakfast", "lunch", "dinner"].includes(mealType) ? mealType : null;
 
   const ingredients = [
     ...(inventory.proteins   || []),
@@ -172,6 +175,7 @@ APPLIANCES: ${(inventory.appliances || ["Hob/Stove"]).join(", ")}
 TIME: max ${session?.timeMinutes ?? 30} minutes
 SERVINGS: ${session?.servings ?? 2}
 ${session?.cuisine ? `CUISINE: ${session.cuisine}` : "CUISINE: your choice — be creative, avoid repeating the same cuisine twice"}
+${meal ? `MEAL: It is currently ${meal} time. Generate a dish that is appropriate to eat for ${meal} — not a different meal. (Breakfast = morning food, lunch = a midday meal, dinner = an evening main.)` : ""}
 
 You do NOT need to use every ingredient — choose the combination that makes the best single dish. Treat different cuts of the same meat as interchangeable (e.g. lamb chops, lamb diced and lamb mince are all just "lamb"); the cut should not change which dish you pick.${excludeName ? `\n\nDo NOT generate "${excludeName}" — the user has already seen that recipe and wants something different.` : ""}${avoidList.length ? `\n\nThe user has RECENTLY COOKED the dishes below. You MUST generate something clearly different — a different cooking method, flavour profile, or cuisine. Do not produce a near-duplicate or a minor variation of any of these, even if a different cut of the same protein is now selected:\n${avoidList.map(n => `- ${n}`).join("\n")}` : ""}`;
 

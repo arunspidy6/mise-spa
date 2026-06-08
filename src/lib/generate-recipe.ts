@@ -1049,6 +1049,16 @@ export function getRecipe(
   return buildRecipe(pick, session, sparse);
 }
 
+// Meal type based on the local time the recipe is requested.
+// Before 11am → breakfast, 11am–5pm → lunch, after 5pm → dinner.
+export type MealType = "breakfast" | "lunch" | "dinner";
+export function currentMealType(d: Date = new Date()): MealType {
+  const h = d.getHours();
+  if (h < 11) return "breakfast";
+  if (h < 17) return "lunch";
+  return "dinner";
+}
+
 export async function getRecipeFromAPI(
   inventory: Inventory,
   session: SessionPayload,
@@ -1059,7 +1069,7 @@ export async function getRecipeFromAPI(
   const res = await fetch("/api/generate-recipe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ inventory, session, excludeName, avoidRecipes }),
+    body: JSON.stringify({ inventory, session, excludeName, avoidRecipes, mealType: currentMealType() }),
     signal,
   });
   if (!res.ok) throw new Error("api_failed");
