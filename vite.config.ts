@@ -16,4 +16,10 @@ export default defineConfig({
   build: {
     outDir: "dist",
   },
+  server: {
+    // Proxy /api/* to vercel dev (run `vercel dev --listen 3001` in a separate terminal)
+    proxy: {
+      "/api": "http://localhost:3001",
+    },
+  },
 });

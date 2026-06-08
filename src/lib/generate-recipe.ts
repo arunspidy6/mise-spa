@@ -34,55 +34,217 @@ type Template = {
 // ── Satisfiers — maps recipe token to acceptable user inventory strings ────
 
 const SAT: Record<string, string[]> = {
-  "chicken thighs":  ["chicken thighs"],
-  "chicken breast":  ["chicken breast"],
-  "beef mince":      ["beef mince", "mince"],
-  "steak":      ["steak", "beef steak"],
-  "pork chops": ["pork chops", "pork", "pork chop"],
-  "lamb":       ["lamb", "lamb mince", "lamb chops"],
-  "bacon":           ["bacon"],
-  "salmon":          ["salmon"],
-  "white fish":      ["white fish", "cod", "haddock", "fish"],
-  "prawns":          ["prawns", "shrimp"],
-  "canned tuna":     ["canned tuna", "tuna"],
-  "eggs":            ["eggs"],
-  "tofu":            ["tofu"],
-  "chickpeas":       ["chickpeas"],
-  "lentils":         ["lentils", "red lentils"],
-  "pasta":           ["pasta", "spaghetti", "penne", "fusilli"],
-  "rice":            ["rice", "jasmine rice", "basmati"],
-  "noodles":         ["noodles"],
-  "potatoes":        ["potatoes"],
+  // ── Chicken ──────────────────────────────────────────────────────────────
+  "chicken thighs":  ["chicken thighs", "thigh fillets", "bone-in thighs", "chicken thigh",
+                      "chicken legs", "chicken drumsticks", "drumsticks", "chicken leg", "legs",
+                      "chicken wings", "wings", "chicken nibbles",
+                      "chicken mince", "minced chicken", "ground chicken", "chicken pieces"],
+  "chicken breast":  ["chicken breast", "breast fillets", "chicken breast fillets", "chicken fillet"],
+  // ── Beef ─────────────────────────────────────────────────────────────────
+  "beef mince":      ["beef mince", "mince", "ground beef", "lean mince", "minced beef"],
+  "steak":           ["beef diced / steak", "steak", "diced beef", "beef diced", "sirloin",
+                      "fillet steak", "rib eye", "rump steak", "bavette", "braising steak",
+                      "beef strips", "beef steak", "t-bone", "onglet"],
+  // ── Pork ─────────────────────────────────────────────────────────────────
+  "pork chops":      ["pork chops", "pork loin steaks", "pork steaks", "pork loin", "loin chops",
+                      "pork diced", "diced pork", "pork mince", "minced pork", "ground pork"],
+  "pork belly":      ["pork belly", "pork belly slices", "belly pork"],
+  "sausages":        ["sausages", "pork sausages", "bangers", "chipolatas", "sausage"],
+  "bacon":           ["bacon", "rashers", "streaky bacon", "back bacon", "smoked bacon"],
+  // ── Lamb ─────────────────────────────────────────────────────────────────
+  "lamb":            ["lamb", "lamb diced", "diced lamb", "lamb steak", "lamb leg", "lamb shoulder",
+                      "lamb mince", "minced lamb", "ground lamb",
+                      "lamb chops", "loin chops", "gigot chops", "lamb cutlets"],
+  // ── Fish ─────────────────────────────────────────────────────────────────
+  "salmon":          ["salmon", "salmon fillets", "salmon darnes", "fresh salmon"],
+  "white fish":      ["white fish", "cod", "cod fillets", "haddock", "plaice",
+                      "sea bass", "sea bass fillets", "coley", "pollock", "fish"],
+  "oily fish":       ["oily fish", "mackerel", "sardines", "herring", "smoked mackerel"],
+  "smoked salmon":   ["smoked salmon"],
+  // ── Seafood ──────────────────────────────────────────────────────────────
+  "prawns":          ["prawns", "shrimp", "king prawns", "tiger prawns", "raw prawns"],
+  "canned tuna":     ["canned tuna", "tuna", "tinned tuna", "tuna chunks"],
+  // ── Plant-based ──────────────────────────────────────────────────────────
+  "eggs":            ["eggs", "egg", "free range eggs"],
+  "tofu":            ["tofu", "firm tofu", "silken tofu"],
+  "chickpeas":       ["chickpeas", "chick peas", "garbanzo", "garbanzo beans"],
+  "lentils":         ["lentils", "red lentils", "green lentils", "puy lentils"],
+  // ── Carbs ────────────────────────────────────────────────────────────────
+  "pasta":           ["pasta", "spaghetti", "penne", "fusilli", "rigatoni", "linguine", "tagliatelle"],
+  "rice":            ["rice", "basmati", "jasmine", "arborio", "long grain", "short grain",
+                      "white rice", "brown rice", "basmati rice", "jasmine rice"],
+  "noodles":         ["noodles", "egg noodles", "rice noodles", "udon", "soba"],
+  "potatoes":        ["potatoes", "potato", "spuds", "baby potatoes", "new potatoes"],
   "tortillas":       ["tortillas", "wraps", "flatbread"],
-  "garlic":          ["garlic"],
-  "onion":           ["onion", "onions"],
-  "olive oil":       ["olive oil", "vegetable oil", "oil"],
-  "butter":          ["butter"],
-  "soy sauce":       ["soy sauce"],
-  "sugar":           ["sugar"],
-  "tomato paste":    ["tomato paste", "canned tomatoes", "passata"],
-  "cumin":           ["cumin"],
-  "chilli flakes":   ["chilli flakes", "chilli", "red pepper flakes"],
-  "salt":            ["salt"],
-  "pepper":          ["pepper", "black pepper"],
-  "stock cubes":     ["stock cubes", "stock cube", "stock"],
-  "vinegar":         ["vinegar"],
-  "flour":           ["flour"],
+  // ── Aromatics & oils ─────────────────────────────────────────────────────
+  "garlic":          ["garlic", "garlic cloves", "minced garlic"],
+  "onion":           ["onion", "onions", "red onion", "white onion", "brown onion", "shallots"],
+  "ginger":          ["ginger", "fresh ginger", "ground ginger"],
+  "olive oil":       ["olive oil", "vegetable oil", "sunflower oil", "rapeseed oil", "cooking oil", "oil"],
+  "butter":          ["butter", "unsalted butter", "salted butter"],
+  // ── Sauces & pantry ──────────────────────────────────────────────────────
+  "soy sauce":       ["soy sauce", "soya sauce", "tamari", "dark soy sauce", "light soy sauce"],
+  "sugar":           ["sugar", "caster sugar", "granulated sugar"],
+  "tomato paste":    ["tomato paste", "tomato puree", "passata", "canned tomatoes", "chopped tomatoes", "crushed tomatoes"],
+  "stock cubes":     ["stock cubes", "stock cube", "stock", "bouillon", "chicken stock", "vegetable stock", "beef stock"],
+  "vinegar":         ["vinegar", "white wine vinegar", "red wine vinegar", "balsamic vinegar"],
+  "flour":           ["flour", "plain flour", "all purpose flour", "self raising flour"],
+  // ── Spices ───────────────────────────────────────────────────────────────
+  "cumin":           ["cumin", "ground cumin", "cumin seeds"],
+  "chilli flakes":   ["chilli flakes", "chilli", "red pepper flakes", "chili flakes"],
+  "salt":            ["salt", "sea salt", "table salt"],
+  "pepper":          ["pepper", "black pepper", "ground pepper"],
+  "paprika":         ["paprika", "smoked paprika", "sweet paprika"],
+  "turmeric":        ["turmeric", "ground turmeric"],
+  "garam masala":    ["garam masala"],
+  "coriander":       ["coriander", "ground coriander", "cilantro"],
+  "oregano":         ["oregano", "dried oregano"],
+  "thyme":           ["thyme", "dried thyme"],
+  "rosemary":        ["rosemary", "dried rosemary"],
+  "cayenne":         ["cayenne", "cayenne pepper"],
+  "curry powder":    ["curry powder"],
+  "chilli powder":   ["chilli powder", "chili powder"],
+  "miso paste":      ["miso paste", "miso", "white miso"],
+  "worcestershire":  ["worcestershire sauce", "worcestershire"],
+  // ── Vegetables ───────────────────────────────────────────────────────────
+  "tomatoes":        ["tomatoes", "tomato", "cherry tomatoes", "vine tomatoes", "plum tomatoes"],
+  "peppers":         ["peppers", "pepper", "bell pepper", "capsicum", "red pepper", "green pepper"],
+  "mushrooms":       ["mushrooms", "mushroom", "chestnut mushrooms", "button mushrooms"],
+  "spinach":         ["spinach", "baby spinach"],
+  "carrots":         ["carrots", "carrot"],
+  "broccoli":        ["broccoli", "tenderstem broccoli"],
+  "courgette":       ["courgette", "zucchini"],
+  // ── Fridge ───────────────────────────────────────────────────────────────
+  "milk":            ["milk", "whole milk", "semi skimmed", "oat milk", "almond milk"],
+  "cream":           ["cream", "double cream", "single cream", "heavy cream", "whipping cream"],
+  "coconut milk":    ["coconut milk", "coconut cream"],
+  "cheddar":         ["cheddar", "cheddar cheese", "cheese"],
+  "parmesan":        ["parmesan", "parmigiano", "grana padano", "hard cheese"],
+  "yoghurt":         ["yoghurt", "yogurt", "greek yoghurt", "natural yoghurt"],
+  "lemons":          ["lemons", "lemon", "lime", "limes", "lemon juice", "lime juice"],
+  "fish sauce":      ["fish sauce"],
+  "honey":           ["honey"],
 };
+
+// ── Quantity scaling ────────────────────────────────────────────────────────
+// All library templates are calibrated for 2 servings.
+// scaleIngredientQty scales the leading number in an ingredient quantity string.
+// scaleStepText scales numeric cooking quantities embedded in step instructions
+// (targets g, ml, kg, tbsp, tsp, cloves, eggs — leaves times and temps alone).
+
+const QTY_FRACS: Record<string, number> = {
+  "¼": 0.25, "½": 0.5, "¾": 0.75, "⅓": 1 / 3, "⅔": 2 / 3, "⅛": 0.125,
+};
+
+function parseQtyNum(raw: string): number {
+  if (QTY_FRACS[raw] !== undefined) return QTY_FRACS[raw];
+  if (raw.includes("/")) { const [a, b] = raw.split("/"); return parseFloat(a) / parseFloat(b); }
+  return parseFloat(raw);
+}
+
+function fmtQtyNum(n: number): string {
+  if (n === Math.round(n)) return String(Math.round(n));
+  const TABLE: [number, string][] = [
+    [0.125, "⅛"], [0.25, "¼"], [0.33, "⅓"], [0.5, "½"], [0.67, "⅔"], [0.75, "¾"],
+    [1.25, "1¼"], [1.5, "1½"], [1.75, "1¾"],
+    [2.25, "2¼"], [2.5, "2½"], [2.75, "2¾"],
+    [3.5, "3½"],
+  ];
+  for (const [v, s] of TABLE) if (Math.abs(n - v) < 0.04) return s;
+  return String(Math.round(n * 10) / 10);
+}
+
+// Scales the leading number in an ingredient quantity string.
+// "400g, minced" ×2 → "800g, minced"   "185g" ×2 → "370g"   "1 large" ×2 → "2 large"
+function scaleIngredientQty(qty: string, factor: number): string {
+  if (factor === 1) return qty;
+  return qty.replace(
+    /^([¼½¾⅓⅔⅛]|\d+(?:\.\d+)?(?:\/\d+)?)/,
+    (_, raw) => fmtQtyNum(parseQtyNum(raw) * factor),
+  );
+}
+
+// Scales numeric cooking quantities inside step instruction text.
+// "3 tbsp soy sauce" ×2 → "6 tbsp soy sauce"   "400g lamb" ×2 → "800g lamb"
+// Intentionally ignores timers ("3 minutes"), temperatures ("220°C"), and
+// vague counts without recognised cooking units ("a pinch", "1 whole head").
+function scaleStepText(text: string, factor: number): string {
+  if (factor === 1) return text;
+  // Pass 1 — amounts with recognised cooking units.
+  let out = text.replace(
+    /([¼½¾⅓⅔⅛]|\d+(?:\.\d+)?(?:\/\d+)?)\s*(g|ml|kg|litres?|liters?|tbsp|tsp|cloves?|eggs?)(?![a-zA-Z])/gi,
+    (_, raw, unit) => {
+      const scaled = parseQtyNum(raw) * factor;
+      let n: number;
+      if (/^(g|ml|kg|litres?|liters?)$/i.test(unit)) n = Math.round(scaled);
+      else if (/^tbsp$/i.test(unit)) n = Math.round(scaled * 2) / 2;
+      else if (/^tsp$/i.test(unit)) n = Math.round(scaled * 4) / 4;
+      else n = Math.round(scaled);
+      return `${fmtQtyNum(n)} ${unit}`;
+    },
+  );
+  // Pass 2 — unitless protein counts ("4 chicken thighs", "2 salmon fillets",
+  // "2 steaks"). Scaled to whole numbers. An optional protein word may sit
+  // between the number and the count noun. "pieces"/"slices" are intentionally
+  // excluded — those describe how to cut one item, not a per-serving quantity.
+  out = out.replace(
+    /([¼½¾⅓⅔⅛]|\d+(?:\.\d+)?(?:\/\d+)?)\s+((?:chicken|salmon|pork|beef|lamb|turkey|tuna|white\s+fish)\s+)?(thighs?|fillets?|steaks?|breasts?|wings?|sausages?|chops?|drumsticks?)\b/gi,
+    (_, raw, qualifier, noun) => {
+      const n = Math.round(parseQtyNum(raw) * factor);
+      return `${fmtQtyNum(n)} ${qualifier ?? ""}${noun}`;
+    },
+  );
+  return out;
+}
+
+function normaliseToken(s: string): string {
+  const lower = s.toLowerCase().trim().replace(/\s+/g, " ");
+  // Only strip trailing 's' when: not a double-s ending (e.g. "bass") and long enough
+  if (lower.endsWith("s") && !lower.endsWith("ss") && lower.length > 3) {
+    return lower.slice(0, -1);
+  }
+  return lower;
+}
 
 function userHas(token: string, items: string[]): boolean {
   const options = SAT[token] ?? [token];
-  return items.some(u =>
-    options.some(o => u === o || u === o.toLowerCase())
-  );
+
+  return items.some(u => {
+    const normU = normaliseToken(u);
+    return options.some(o => {
+      const normO = normaliseToken(o);
+      if (normU === normO) return true;
+      // Broad category fallbacks — e.g. user has "chicken wings", recipe asks "chicken thighs"
+      if (normU === "chicken" && normO.startsWith("chicken")) return true;
+      if (normU === "beef" && (normO.includes("beef") || normO === "steak" || normO === "mince")) return true;
+      if (normU === "pork" && normO.includes("pork")) return true;
+      if (normU === "lamb" && normO.includes("lamb")) return true;
+      if (normU === "fish" && (normO.includes("fish") || normO === "salmon" || normO === "cod" || normO === "haddock")) return true;
+      // "basmati rice" contains "rice" — specific item matches general token
+      if (normU.includes(normO) && normO.length >= 4) return true;
+      if (normO.includes(normU) && normU.length >= 4) return true;
+      return false;
+    });
+  });
 }
 
 // ── Protein tokens ─────────────────────────────────────────────────────────
 
 const PROTEIN_TOKENS = new Set([
-  "chicken thighs", "chicken breast", "beef mince", "steak",
-  "pork chops", "lamb", "bacon", "salmon", "white fish",
-  "prawns", "canned tuna", "eggs", "tofu", "chickpeas", "lentils",
+  // Chicken
+  "chicken thighs", "chicken breast", "chicken legs", "chicken wings", "chicken mince",
+  // Beef
+  "beef mince", "steak",
+  // Pork
+  "pork chops", "pork belly", "sausages", "bacon",
+  // Lamb
+  "lamb",
+  // Fish
+  "salmon", "white fish", "oily fish", "smoked salmon",
+  // Seafood
+  "prawns", "canned tuna",
+  // Plant-based
+  "eggs", "tofu", "chickpeas", "lentils",
 ]);
 
 function isProtein(token: string) { return PROTEIN_TOKENS.has(token); }
@@ -105,15 +267,15 @@ const LIBRARY: Template[] = [
       { token: "sugar",          label: "Sugar",          criticality: "optional",  substitute: "skip — glaze less sticky" },
     ],
     ingredients: [
-      { name: "Chicken thighs", quantity: "4 (approx 600g)" },
-      { name: "Jasmine rice",   quantity: "1 cup" },
+      { name: "Chicken thighs", quantity: "600g bone-in" },
+      { name: "Jasmine rice",   quantity: "185g" },
       { name: "Soy sauce",      quantity: "3 tbsp" },
       { name: "Garlic",         quantity: "4 cloves" },
       { name: "Olive oil",      quantity: "1 tbsp" },
       { name: "Sugar",          quantity: "1 tbsp" },
     ],
     steps: [
-      { number: 1, instruction: "Measure 1 cup of rice. Rinse until water runs clear. Combine with 1¼ cups water and a pinch of salt, cover and bring to a boil.", timerMinutes: null },
+      { number: 1, instruction: "Measure 185g rice. Rinse until water runs clear. Combine with 250ml water and a pinch of salt, cover and bring to a boil.", timerMinutes: null },
       { number: 2, instruction: "Reduce to lowest heat, keep covered, cook until liquid is fully absorbed.", timerMinutes: 15 },
       { number: 3, instruction: "Pat the 4 chicken thighs completely dry. Season both sides with salt and pepper.", timerMinutes: null },
       { number: 4, instruction: "Heat 1 tbsp olive oil in a heavy pan over medium-high. Lay thighs skin-side down — immediate sizzle. Sear undisturbed until skin is deep golden.", timerMinutes: 6 },
@@ -136,7 +298,7 @@ const LIBRARY: Template[] = [
       { token: "pepper",         label: "Pepper",         criticality: "optional",  substitute: "skip" },
     ],
     ingredients: [
-      { name: "Chicken thighs", quantity: "6, bone-in" },
+      { name: "Chicken thighs", quantity: "750g bone-in" },
       { name: "Potatoes",       quantity: "600g" },
       { name: "Garlic",         quantity: "1 whole head" },
       { name: "Olive oil",      quantity: "4 tbsp" },
@@ -167,7 +329,7 @@ const LIBRARY: Template[] = [
       { token: "pepper",         label: "Pepper",         criticality: "optional",  substitute: "skip" },
     ],
     ingredients: [
-      { name: "Chicken breasts", quantity: "2 (200g each)" },
+      { name: "Chicken breasts", quantity: "400g" },
       { name: "Butter",          quantity: "40g" },
       { name: "Garlic",          quantity: "4 cloves" },
       { name: "Olive oil",       quantity: "1 tbsp" },
@@ -197,7 +359,7 @@ const LIBRARY: Template[] = [
       { token: "sugar",          label: "Sugar",          criticality: "optional",  substitute: "skip" },
     ],
     ingredients: [
-      { name: "Chicken breast", quantity: "2 fillets" },
+      { name: "Chicken breast", quantity: "360g" },
       { name: "Soy sauce",      quantity: "3 tbsp" },
       { name: "Garlic",         quantity: "3 cloves" },
       { name: "Olive oil",      quantity: "1 tbsp" },
@@ -260,7 +422,7 @@ const LIBRARY: Template[] = [
       { token: "olive oil", label: "Olive oil", criticality: "important", substitute: "any cooking oil" },
     ],
     ingredients: [
-      { name: "Cooked rice", quantity: "3 cups (day-old is best)" },
+      { name: "Cooked rice", quantity: "550g (day-old is best)" },
       { name: "Eggs",        quantity: "3" },
       { name: "Soy sauce",   quantity: "2 tbsp" },
       { name: "Onion",       quantity: "1 small" },
@@ -268,10 +430,10 @@ const LIBRARY: Template[] = [
       { name: "Olive oil",   quantity: "2 tbsp" },
     ],
     steps: [
-      { number: 1, instruction: "Crack 3 eggs into a bowl and beat with a pinch of salt. Measure 3 cups cooked rice and break up any cold clumps. Finely dice 1 onion and mince 3 garlic cloves.", timerMinutes: null },
+      { number: 1, instruction: "Crack 3 eggs into a bowl and beat with a pinch of salt. Measure 550g cooked rice and break up any cold clumps. Finely dice 1 onion and mince 3 garlic cloves.", timerMinutes: null },
       { number: 2, instruction: "Heat 1 tbsp oil in a wide pan over medium-high. Scramble the eggs into soft curds. Tip onto a plate.", timerMinutes: null },
       { number: 3, instruction: "Add 1 tbsp more oil. Fry the onion until edges turn dark golden.", timerMinutes: 4 },
-      { number: 4, instruction: "Add the garlic and stir 20 seconds. Tip in the 3 cups of rice and press flat against the pan.", timerMinutes: 2 },
+      { number: 4, instruction: "Add the garlic and stir 20 seconds. Tip in the 550g of rice and press flat against the pan.", timerMinutes: 2 },
       { number: 5, instruction: "Toss the rice for 2 more minutes — listen for a dry crisp sizzle.", timerMinutes: 2 },
       { number: 6, instruction: "Return eggs. Drizzle 2 tbsp soy sauce around the edge and toss until every grain glistens.", timerMinutes: null },
     ],
@@ -350,7 +512,7 @@ const LIBRARY: Template[] = [
       { token: "sugar",     label: "Sugar",     criticality: "optional",  substitute: "skip — glaze less sweet" },
     ],
     ingredients: [
-      { name: "Salmon fillets", quantity: "2 (150g each)" },
+      { name: "Salmon fillets", quantity: "300g" },
       { name: "Soy sauce",      quantity: "3 tbsp" },
       { name: "Garlic",         quantity: "3 cloves" },
       { name: "Olive oil",      quantity: "1 tbsp" },
@@ -426,7 +588,7 @@ const LIBRARY: Template[] = [
       { number: 1, instruction: "Finely dice 1 large onion and mince 4 garlic cloves. Drain and rinse the chickpeas.", timerMinutes: null },
       { number: 2, instruction: "Heat 2 tbsp olive oil in a wide pan over medium. Sauté onion with a pinch of salt until deeply golden.", timerMinutes: 8 },
       { number: 3, instruction: "Stir in garlic, 2 tsp cumin and 1 tsp chilli flakes for 30 seconds, then add 3 tbsp tomato paste and cook until it darkens.", timerMinutes: 3 },
-      { number: 4, instruction: "Add chickpeas, 1 crumbled stock cube and 1 cup water. Stir to coat.", timerMinutes: null },
+      { number: 4, instruction: "Add chickpeas, 1 crumbled stock cube and 240ml water. Stir to coat.", timerMinutes: null },
       { number: 5, instruction: "Simmer uncovered, mashing some chickpeas, until sauce clings.", timerMinutes: 12 },
       { number: 6, instruction: "Taste and adjust salt. Rest 2 minutes — flavours sharpen.", timerMinutes: 2 },
     ],
@@ -447,7 +609,7 @@ const LIBRARY: Template[] = [
       { token: "olive oil",    label: "Olive oil",    criticality: "optional",  substitute: "any oil" },
     ],
     ingredients: [
-      { name: "Red lentils",  quantity: "1 cup" },
+      { name: "Red lentils",  quantity: "200g" },
       { name: "Onion",        quantity: "1 large" },
       { name: "Garlic",       quantity: "4 cloves" },
       { name: "Cumin",        quantity: "2 tsp" },
@@ -459,7 +621,7 @@ const LIBRARY: Template[] = [
       { number: 1, instruction: "Dice 1 large onion and mince 4 garlic cloves. Rinse 1 cup lentils until water runs mostly clear.", timerMinutes: null },
       { number: 2, instruction: "Heat 2 tbsp olive oil in a large pot over medium. Sweat onion with a pinch of salt until translucent.", timerMinutes: 7 },
       { number: 3, instruction: "Add garlic and 2 tsp cumin for 30 seconds, then 2 tbsp tomato paste. Cook until it darkens.", timerMinutes: 2 },
-      { number: 4, instruction: "Add the lentils, 2 crumbled stock cubes and 5 cups water. Bring to a brisk boil.", timerMinutes: null },
+      { number: 4, instruction: "Add the lentils, 2 crumbled stock cubes and 1.2 litres water. Bring to a brisk boil.", timerMinutes: null },
       { number: 5, instruction: "Reduce to a gentle simmer until lentils collapse into the broth.", timerMinutes: 25 },
       { number: 6, instruction: "Mash lightly with a spoon for body. Taste and adjust salt.", timerMinutes: null },
     ],
@@ -510,7 +672,7 @@ const LIBRARY: Template[] = [
       { token: "pepper",    label: "Pepper",    criticality: "important", substitute: "use as much as you have" },
     ],
     ingredients: [
-      { name: "Steak",     quantity: "2 (200g each, at least 2cm thick)" },
+      { name: "Steak",     quantity: "400g (at least 2cm thick)" },
       { name: "Butter",    quantity: "40g" },
       { name: "Garlic",    quantity: "4 cloves, smashed" },
       { name: "Olive oil", quantity: "1 tbsp" },
@@ -543,7 +705,7 @@ const LIBRARY: Template[] = [
     ],
     ingredients: [
       { name: "Lamb",         quantity: "400g, minced or diced" },
-      { name: "Rice",         quantity: "1 cup" },
+      { name: "Rice",         quantity: "185g" },
       { name: "Onion",        quantity: "1 large" },
       { name: "Garlic",       quantity: "3 cloves" },
       { name: "Cumin",        quantity: "2 tsp" },
@@ -551,7 +713,7 @@ const LIBRARY: Template[] = [
       { name: "Olive oil",    quantity: "1 tbsp" },
     ],
     steps: [
-      { number: 1, instruction: "Rinse 1 cup rice. Cook with 1¼ cups water and a pinch of salt — bring to boil, cover, lowest heat.", timerMinutes: 15 },
+      { number: 1, instruction: "Rinse 185g rice. Cook with 250ml water and a pinch of salt — bring to boil, cover, lowest heat.", timerMinutes: 15 },
       { number: 2, instruction: "Finely dice 1 large onion and mince 3 garlic cloves.", timerMinutes: null },
       { number: 3, instruction: "Heat 1 tbsp olive oil over medium-high. Add 400g lamb in a single layer — don't stir for 3 minutes so it gets colour.", timerMinutes: 3 },
       { number: 4, instruction: "Break the lamb apart and add the onion. Cook until the onion softens.", timerMinutes: 5 },
@@ -574,7 +736,7 @@ const LIBRARY: Template[] = [
       { token: "pepper",     label: "Pepper",     criticality: "optional",  substitute: "skip" },
     ],
     ingredients: [
-      { name: "Pork chops", quantity: "2 (200g each)" },
+      { name: "Pork chops", quantity: "400g" },
       { name: "Butter",     quantity: "30g" },
       { name: "Garlic",     quantity: "4 cloves, smashed" },
       { name: "Olive oil",  quantity: "1 tbsp" },
@@ -591,6 +753,30 @@ const LIBRARY: Template[] = [
     ],
   },
 ];
+// ── Selection boost — rewards recipes that use the user's picked items ────
+// Staple pantry items (garlic, oil, etc.) are assumed — they don't add signal.
+// But when a user explicitly selects a protein, carb, vegetable, or fridge
+// item, recipes that actually use those selections rank higher.
+
+function selectionBoost(t: Template, inventory: Inventory): number {
+  const picked = [
+    ...inventory.proteins,
+    ...inventory.carbs,
+    ...inventory.vegetables,
+    ...inventory.fridge,
+  ].map(s => s.toLowerCase().trim());
+
+  if (picked.length === 0) return 1.0;
+
+  let hitWeight = 0;
+  for (const req of t.reqs) {
+    if (userHas(req.token, picked)) {
+      hitWeight += req.criticality === "essential" ? 2 : req.criticality === "important" ? 1 : 0.5;
+    }
+  }
+  return 1.0 + Math.min(0.5, hitWeight * 0.12);
+}
+
 // ── Novelty Engine ─────────────────────────────────────────────────────────
 // Applies recency penalties so the app never suggests the same meal twice
 // in a short window. The more a user cooks, the better suggestions get.
@@ -651,16 +837,29 @@ type Match = {
 };
 
 function collectItems(inventory: Inventory): string[] {
-  return [
+  const raw = [
     ...inventory.staples,
     ...inventory.proteins,
     ...inventory.carbs,
     ...inventory.vegetables,
     ...inventory.fridge,
-  ].map(s => s.toLowerCase().trim());
+  ];
+  const items: string[] = [];
+  const customMap = inventory.customTokenMap ?? {};
+  for (const item of raw) {
+    const lower = item.toLowerCase().trim();
+    if (lower.length >= 2 && /[a-z]/.test(lower)) {
+      items.push(lower);
+      // If this item has a SAT-token mapping (e.g. "chicken wings" → "chicken thighs"),
+      // push the mapped token so library recipes match correctly
+      const mapped = customMap[lower];
+      if (mapped) items.push(mapped.toLowerCase().trim());
+    }
+  }
+  return items;
 }
 
-function scoreTemplate(t: Template, items: string[]): Match {
+function scoreTemplate(t: Template, items: string[], customItems: string[] = []): Match {
   let viable = true;
   const swaps: { ingredient: string; swap: string }[] = [];
   const optional: string[] = [];
@@ -687,7 +886,18 @@ function scoreTemplate(t: Template, items: string[]): Match {
   );
   const score = viable ? Math.max(0.1, (totalWeight - missingWeight) / totalWeight) : 0;
 
-  return { template: t, score, viable, swaps, optional };
+  // Recipes using items the user explicitly typed get a 1.5× boost
+  let priorityMultiplier = 1.0;
+  if (viable && score > 0.3 && customItems.length > 0) {
+    for (const ci of customItems) {
+      if (t.reqs.some(req => userHas(req.token, [ci]))) {
+        priorityMultiplier = 1.5;
+        break;
+      }
+    }
+  }
+
+  return { template: t, score: score * priorityMultiplier, viable, swaps, optional };
 }
 
 // ── Match result ────────────────────────────────────────────────────────────
@@ -698,6 +908,7 @@ export type MatchResult =
 
 export function findRecipes(inventory: Inventory, history: CookHistory = []): MatchResult {
   const items = collectItems(inventory);
+  const customItems = (inventory.customItems ?? []).map(s => s.toLowerCase().trim());
   const hasProtein = inventory.proteins.length > 0;
 
   if (items.length < 3) {
@@ -706,10 +917,10 @@ export function findRecipes(inventory: Inventory, history: CookHistory = []): Ma
 
   const all = LIBRARY
     .map(t => {
-      const base = scoreTemplate(t, items);
-      // Apply novelty multiplier — personalises score based on cooking history
+      const base = scoreTemplate(t, items, customItems);
       const novelty = noveltyMultiplier(t, history);
-      return { ...base, score: base.score * novelty };
+      const boost   = selectionBoost(t, inventory);
+      return { ...base, score: base.score * novelty * boost };
     })
     .sort((a, b) => b.score - a.score);
   const viable = all.filter(m => m.viable);
@@ -751,11 +962,26 @@ export function findRecipes(inventory: Inventory, history: CookHistory = []): Ma
     };
   }
 
-  // No protein — show best viable matches
+  // No protein — try viable matches first
   if (viable.length > 0) return { ok: true, matches: viable.slice(0, 5), sparse: false };
-  if (all.length > 0) return { ok: true, matches: all.slice(0, 3), sparse: true };
 
-  return { ok: false, reason: "no_match", detail: "No recipes matched your kitchen. Try adding more ingredients." };
+  // Sparse fallback ONLY when a non-staple item actually appears in a recipe's requirements.
+  // Without this check, staple-rich recipes (chicken + garlic/soy) score highest and show up
+  // even when the user only has vegetables — which is wrong and confusing.
+  const nonStaples = [
+    ...inventory.carbs, ...inventory.vegetables, ...inventory.fridge,
+  ].map(s => s.toLowerCase().trim());
+
+  if (nonStaples.length > 0) {
+    const withNonStaple = all.filter(m =>
+      m.template.reqs.some(r => userHas(r.token, nonStaples))
+    );
+    if (withNonStaple.length > 0) {
+      return { ok: true, matches: withNonStaple.slice(0, 3), sparse: true };
+    }
+  }
+
+  return { ok: false, reason: "no_match", detail: "No library recipes match your ingredients. Add a protein or carb for more options." };
 }
 
 // ── Build recipe from match ────────────────────────────────────────────────
@@ -764,18 +990,42 @@ let rerollIdx = 0;
 
 function buildRecipe(m: Match, session: SessionPayload, sparse: boolean): Recipe {
   const t = m.template;
+  // All library templates are written for 2 servings. Scale ingredient quantities
+  // and the numeric cooking amounts embedded in step text proportionally.
+  const servingFactor = session.servings / 2;
+
   const ingredients: RecipeIngredient[] = t.ingredients.map(ing => {
     const tokenGuess = ing.name.toLowerCase().replace(/\s*\(.*\)/, "").trim();
-    const req = t.reqs.find(r => r.token === tokenGuess || r.label.toLowerCase() === ing.name.toLowerCase());
-    const inInventory = req ? userHas(req.token, collectItems({ staples: [], proteins: [], carbs: [], vegetables: [], fridge: [], appliances: [], lastUpdated: null })) : true;
+    const nameLower = ing.name.toLowerCase();
+    // Relaxed match: exact token/label, or a whole-word overlap in either
+    // direction, so a specific ingredient name ("Jasmine rice", "Cooked rice")
+    // still resolves to its generic req ("rice"). Word boundaries prevent false
+    // matches like "eggplant" → "egg".
+    const escRe = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const req = t.reqs.find(r => {
+      const tok = r.token.toLowerCase();
+      const lbl = r.label.toLowerCase();
+      return (
+        tok === tokenGuess ||
+        lbl === nameLower ||
+        new RegExp(`\\b${escRe(tok)}\\b`).test(tokenGuess) ||
+        new RegExp(`\\b${escRe(tokenGuess)}\\b`).test(lbl)
+      );
+    });
     return {
       name: ing.name,
-      quantity: ing.quantity,
+      quantity: scaleIngredientQty(ing.quantity, servingFactor),
       inInventory: req === undefined || m.swaps.some(s => s.ingredient === req.label) ? false : true,
       substituteNote: m.swaps.find(s => s.ingredient === req?.label)?.swap ?? null,
       criticality: req?.criticality,
     };
   });
+
+  const steps: RecipeStep[] = t.steps.map(s => ({
+    ...s,
+    instruction: scaleStepText(s.instruction, servingFactor),
+    notes: s.notes ? scaleStepText(s.notes, servingFactor) : s.notes,
+  }));
 
   const matchLabel = m.swaps.length === 0 && m.optional.length === 0
     ? "Perfect match"
@@ -791,7 +1041,7 @@ function buildRecipe(m: Match, session: SessionPayload, sparse: boolean): Recipe
     difficulty: t.difficulty,
     servings: session.servings,
     ingredients,
-    steps: t.steps,
+    steps,
     image: t.image,
     matchLabel,
     matchPercent: m.score,
@@ -803,20 +1053,51 @@ function buildRecipe(m: Match, session: SessionPayload, sparse: boolean): Recipe
 
 // ── Public API ─────────────────────────────────────────────────────────────
 
-export function getRecipe(inventory: Inventory, session: SessionPayload, history: CookHistory = []): Recipe {
+export function getRecipe(
+  inventory: Inventory,
+  session: SessionPayload,
+  history: CookHistory = [],
+  excludeName?: string,
+): Recipe {
   const result = findRecipes(inventory, history);
   if (!result.ok) throw new Error(`${result.reason}|${result.detail}`);
   const { matches, sparse } = result;
-  const pick = matches[rerollIdx % matches.length];
+
+  // Exclude the recipe the user just rejected so "Not this" always shows something new
+  const pool = excludeName ? matches.filter(m => m.template.name !== excludeName) : matches;
+
+  if (pool.length === 0) {
+    throw new Error(
+      "no_more_recipes|You've seen everything that works with your current kitchen. Add more ingredients to unlock new recipes."
+    );
+  }
+
+  const pick = pool[rerollIdx % pool.length];
   rerollIdx++;
   return buildRecipe(pick, session, sparse);
 }
 
-export async function getRecipeFromAPI(inventory: Inventory, session: SessionPayload, signal?: AbortSignal): Promise<Recipe> {
+// Meal type based on the local time the recipe is requested.
+// Before 11am → breakfast, 11am–5pm → lunch, after 5pm → dinner.
+export type MealType = "breakfast" | "lunch" | "dinner";
+export function currentMealType(d: Date = new Date()): MealType {
+  const h = d.getHours();
+  if (h < 11) return "breakfast";
+  if (h < 17) return "lunch";
+  return "dinner";
+}
+
+export async function getRecipeFromAPI(
+  inventory: Inventory,
+  session: SessionPayload,
+  signal?: AbortSignal,
+  excludeName?: string,
+  avoidRecipes: string[] = [],
+): Promise<Recipe> {
   const res = await fetch("/api/generate-recipe", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ inventory, session }),
+    body: JSON.stringify({ inventory, session, excludeName, avoidRecipes, mealType: currentMealType() }),
     signal,
   });
   if (!res.ok) throw new Error("api_failed");

@@ -1,0 +1,389 @@
+{
+  "Mise/Dark": {
+    "color": {
+      "bg": {
+        "base": {
+          "value": "#080302",
+          "type": "color"
+        },
+        "surface": {
+          "value": "#130B08",
+          "type": "color"
+        },
+        "elevated": {
+          "value": "#1C1411",
+          "type": "color"
+        },
+        "raised": {
+          "value": "#281F1C",
+          "type": "color"
+        },
+        "overlay": {
+          "value": "#342C28",
+          "type": "color"
+        }
+      },
+      "text": {
+        "primary": {
+          "value": "#F0EAE3",
+          "type": "color"
+        },
+        "secondary": {
+          "value": "#ADA79F",
+          "type": "color"
+        },
+        "tertiary": {
+          "value": "#88827C",
+          "type": "color"
+        }
+      },
+      "border": {
+        "subtle": {
+          "value": "#312A27",
+          "type": "color"
+        },
+        "default": {
+          "value": "#433B38",
+          "type": "color"
+        },
+        "strong": {
+          "value": "#5F5652",
+          "type": "color"
+        }
+      },
+      "ember": {
+        "base": {
+          "value": "#F67F37",
+          "type": "color"
+        },
+        "dim": {
+          "value": "#803200",
+          "type": "color"
+        },
+        "text": {
+          "value": "#FFAF68",
+          "type": "color"
+        },
+        "glow": {
+          "value": "#F67F3726",
+          "type": "color"
+        },
+        "onEmber": {
+          "value": "#080302",
+          "type": "color"
+        }
+      },
+      "success": {
+        "value": "#56A76A",
+        "type": "color"
+      },
+      "warning": {
+        "value": "#E0AF3B",
+        "type": "color"
+      },
+      "error": {
+        "value": "#DE4E4B",
+        "type": "color"
+      }
+    },
+    "radius": {
+      "sm": {
+        "value": "4",
+        "type": "borderRadius"
+      },
+      "md": {
+        "value": "8",
+        "type": "borderRadius"
+      },
+      "lg": {
+        "value": "12",
+        "type": "borderRadius"
+      },
+      "xl": {
+        "value": "14",
+        "type": "borderRadius"
+      },
+      "2xl": {
+        "value": "18",
+        "type": "borderRadius"
+      },
+      "full": {
+        "value": "999",
+        "type": "borderRadius"
+      }
+    },
+    "space": {
+      "1": {
+        "value": "4",
+        "type": "spacing"
+      },
+      "2": {
+        "value": "8",
+        "type": "spacing"
+      },
+      "3": {
+        "value": "12",
+        "type": "spacing"
+      },
+      "4": {
+        "value": "16",
+        "type": "spacing"
+      },
+      "5": {
+        "value": "20",
+        "type": "spacing"
+      },
+      "6": {
+        "value": "24",
+        "type": "spacing"
+      },
+      "8": {
+        "value": "32",
+        "type": "spacing"
+      }
+    },
+    "fontFamily": {
+      "display": {
+        "value": "Fraunces",
+        "type": "fontFamilies"
+      },
+      "sans": {
+        "value": "DM Sans",
+        "type": "fontFamilies"
+      },
+      "mono": {
+        "value": "DM Mono",
+        "type": "fontFamilies"
+      }
+    },
+    "fontWeight": {
+      "light": {
+        "value": "Light",
+        "type": "fontWeights"
+      },
+      "regular": {
+        "value": "Regular",
+        "type": "fontWeights"
+      },
+      "medium": {
+        "value": "Medium",
+        "type": "fontWeights"
+      },
+      "semibold": {
+        "value": "SemiBold",
+        "type": "fontWeights"
+      },
+      "bold": {
+        "value": "Bold",
+        "type": "fontWeights"
+      }
+    },
+    "fontSize": {
+      "hero": {
+        "value": "48",
+        "type": "fontSizes"
+      },
+      "h1": {
+        "value": "28",
+        "type": "fontSizes"
+      },
+      "h2": {
+        "value": "26",
+        "type": "fontSizes"
+      },
+      "cta": {
+        "value": "22",
+        "type": "fontSizes"
+      },
+      "stepNumeral": {
+        "value": "96",
+        "type": "fontSizes"
+      },
+      "lg": {
+        "value": "15",
+        "type": "fontSizes"
+      },
+      "base": {
+        "value": "14",
+        "type": "fontSizes"
+      },
+      "sm": {
+        "value": "13",
+        "type": "fontSizes"
+      },
+      "eyebrow": {
+        "value": "12",
+        "type": "fontSizes"
+      },
+      "mono": {
+        "value": "11",
+        "type": "fontSizes"
+      },
+      "timer": {
+        "value": "36",
+        "type": "fontSizes"
+      }
+    },
+    "lineHeight": {
+      "tight": {
+        "value": "100%",
+        "type": "lineHeights"
+      },
+      "snug": {
+        "value": "110%",
+        "type": "lineHeights"
+      },
+      "body": {
+        "value": "150%",
+        "type": "lineHeights"
+      }
+    },
+    "letterSpacing": {
+      "tight": {
+        "value": "-1%",
+        "type": "letterSpacing"
+      },
+      "normal": {
+        "value": "0%",
+        "type": "letterSpacing"
+      },
+      "wide": {
+        "value": "4%",
+        "type": "letterSpacing"
+      },
+      "eyebrow": {
+        "value": "12%",
+        "type": "letterSpacing"
+      }
+    },
+    "typography": {
+      "display/hero": {
+        "value": {
+          "fontFamily": "Fraunces",
+          "fontWeight": "Light",
+          "fontSize": "48",
+          "lineHeight": "100%",
+          "letterSpacing": "-1%"
+        },
+        "type": "typography"
+      },
+      "display/h1": {
+        "value": {
+          "fontFamily": "Fraunces",
+          "fontWeight": "Light",
+          "fontSize": "28",
+          "lineHeight": "110%",
+          "letterSpacing": "0%"
+        },
+        "type": "typography"
+      },
+      "display/h2": {
+        "value": {
+          "fontFamily": "Fraunces",
+          "fontWeight": "Light",
+          "fontSize": "26",
+          "lineHeight": "110%",
+          "letterSpacing": "0%"
+        },
+        "type": "typography"
+      },
+      "display/cta": {
+        "value": {
+          "fontFamily": "Fraunces",
+          "fontWeight": "Light",
+          "fontSize": "22",
+          "lineHeight": "110%",
+          "letterSpacing": "0%"
+        },
+        "type": "typography"
+      },
+      "numeral/step": {
+        "value": {
+          "fontFamily": "Fraunces",
+          "fontWeight": "Light",
+          "fontSize": "96",
+          "lineHeight": "100%",
+          "letterSpacing": "0%"
+        },
+        "type": "typography"
+      },
+      "body/large": {
+        "value": {
+          "fontFamily": "DM Sans",
+          "fontWeight": "Regular",
+          "fontSize": "15",
+          "lineHeight": "150%",
+          "letterSpacing": "0%"
+        },
+        "type": "typography"
+      },
+      "body/base": {
+        "value": {
+          "fontFamily": "DM Sans",
+          "fontWeight": "Regular",
+          "fontSize": "14",
+          "lineHeight": "150%",
+          "letterSpacing": "0%"
+        },
+        "type": "typography"
+      },
+      "body/small": {
+        "value": {
+          "fontFamily": "DM Sans",
+          "fontWeight": "Regular",
+          "fontSize": "13",
+          "lineHeight": "140%",
+          "letterSpacing": "0%"
+        },
+        "type": "typography"
+      },
+      "body/medium": {
+        "value": {
+          "fontFamily": "DM Sans",
+          "fontWeight": "Medium",
+          "fontSize": "14",
+          "lineHeight": "140%",
+          "letterSpacing": "0%"
+        },
+        "type": "typography"
+      },
+      "label/eyebrow": {
+        "value": {
+          "fontFamily": "DM Sans",
+          "fontWeight": "SemiBold",
+          "fontSize": "12",
+          "lineHeight": "100%",
+          "letterSpacing": "12%",
+          "textCase": "uppercase"
+        },
+        "type": "typography"
+      },
+      "mono/label": {
+        "value": {
+          "fontFamily": "DM Mono",
+          "fontWeight": "Regular",
+          "fontSize": "11",
+          "lineHeight": "130%",
+          "letterSpacing": "4%"
+        },
+        "type": "typography"
+      },
+      "numeral/timer": {
+        "value": {
+          "fontFamily": "DM Mono",
+          "fontWeight": "Medium",
+          "fontSize": "36",
+          "lineHeight": "100%",
+          "letterSpacing": "0%"
+        },
+        "type": "typography"
+      }
+    }
+  },
+  "$themes": [],
+  "$metadata": {
+    "tokenSetOrder": [
+      "Mise/Dark"
+    ]
+  }
+}

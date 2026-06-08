@@ -71,6 +71,7 @@ function RecipeCard() {
   const inventory = useMise(s => s.inventory);
   const session = useMise(s => s.session);
   const setRecipe = useMise(s => s.setRecipe);
+  const history = useMise(s => s.history);
   const [rerolling, setRerolling] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -100,11 +101,13 @@ function RecipeCard() {
 
     let next = null;
     try {
-      // Abort the API call after 4 s so the loader never gets stuck
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
+      const timeout = setTimeout(() => controller.abort(), 10000);
+      // Recently-cooked dishes so reroll respects the history-based dedupe,
+      // just like the initial generation in session.tsx.
+      const avoidRecipes = [...new Set(history.map(h => h.name))];
       try {
-        next = await getRecipeFromAPI(inventory, session, controller.signal);
+        next = await getRecipeFromAPI(inventory, session, controller.signal, recipe.name, avoidRecipes);
       } catch {
         // API unavailable or timed out — use local library
       } finally {
@@ -112,12 +115,17 @@ function RecipeCard() {
       }
 
       if (!next) {
-        next = getRecipe(inventory, session);
+        next = getRecipe(inventory, session, history, recipe.name);
       }
 
       setRecipe(next);
-    } catch {
-      setErrMsg("No more recipes found for your kitchen.");
+    } catch (e: any) {
+      const reason = (e.message ?? "").split("|")[0];
+      if (reason === "no_more_recipes") {
+        setErrMsg("You've seen all recipes for your kitchen. Add more ingredients to unlock new options.");
+      } else {
+        setErrMsg("Couldn't find another recipe. Try adjusting your kitchen.");
+      }
     } finally {
       setRerolling(false);
     }
@@ -125,7 +133,7 @@ function RecipeCard() {
 
   return (
     <MobileFrame>
-      <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         <div className="flex-shrink-0 px-4 pt-12 pb-2">
           <button onClick={() => navigate({ to: "/session" })}
             className="w-10 h-10 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
@@ -146,13 +154,13 @@ function RecipeCard() {
           {rerolling && <RerollLoaderContent />}
         </motion.div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto">
         <motion.div key={recipe.name}
           initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
           className="px-4 space-y-4 pt-2 pb-4">
 
           {/* Recipe card */}
-          <div className="rounded-2xl overflow-hidden bg-bg-surface border border-border-subtle">
+          <div className="rounded-xl overflow-hidden bg-bg-surface border border-border-subtle">
             <RecipeImage src={recipe.image} cuisine={recipe.cuisine} alt={recipe.name} height={220}>
               <div className="p-4 flex flex-col justify-end gap-2">
                 <div className="flex gap-2 flex-wrap">
@@ -192,7 +200,7 @@ function RecipeCard() {
               )}
               {optional.length > 0 && swaps.length === 0 && (
                 <p className="text-[11px] text-text-tertiary italic">
-                  {optional.join(", ")} missing — optional, dish works without {optional.length === 1 ? "it" : "them"}.
+                  {optional.join(", ")} not needed. The dish works fine without {optional.length === 1 ? "it" : "them"}.
                 </p>
               )}
 
@@ -208,7 +216,7 @@ function RecipeCard() {
           </div>
 
           {/* Recipe preview dropdown */}
-          <div className="rounded-2xl bg-bg-surface border border-border-subtle overflow-hidden">
+          <div className="rounded-xl bg-bg-surface border border-border-subtle overflow-hidden">
             <button
               onClick={() => setPreviewOpen(o => !o)}
               className="w-full flex items-center justify-between px-4 py-3.5 active:opacity-70 transition-opacity"
@@ -270,12 +278,22 @@ function RecipeCard() {
             </AnimatePresence>
           </div>
 
-          {errMsg && <p className="text-center text-[13px] text-error">{errMsg}</p>}
+          {errMsg && (
+            <div className="rounded-xl bg-bg-surface border border-border-default p-4 text-center space-y-2">
+              <p className="text-[13px] text-text-secondary">{errMsg}</p>
+              <button
+                onClick={() => navigate({ to: "/inventory" })}
+                className="text-[12px] font-semibold text-ember underline underline-offset-2 active:opacity-70"
+              >
+                Update my kitchen →
+              </button>
+            </div>
+          )}
         </motion.div>
         </div>{/* end scroll */}
 
         {/* Sticky bottom CTAs — always visible */}
-        <div className="flex-shrink-0 px-4 pb-10 pt-3 bg-bg-base border-t border-border-subtle space-y-2">
+        <div className="flex-shrink-0 px-4 pb-safe pt-3 bg-bg-base border-t border-border-subtle space-y-2">
           <div className="flex gap-3">
             <button onClick={swap} disabled={rerolling}
               className="flex-1 h-14 rounded-xl bg-bg-surface border border-border-default text-text-secondary flex items-center justify-center gap-2 text-[14px] active:scale-95 transition disabled:opacity-50">
@@ -289,7 +307,7 @@ function RecipeCard() {
           {swaps.length > 0 && (
             <button onClick={() => navigate({ to: "/session" })}
               className="w-full text-center text-[12px] text-text-tertiary py-1 active:opacity-70">
-              These swaps don't work for me — try a different recipe
+              These swaps don't work for me. Try a different recipe.
             </button>
           )}
         </div>

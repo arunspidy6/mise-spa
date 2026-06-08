@@ -1,26 +1,65 @@
 // ── Inventory data ─────────────────────────────────────────────────────────
 
+// Preselected staples — common in Irish households (shown already "in kitchen").
 export const STAPLES_DEFAULTS = [
-  "Olive oil", "Salt", "Pepper", "Garlic", "Onion",
-  "Eggs", "Butter", "Flour", "Sugar", "Soy sauce",
-  "Stock cubes", "Vinegar", "Tomato paste", "Chilli flakes", "Cumin",
+  // Oils & fats
+  "Olive oil", "Butter",
+  // Core seasonings
+  "Salt", "Black pepper", "Chilli flakes",
+  // Aromatics
+  "Garlic", "Onion",
+  // Warm spices
+  "Paprika",
+  // Herbs
+  "Thyme", "Parsley", "Rosemary", "Bay leaves", "Mixed herbs",
+  // Baking & dry goods
+  "Flour", "Sugar",
+  // Sauces & stock
+  "Tomato paste", "Stock cubes", "Vinegar",
 ];
 
 // Categorised sections for inventory UI
 export const STAPLE_SECTIONS = [
-  { label: "Oils & fats",    items: ["Olive oil", "Butter"] },
-  { label: "Seasonings",     items: ["Salt", "Pepper", "Chilli flakes", "Cumin"] },
-  { label: "Aromatics",      items: ["Garlic", "Onion"] },
-  { label: "Spices",         items: ["Paprika", "Turmeric", "Garam masala", "Oregano", "Coriander", "Cayenne"] },
-  { label: "Eggs & baking",  items: ["Eggs", "Flour", "Sugar"] },
-  { label: "Sauces & stock", items: ["Soy sauce", "Tomato paste", "Stock cubes", "Vinegar"] },
+  { label: "Oils & fats",       items: ["Olive oil", "Butter", "Vegetable oil", "Sesame oil"] },
+  { label: "Core seasonings",   items: ["Salt", "Black pepper", "Chilli flakes"] },
+  { label: "Aromatics",         items: ["Garlic", "Onion", "Ginger"] },
+  { label: "Warm spices",       items: ["Cumin", "Coriander", "Turmeric", "Garam masala", "Paprika", "Smoked paprika"] },
+  { label: "Herbs",             items: ["Oregano", "Thyme", "Parsley", "Rosemary", "Bay leaves", "Mixed herbs"] },
+  { label: "Heat",              items: ["Cayenne", "Chilli powder", "Curry powder"] },
+  { label: "Asian",             items: ["Soy sauce", "Fish sauce", "Oyster sauce", "Miso paste"] },
+  { label: "Baking & dry goods",items: ["Flour", "Sugar", "Baking powder"] },
+  { label: "Sauces & stock",    items: ["Tomato paste", "Stock cubes", "Vinegar", "Worcestershire sauce"] },
 ];
 
 export const PROTEIN_SECTIONS = [
-  { label: "Poultry",        items: ["Chicken thighs", "Chicken breast"] },
-  { label: "Meat",           items: ["Beef mince", "Steak", "Pork chops", "Lamb", "Bacon"] },
-  { label: "Fish & seafood", items: ["Salmon", "White fish", "Prawns", "Canned tuna"] },
-  { label: "Plant-based",    items: ["Eggs", "Tofu", "Chickpeas", "Lentils"] },
+  {
+    label: "Chicken",
+    items: ["Chicken breast", "Chicken thighs", "Chicken legs", "Chicken wings", "Chicken mince"],
+  },
+  {
+    label: "Beef",
+    items: ["Beef mince", "Beef diced / steak"],
+  },
+  {
+    label: "Pork",
+    items: ["Pork mince", "Pork diced", "Pork chops", "Pork belly", "Sausages", "Bacon"],
+  },
+  {
+    label: "Lamb",
+    items: ["Lamb mince", "Lamb diced", "Lamb chops"],
+  },
+  {
+    label: "Fish",
+    items: ["Salmon", "White fish", "Oily fish", "Smoked salmon"],
+  },
+  {
+    label: "Seafood",
+    items: ["Prawns", "Canned tuna"],
+  },
+  {
+    label: "Plant-based",
+    items: ["Eggs", "Tofu", "Chickpeas", "Lentils"],
+  },
 ];
 
 export const CARB_SECTIONS = [

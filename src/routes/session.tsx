@@ -141,36 +141,53 @@ function SessionSetup() {
     setLoading(true);
     setErr(null);
 
-    const check = findRecipes(inventory);
-    if (!check.ok) {
+    // Staples (salt, oil, spices) are always preselected, so they don't prove
+    // the user actually added anything. Require at least one real, non-staple
+    // ingredient before calling the API.
+    const nonStaples = [
+      ...inventory.proteins, ...inventory.carbs,
+      ...inventory.vegetables, ...inventory.fridge,
+    ];
+    if (nonStaples.length < 1) {
       setLoading(false);
-      setErr({ reason: check.reason, detail: check.detail });
+      setErr({ reason: "no_ingredients", detail: "Add some ingredients to your kitchen first." });
       return;
     }
 
     try {
-      // Abort the API call after 4 s so the loader never gets stuck
+      // Always try the API first — it uses the full inventory (including custom veg/items)
+      // and generates a recipe that actually matches what the user has.
+      // 28 s timeout: Vercel function maxDuration is 30 s; Anthropic cold starts can be 6-12 s.
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4000);
+      const timeout = setTimeout(() => controller.abort(), 28000);
       let recipe = null;
+      // Names of dishes the user has already cooked — deduped, most recent first.
+      // The API uses these to generate something genuinely different, so the same
+      // dish isn't re-suggested just because a different cut of the same meat
+      // (e.g. lamb diced vs lamb chops) was selected.
+      const avoidRecipes = [...new Set(history.map(h => h.name))].slice(0, 8);
       try {
-        recipe = await getRecipeFromAPI(inventory, session, controller.signal);
+        recipe = await getRecipeFromAPI(inventory, session, controller.signal, undefined, avoidRecipes);
       } catch {
-        // API failed or timed out — use local library
+        // API unavailable or timed out — fall back to local library
       } finally {
         clearTimeout(timeout);
       }
 
-      // Stale check — if a newer generate() fired while we were waiting, bail out
       if (genId !== genIdRef.current) return;
 
       if (!recipe) {
+        // Library fallback: validate first so we show a useful error if there's no match
+        const check = findRecipes(inventory);
+        if (!check.ok) {
+          setLoading(false);
+          setErr({ reason: check.reason, detail: check.detail });
+          return;
+        }
         recipe = getRecipe(inventory, session, history);
       }
 
-      // Final stale check before navigating
       if (genId !== genIdRef.current) return;
-
       setRecipe(recipe);
       navigate({ to: "/recipe" });
     } catch (e2) {
@@ -190,68 +207,72 @@ function SessionSetup() {
         {loading && <RecipeLoader />}
       </AnimatePresence>
 
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <div className="flex-1 overflow-y-auto px-6 pt-12 pb-4">
-        <button onClick={() => navigate({ to: "/" })}
-          className="w-10 h-10 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
-          <ArrowLeft className="w-5 h-5" />
-        </button>
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+        {/* Single linear column — no justify-between so sections stay grouped */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-12 pb-4">
+          <button onClick={() => navigate({ to: "/" })}
+            className="w-10 h-10 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
 
-        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-4">
-          <h1 className="font-display text-[28px] font-light text-text-primary">Tonight's cook</h1>
-          <p className="text-[14px] text-text-secondary mt-1">Quick check before we find something.</p>
-        </motion.div>
+          <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className="mt-4">
+            <h1 className="font-display text-[28px] font-light text-text-primary">Tonight's cook</h1>
+            <p className="text-[14px] text-text-secondary mt-1">Quick check before we find your recipe.</p>
+          </motion.div>
 
-        <button onClick={() => navigate({ to: "/inventory", search: { from: "session" } })}
-          className="mt-6 w-full h-14 rounded-xl bg-bg-surface border border-border-default flex items-center justify-between px-4 active:scale-[0.99] transition">
-          <div>
-            <p className="label-eyebrow">Cooking from</p>
-            <p className="text-[13px] text-text-primary mt-0.5">
-              {itemCount} {itemCount === 1 ? "item" : "items"} in your kitchen
-            </p>
-          </div>
-          <span className="flex items-center gap-1.5 text-[12px] text-ember-text">
-            <Pencil className="w-3.5 h-3.5" />Edit
-          </span>
-        </button>
-
-        <div className="mt-8">
-          <p className="label-eyebrow mb-3">How long do you have?</p>
-          <div className="grid grid-cols-4 gap-2">
-            {TIME_OPTIONS.map(o => {
-              const active = session.timeMinutes === o.value;
-              return (
-                <button key={o.value} onClick={() => setSession({ timeMinutes: o.value })}
-                  className={`h-14 rounded-xl flex flex-col items-center justify-center gap-0.5 border transition-all active:scale-95
-                    ${active ? "bg-ember-glow border-ember-dim text-ember-text" : "bg-bg-surface border-border-default text-text-secondary"}`}>
-                  <span className="text-base">{o.icon}</span>
-                  <span className="text-[11px] font-medium">{o.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="mt-8">
-          <p className="label-eyebrow mb-3">Cooking for</p>
-          <div className="h-16 bg-bg-surface border border-border-default rounded-xl flex items-center justify-between px-4">
-            <button onClick={() => setSession({ servings: Math.max(1, session.servings - 1) })}
-              className="w-10 h-10 rounded-full bg-bg-raised flex items-center justify-center text-text-secondary active:scale-90">
-              <Minus className="w-4 h-4" />
-            </button>
-            <div className="flex items-baseline gap-2">
-              <span className="font-display text-[40px] font-light text-text-primary tabular-nums">{session.servings}</span>
-              <span className="text-[13px] text-text-tertiary">{session.servings === 1 ? "person" : "people"}</span>
+          {/* Cooking from — text-left resets the button's default centre alignment
+              so the label and item count share the same left edge. */}
+          <button
+            onClick={() => navigate({ to: "/inventory", search: { from: "session" } })}
+            className="mt-5 w-full rounded-xl bg-bg-surface border border-border-default flex items-center justify-between gap-3 px-4 py-3.5 active:scale-[0.99] transition text-left"
+          >
+            <div className="flex flex-col items-start gap-1 min-w-0">
+              <span className="label-eyebrow leading-none">Cooking from</span>
+              <span className="text-[13px] text-text-primary leading-snug">
+                {itemCount} {itemCount === 1 ? "item" : "items"} in your kitchen
+              </span>
             </div>
-            <button onClick={() => setSession({ servings: Math.min(8, session.servings + 1) })}
-              className="w-10 h-10 rounded-full bg-bg-raised flex items-center justify-center text-text-secondary active:scale-90">
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+            <span className="flex items-center gap-1.5 text-[12px] text-ember-text flex-shrink-0">
+              <Pencil className="w-3.5 h-3.5" />Edit
+            </span>
+          </button>
 
+          <div className="mt-6">
+            <p className="label-eyebrow mb-3">How long do you have?</p>
+            <div className="grid grid-cols-4 gap-2">
+              {TIME_OPTIONS.map(o => {
+                const active = session.timeMinutes === o.value;
+                return (
+                  <button key={o.value} onClick={() => setSession({ timeMinutes: o.value })}
+                    className={`h-14 rounded-xl flex flex-col items-center justify-center gap-0.5 border transition-all active:scale-95
+                      ${active ? "bg-ember-glow border-ember-dim text-ember-text" : "bg-bg-surface border-border-default text-text-secondary"}`}>
+                    <span className="text-base">{o.icon}</span>
+                    <span className="text-[11px] font-medium">{o.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="mt-6 pb-4">
+            <p className="label-eyebrow mb-3">Cooking for</p>
+            <div className="h-16 bg-bg-surface border border-border-default rounded-xl flex items-center justify-between px-4">
+              <button onClick={() => setSession({ servings: Math.max(1, session.servings - 1) })}
+                className="w-10 h-10 rounded-full bg-bg-raised flex items-center justify-center text-text-secondary active:scale-90">
+                <Minus className="w-4 h-4" />
+              </button>
+              <div className="flex items-baseline gap-2">
+                <span className="font-display text-[40px] font-light text-text-primary tabular-nums">{session.servings}</span>
+                <span className="text-[13px] text-text-tertiary">{session.servings === 1 ? "person" : "people"}</span>
+              </div>
+              <button onClick={() => setSession({ servings: Math.min(8, session.servings + 1) })}
+                className="w-10 h-10 rounded-full bg-bg-raised flex items-center justify-center text-text-secondary active:scale-90">
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </div>{/* end scrollable */}
-        <div className="flex-shrink-0 px-6 pb-10 pt-3 bg-bg-base border-t border-border-subtle">
+        <div className="flex-shrink-0 px-6 pb-safe pt-3 bg-bg-base border-t border-border-subtle">
           {err && (
             <div className="mb-4 rounded-xl bg-bg-surface border border-border-default p-4 space-y-3">
               <p className="text-[13px] font-semibold text-text-primary">

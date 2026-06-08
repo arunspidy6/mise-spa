@@ -42,13 +42,96 @@ const SR = typeof window !== "undefined"
   ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
   : null;
 
+// On iOS, Chrome is a WebKit wrapper — Apple doesn't expose SpeechRecognition
+// to third-party browsers. Only Safari on iOS gets the API.
+const IS_IOS = typeof navigator !== "undefined" &&
+  /iP(hone|ad|od)/.test(navigator.userAgent);
+const VOICE_UNAVAILABLE_MSG = IS_IOS && !SR
+  ? "Voice works in Safari on iOS — Chrome doesn't have mic access here."
+  : "Voice isn't available in this browser.";
+
 type TimerState = { remaining: number; total: number; running: boolean; done: boolean };
 
-// ── Prep helpers ───────────────────────────────────────────────────────────
-const PREP_KW = ["chopped","diced","sliced","minced","grated","peeled","shredded",
-  "julienned","crushed","ground","blended","soaked","marinated","thawed","drained",
-  "rinsed","washed","trimmed","halved","quartered","beaten","whisked","deveined"];
-const needsPrep = (name: string) => PREP_KW.some(k => name.toLowerCase().includes(k));
+// ── Prep derivation ─────────────────────────────────────────────────────────
+// Turns a recipe's own step text into a precise prep note per ingredient —
+// e.g. "Onion" + the steps → "finely diced". Falls back to sensible defaults
+// for common aromatics/veg when a recipe doesn't spell the cut out.
+
+const PREP_VERBS: Record<string, string> = {
+  dice: "diced", slice: "sliced", chop: "chopped", mince: "minced",
+  grate: "grated", crush: "crushed", smash: "smashed", cut: "cut",
+  peel: "peeled", halve: "halved", quarter: "quartered", cube: "cubed",
+  shred: "shredded", julienne: "julienned", crumble: "crumbled",
+  beat: "beaten", whisk: "whisked", trim: "trimmed", devein: "deveined",
+};
+
+// Default prep for common items — used only when the steps don't describe it.
+const DEFAULT_PREP: Record<string, string> = {
+  "red onion": "finely sliced", onion: "finely diced", shallot: "finely sliced",
+  "spring onion": "sliced", garlic: "minced", ginger: "grated", chilli: "finely chopped",
+  carrot: "diced", "sweet potato": "cut into chunks", potato: "cut into chunks",
+  tomato: "roughly chopped", pepper: "sliced", mushroom: "sliced", courgette: "sliced",
+  aubergine: "cubed", broccoli: "cut into florets", cauliflower: "cut into florets",
+  spinach: "washed", kale: "stalks removed", leek: "sliced", celery: "diced",
+  lemon: "cut into wedges", lime: "cut into wedges", parsley: "finely chopped",
+  coriander: "finely chopped", basil: "torn",
+};
+
+// Pantry / measure-and-pour items — never need a knife prep step.
+const NO_PREP = ["oil","salt","pepper","sugar","flour","stock","soy sauce","vinegar",
+  "honey","water","cumin","paprika","spice","powder","sauce","paste","seeds","milk","cream","rice"];
+
+function singular(w: string): string {
+  if (w.endsWith("ies")) return w.slice(0, -3) + "y";
+  if (w.endsWith("oes")) return w.slice(0, -2);
+  if (/(ch|sh|s|x|z)es$/.test(w)) return w.slice(0, -2);
+  if (w.endsWith("s") && !w.endsWith("ss")) return w.slice(0, -1);
+  return w;
+}
+
+// The searchable singular noun for an ingredient ("Cherry tomatoes" → "tomato").
+function searchNoun(name: string): string {
+  const n = name.toLowerCase().replace(/\(.*?\)/g, "")
+    .replace(/\b(fresh|large|small|medium|ripe|whole)\b/g, "").replace(/\s+/g, " ").trim();
+  const words = n.split(" ").filter(Boolean);
+  return singular(words[words.length - 1] || n);
+}
+
+// Derive a precise prep note for an ingredient from the recipe steps.
+function derivePrepNote(name: string, steps: any[]): string | null {
+  const low = name.toLowerCase();
+  if (NO_PREP.some(k => low.includes(k))) return null;
+  const noun = searchNoun(name);
+  if (!noun || noun.length < 3) return null;
+
+  const verbAlt = Object.keys(PREP_VERBS).join("|");
+  // verb (with optional adverb) appearing just before the noun, not crossing an "and"
+  const re = new RegExp(
+    `(finely|thinly|roughly|coarsely)?\\s*(${verbAlt})\\w*\\s+((?:(?!\\band\\b)[^.,;]){0,25}?)\\b${noun}s?\\b([^.,;]{0,40})`,
+    "i"
+  );
+  for (const s of steps || []) {
+    const text = (s.instruction || "").toLowerCase();
+    const m = text.match(re);
+    if (!m) continue;
+    let adverb = (m[1] || "").trim();
+    const verb = PREP_VERBS[m[2].toLowerCase()] ?? (m[2].toLowerCase() + "ed");
+    const after = m[4] || "";
+    if (!adverb) {
+      const a = after.match(/^\s*(thinly|finely|roughly|coarsely)\b/);
+      if (a) adverb = a[1];
+    }
+    const into = after.match(/into\s+([^.,;]*?(chunks|cubes|strips|pieces|wedges|rounds|batons|florets|matchsticks))/);
+    if (into) return `${verb} into ${into[1].trim()}`;
+    return adverb ? `${adverb} ${verb}` : verb;
+  }
+  for (const key of Object.keys(DEFAULT_PREP)) {
+    if (low.includes(key)) return DEFAULT_PREP[key];
+  }
+  return null;
+}
+
+const capFirst = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 
 // spoken number → 0-based step index
 const WORD_NUM: Record<string,number> = {
@@ -64,14 +147,36 @@ function extractStepTarget(text: string): number | null {
 }
 
 // ── Prep Screen ────────────────────────────────────────────────────────────
-function PrepScreen({ recipe, onStart }: { recipe: any; onStart: () => void }) {
+function PrepScreen({ recipe, onStart, onBack }: { recipe: any; onStart: () => void; onBack: () => void }) {
   const ings: any[] = recipe.ingredients ?? [];
+  const steps: any[] = recipe.steps ?? [];
   const [checked, setChecked] = useState<Set<number>>(new Set());
-  const prepItems = ings.filter(i => needsPrep(i.name));
-  const grabItems = ings.filter(i => !needsPrep(i.name));
+  const [showWarn, setShowWarn] = useState(false);
+  // Derive a precise prep note per ingredient from the recipe's own steps.
+  const prepItems: any[] = [];
+  const grabItems: any[] = [];
+  ings.forEach((ing) => {
+    // A swapped-out ingredient (not in the kitchen, but with a suggested
+    // substitute) isn't something to prep — the user isn't using the original.
+    // List it under "grab" with the substitute instead of a prep instruction.
+    if (ing.inInventory === false && ing.substituteNote) {
+      grabItems.push(ing);
+      return;
+    }
+    const prep = derivePrepNote(ing.name, steps);
+    if (prep) prepItems.push({ ...ing, prep });
+    else grabItems.push(ing);
+  });
   const toggle = (i: number) =>
     setChecked(p => { const n = new Set(p); n.has(i) ? n.delete(i) : n.add(i); return n; });
   const allDone = prepItems.length > 0 && prepItems.every((_, i) => checked.has(i));
+  const remaining = prepItems.length - checked.size;
+
+  // Guard "Start cooking": if prep items are still unchecked, confirm first.
+  const attemptStart = () => {
+    if (prepItems.length > 0 && !allDone) setShowWarn(true);
+    else onStart();
+  };
 
   return (
     <motion.div
@@ -79,15 +184,24 @@ function PrepScreen({ recipe, onStart }: { recipe: any; onStart: () => void }) {
       transition={{ type: "spring", stiffness: 340, damping: 30 }}
       className="absolute inset-0 bg-bg-base z-50 flex flex-col"
     >
-      <div className="flex-shrink-0 px-5 pt-14 pb-4">
+      {/* Header with back-to-recipe arrow */}
+      <div className="flex-shrink-0 flex items-center px-4 pt-12 pb-0">
+        <button
+          onClick={onBack}
+          className="text-[12px] text-text-secondary font-mono active:opacity-70 h-10 px-2 flex items-center gap-1 -ml-2"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" /> Recipe
+        </button>
+      </div>
+      <div className="flex-shrink-0 px-5 pt-2 pb-4">
         <p className="label-eyebrow mb-1">Before you start</p>
         <h2 className="font-display text-[26px] font-light text-text-primary">Mise en place</h2>
         <p className="text-[13px] text-text-secondary mt-1.5 leading-relaxed">
-          Prep these now — interruptions mid-cook are the enemy.
+          Prep these before you start. Interruptions mid-cook will slow you down.
         </p>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 space-y-5 pb-4">
+      <div className="flex-1 min-h-0 overflow-y-auto px-4 space-y-5 pb-4">
         {prepItems.length > 0 && (
           <div>
             <p className="label-eyebrow mb-2.5">Needs prep</p>
@@ -96,7 +210,7 @@ function PrepScreen({ recipe, onStart }: { recipe: any; onStart: () => void }) {
                 const done = checked.has(i);
                 return (
                   <motion.button key={i} onClick={() => toggle(i)} layout
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-colors active:scale-[0.99]
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors active:scale-[0.99]
                       ${done ? "bg-success/10 border-success/30" : "bg-bg-surface border-border-subtle"}`}
                   >
                     <motion.div animate={done ? { scale: [1, 1.25, 1] } : {}}
@@ -105,11 +219,17 @@ function PrepScreen({ recipe, onStart }: { recipe: any; onStart: () => void }) {
                     >
                       {done && <span className="text-bg-base text-[9px] font-bold leading-none">✓</span>}
                     </motion.div>
-                    <p className={`flex-1 text-left text-[13px] font-medium transition-colors
-                      ${done ? "line-through text-success/70" : "text-text-primary"}`}>
-                      {ing.name}
-                    </p>
-                    <span className="text-[11px] text-text-tertiary font-mono flex-shrink-0">{ing.quantity}</span>
+                    <div className="flex-1 text-left min-w-0">
+                      <p className={`text-[13px] font-medium leading-tight transition-colors
+                        ${done ? "line-through text-success/70" : "text-text-primary"}`}>
+                        {ing.name}
+                      </p>
+                      <p className={`text-[12px] leading-tight mt-0.5 transition-colors
+                        ${done ? "text-success/50 line-through" : "text-ember-text"}`}>
+                        {capFirst(ing.prep)}
+                      </p>
+                    </div>
+                    <span className="text-[11px] text-text-tertiary font-mono flex-shrink-0 self-start mt-0.5">{ing.quantity}</span>
                   </motion.button>
                 );
               })}
@@ -119,11 +239,13 @@ function PrepScreen({ recipe, onStart }: { recipe: any; onStart: () => void }) {
         {grabItems.length > 0 && (
           <div>
             <p className="label-eyebrow mb-2.5">{prepItems.length > 0 ? "Also grab" : "Gather these"}</p>
-            <div className="bg-bg-surface border border-border-subtle rounded-2xl overflow-hidden divide-y divide-border-subtle">
+            <div className="bg-bg-surface border border-border-subtle rounded-xl overflow-hidden divide-y divide-border-subtle">
               {grabItems.map((ing, i) => (
-                <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                <div key={i} className="flex items-center justify-between gap-3 px-4 py-2.5">
                   <span className="text-[13px] text-text-secondary">{ing.name}</span>
-                  <span className="text-[11px] text-text-tertiary font-mono">{ing.quantity}</span>
+                  <span className={`text-[11px] font-mono flex-shrink-0 text-right ${ing.substituteNote ? "text-ember-text" : "text-text-tertiary"}`}>
+                    {ing.substituteNote ? `use ${ing.substituteNote}` : ing.quantity}
+                  </span>
                 </div>
               ))}
             </div>
@@ -134,17 +256,60 @@ function PrepScreen({ recipe, onStart }: { recipe: any; onStart: () => void }) {
         )}
       </div>
 
-      <div className="flex-shrink-0 px-4 pb-10 pt-3 bg-bg-base border-t border-border-subtle">
+      <div className="flex-shrink-0 px-4 pb-safe pt-3 bg-bg-base border-t border-border-subtle">
         {prepItems.length > 0 && !allDone && (
           <p className="text-[11px] text-text-tertiary text-center mb-2.5">
-            {prepItems.length - checked.size} item{prepItems.length - checked.size !== 1 ? "s" : ""} unchecked — you can still start
+            {remaining} item{remaining !== 1 ? "s" : ""} still to prep.
           </p>
         )}
-        <button onClick={onStart}
-          className="w-full h-14 rounded-2xl bg-ember text-bg-base text-[15px] font-semibold active:scale-[0.98] transition shadow-[0_4px_16px_rgba(232,117,26,0.35)]">
-          {allDone ? "All prepped — let's cook →" : prepItems.length === 0 ? "Let's cook →" : "Start cooking →"}
+        <button onClick={attemptStart}
+          className="w-full h-14 rounded-xl btn-ember text-[15px] font-semibold active:scale-[0.98] transition">
+          {allDone ? "All prepped! Start cooking" : "Start cooking"}
         </button>
       </div>
+
+      {/* ── Unprepped-items confirmation sheet ──────────────────────────── */}
+      <AnimatePresence>
+        {showWarn && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/75 backdrop-blur-sm flex items-end z-50"
+            onClick={() => setShowWarn(false)}
+          >
+            <motion.div
+              initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
+              transition={{ type: "spring", stiffness: 360, damping: 30 }}
+              className="w-full bg-bg-surface rounded-t-3xl p-8 pb-safe-lg"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="w-12 h-1 bg-border-default rounded-full mx-auto mb-6" />
+              <div className="text-center mb-6">
+                <span className="text-4xl block">🔪</span>
+                <h3 className="font-display text-[22px] font-light text-text-primary mt-3">
+                  {remaining} item{remaining !== 1 ? "s" : ""} still need{remaining === 1 ? "s" : ""} prepping
+                </h3>
+                <p className="text-[13px] text-text-secondary mt-2 leading-relaxed">
+                  Prepping now keeps the cook smooth — but you can sort it as you go.
+                </p>
+              </div>
+              <div className="space-y-3">
+                <button
+                  onClick={() => setShowWarn(false)}
+                  className="w-full h-14 rounded-xl btn-ember text-[15px] font-semibold active:scale-[0.98] transition"
+                >
+                  Let me prep first
+                </button>
+                <button
+                  onClick={() => { setShowWarn(false); onStart(); }}
+                  className="w-full h-14 rounded-xl bg-bg-raised border border-border-default text-text-primary text-[14px] active:scale-[0.98] transition"
+                >
+                  Continue anyway
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
@@ -211,7 +376,7 @@ function VoiceHintOverlay({ onDismiss }: { onDismiss: () => void }) {
             key={cmd.intent}
             initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
             transition={{ type: "spring", stiffness: 340, damping: 28, delay: 0.2 + i * 0.07 }}
-            className="flex items-center gap-3 bg-bg-raised/80 border border-border-subtle rounded-2xl px-4 py-3"
+            className="flex items-center gap-3 bg-bg-raised/80 border border-border-subtle rounded-xl px-4 py-3"
           >
             <span className="text-[18px] w-7 text-center flex-shrink-0">{cmd.icon}</span>
             <div className="flex-1 min-w-0">
@@ -242,7 +407,7 @@ function FloatingTimerRow({
   currentStep: number; onOpenModal: (idx: number) => void;
 }) {
   const active = Object.entries(timers)
-    .filter(([k, t]) => parseInt(k) !== currentStep && (t.running || t.done))
+    .filter(([k]) => parseInt(k) !== currentStep)
     .sort(([a], [b]) => parseInt(a) - parseInt(b));
 
   if (active.length === 0) return null;
@@ -255,6 +420,15 @@ function FloatingTimerRow({
       transition={{ type: "spring", stiffness: 380, damping: 26 }}
       className="flex-shrink-0 px-4 pb-2"
     >
+      {/* Count row — always tells the user how many timers exist */}
+      <div className="flex items-center justify-between mb-1.5 px-0.5">
+        <p className="text-[10px] font-mono text-text-tertiary">
+          {active.length} timer{active.length !== 1 ? "s" : ""}
+        </p>
+        {active.length > 2 && (
+          <p className="text-[10px] font-mono text-text-tertiary">swipe →</p>
+        )}
+      </div>
       {/* Scrollable row — left to right, no wrap */}
       <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
         {active.map(([key, t]) => {
@@ -324,12 +498,6 @@ function FloatingTimerRow({
         })}
       </div>
 
-      {/* Fade hint if scrollable */}
-      {active.length > 3 && (
-        <p className="text-[10px] text-text-tertiary text-right mt-0.5 font-mono">
-          scroll →
-        </p>
-      )}
     </motion.div>
   );
 }
@@ -337,11 +505,12 @@ function FloatingTimerRow({
 // ── Timer Detail Modal ─────────────────────────────────────────────────────
 // Bottom sheet showing one timer's details. No navigation.
 function TimerModal({
-  timerIdx, timers, steps, onClose, onToggle,
+  timerIdx, timers, steps, onClose, onToggle, onDismiss,
 }: {
   timerIdx: number | null; timers: Record<number, TimerState>;
   steps: any[]; onClose: () => void;
   onToggle: (idx: number) => void;
+  onDismiss: (idx: number) => void;
 }) {
   if (timerIdx === null) return null;
   const t = timers[timerIdx];
@@ -352,14 +521,14 @@ function TimerModal({
   return (
     <motion.div
       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="absolute inset-0 bg-black/60 z-40 flex items-end"
+      className="absolute inset-0 bg-black/60 backdrop-blur-sm z-40 flex items-end"
       onClick={onClose}
     >
       <motion.div
         initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
         transition={{ type: "spring", stiffness: 360, damping: 30 }}
         onClick={e => e.stopPropagation()}
-        className="w-full bg-bg-surface rounded-t-3xl px-6 pt-6 pb-12"
+        className="w-full bg-bg-surface rounded-t-3xl px-6 pt-6 pb-safe-lg"
       >
         <div className="w-10 h-1 bg-border-default rounded-full mx-auto mb-6" />
 
@@ -373,7 +542,7 @@ function TimerModal({
         {(() => {
           const progress = t.total > 0 ? (t.total - t.remaining) / t.total : 0;
           return (
-            <div className={`relative rounded-2xl border p-5 flex items-center justify-between mb-5 overflow-hidden ${
+            <div className={`relative rounded-xl border p-5 flex items-center justify-between mb-5 overflow-hidden ${
               t.done ? "bg-success/10 border-success"
               : urgent ? "bg-warning/10 border-warning"
               : t.running ? "bg-bg-raised border-ember-dim"
@@ -398,7 +567,7 @@ function TimerModal({
               {!t.done && (
                 <button
                   onClick={() => onToggle(timerIdx)}
-                  className="relative z-10 h-12 px-5 rounded-xl bg-ember text-bg-base text-[14px] font-semibold active:scale-95 transition flex items-center gap-2"
+                  className="relative z-10 h-12 px-5 rounded-xl btn-ember text-[14px] font-semibold active:scale-95 transition flex items-center gap-2"
                 >
                   {t.running
                     ? <><Pause className="w-4 h-4" />Pause</>
@@ -415,6 +584,16 @@ function TimerModal({
         >
           Back to cooking
         </button>
+
+        {/* Dismiss — only when done, frees up the timer bar */}
+        {t.done && (
+          <button
+            onClick={() => onDismiss(timerIdx!)}
+            className="w-full h-11 mt-2 rounded-xl border border-border-subtle text-text-tertiary text-[13px] active:scale-95 transition flex items-center justify-center gap-2"
+          >
+            <X className="w-3.5 h-3.5" /> Clear this timer
+          </button>
+        )}
       </motion.div>
     </motion.div>
   );
@@ -456,9 +635,13 @@ function CookMode() {
   const stepRef = useRef(step);
   const timersRef = useRef(timers);
   const stepsRef = useRef(recipe?.steps ?? []);
+  const showTimerPromptRef = useRef(showTimerPrompt);
+  const pendingStepRef = useRef(pendingStep);
   useEffect(() => { stepRef.current = step; }, [step]);
   useEffect(() => { timersRef.current = timers; }, [timers]);
   useEffect(() => { stepsRef.current = recipe?.steps ?? []; }, [recipe]);
+  useEffect(() => { showTimerPromptRef.current = showTimerPrompt; }, [showTimerPrompt]);
+  useEffect(() => { pendingStepRef.current = pendingStep; }, [pendingStep]);
 
   const steps = recipe?.steps ?? [];
   const cur = steps[step];
@@ -558,6 +741,11 @@ function CookMode() {
   }, []);
 
   // ── Timer helpers ──────────────────────────────────────────────────────
+  const dismissTimer = useCallback((stepIdx: number) => {
+    setTimers(prev => { const next = { ...prev }; delete next[stepIdx]; return next; });
+    setTimerModalIdx(null);
+  }, []);
+
   const toggleTimerByRef = useCallback((stepIdx: number) => {
     const s = stepsRef.current[stepIdx];
     if (!s?.timerMinutes) return;
@@ -587,6 +775,29 @@ function CookMode() {
     setStep(next);
     stepRef.current = next;
   }, []);
+
+  // ── Timer-skip prompt actions (shared by buttons + voice) ──────────────
+  const advanceToPending = useCallback(() => {
+    setShowTimerPrompt(false);
+    showTimerPromptRef.current = false;
+    const ps = pendingStepRef.current;
+    if (ps === null) return;
+    setPendingStep(null);
+    pendingStepRef.current = null;
+    if (ps >= stepsRef.current.length) { setShowFinish(true); return; }
+    hapticStep();
+    setStep(ps);
+    stepRef.current = ps;
+  }, []);
+
+  const confirmTimerPrompt = useCallback(() => {
+    toggleTimerByRef(stepRef.current);   // start the current step's timer
+    advanceToPending();
+  }, [advanceToPending, toggleTimerByRef]);
+
+  const skipTimerPrompt = useCallback(() => {
+    advanceToPending();                   // move on without starting it
+  }, [advanceToPending]);
 
   // ── Voice command processing ───────────────────────────────────────────
   // Debounced — wait 400ms for speech to stabilise before acting.
@@ -619,6 +830,20 @@ function CookMode() {
     // Extract step target for multi-timer voice commands ("pause step 2", "resume timer three")
     const targetStep = extractStepTarget(t) ?? cs;
 
+    // ── Timer-skip prompt is open → voice controls ONLY that prompt ──────
+    // Skip-intent is checked first so "no timer" / "skip" never trigger start.
+    if (showTimerPromptRef.current) {
+      const words = t.split(/\s+/);
+      const has = (w: string) => words.includes(w);
+      const skip = t.includes("skip") || has("no") || has("nope") || t.includes("without") || t.includes("don't") || t.includes("dont");
+      const start = t.includes("start") || t.includes("timer") || t.includes("begin")
+        || has("yes") || has("yeah") || has("yep") || has("ok") || has("okay")
+        || t.includes("confirm") || t.includes("go ahead") || t.includes("do it") || t.includes("sure");
+      if (skip) skipTimerPrompt();
+      else if (start) confirmTimerPrompt();
+      return;
+    }
+
     // Commands — ordered by specificity to avoid false matches
     if (t.includes("start timer") || t.includes("timer start") || t.includes("set timer") || t.includes("count down") || t.includes("begin timer")) {
       toggleTimerByRef(cs);
@@ -646,7 +871,7 @@ function CookMode() {
     } else if (t.includes("finish") || t.includes("all done") || t.includes("done cooking") || t.includes("complete") || t.includes("that's it")) {
       setShowFinish(true);
     }
-  }, [goTo, toggleTimerByRef]);
+  }, [goTo, toggleTimerByRef, confirmTimerPrompt, skipTimerPrompt]);
 
   // ── Voice recognition — single-shot, auto-restart ─────────────────────
   const voiceActiveRef = useRef(false);
@@ -723,9 +948,9 @@ function CookMode() {
     } else {
       if (!SR) {
         // Show a dismissible message explaining the limitation
-        setVoiceTranscript("Voice not available in this browser. Try Chrome.");
+        setVoiceTranscript(VOICE_UNAVAILABLE_MSG);
         setVoiceStatus("heard");
-        setTimeout(() => { setVoiceTranscript(""); setVoiceStatus("idle"); }, 3500);
+        setTimeout(() => { setVoiceTranscript(""); setVoiceStatus("idle"); }, 4000);
         return;
       }
       voiceActiveRef.current = true;
@@ -758,25 +983,37 @@ function CookMode() {
     );
   }
 
-  // Smart heading: extract verb + meaningful noun, skip filler words
+  // Step heading: first clause of instruction, with quantities stripped.
+  // "Heat 2 tbsp olive oil in a medium frying pan…" → "Heat olive oil in a…"
+  // "Rinse 185g rice. Cook with 250ml water…"      → "Rinse rice…"
   const stepTitle = (() => {
     if (!cur?.instruction) return "";
-    const FILLERS = new Set([
-      "the","a","an","and","or","in","on","of","to","with","until","until","your",
-      "1","2","3","4","5","6","7","8","all","both","some","each","any",
-      "completely","gently","carefully","quickly","lightly","well","thoroughly",
-      "large","small","medium","heavy","wide","hot","cold","fresh","dry","wet",
-    ]);
-    const words = cur.instruction.split(" ");
-    const kept: string[] = [];
-    for (const w of words) {
-      const clean = w.replace(/[^a-zA-Z]/g, "").toLowerCase();
-      if (!FILLERS.has(clean) && clean.length > 1) {
-        kept.push(w.replace(/[,.:;!?]/g, ""));
-        if (kept.length === 3) break;
-      }
+
+    // 1. Take only the first clause (before ". ", " — ", " – ", "; ")
+    const clause = cur.instruction.split(/\.\s+|\s*[—–]\s+|;\s*/)[0].trim();
+
+    // 2. Strip all quantity patterns so measurement words don't appear in the title.
+    //    Handles: "2 tbsp", "500 ml", "185g", "½ tsp", "1¼ cups", "3-minute", etc.
+    const clean = clause
+      .replace(/\b\d+(?:[.,]\d+)?(?:\s*(?:g|kg|ml|l|litres?|tbsp?s?|tsps?|cups?|cloves?|mins?|minutes?|seconds?|hrs?|hours?|cm|mm|°[CF]))?\b/gi, "")
+      .replace(/[¼½¾⅓⅔⅛]\s*(?:tbsp?|tsp|cups?)?\b/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+
+    // 3. Truncate to ~22 chars at a word boundary
+    let title = clean;
+    if (title.length > 22) {
+      const cut = title.slice(0, 22);
+      const lastSp = cut.lastIndexOf(" ");
+      title = lastSp > 5 ? cut.slice(0, lastSp) : cut;
     }
-    return kept.join(" ") + "…";
+
+    // 4. Strip dangling articles/prepositions at end ("…in a", "…and the")
+    title = title.replace(/\s+\b(the|a|an|and|or|in|on|of|to|with|for|at|as)\b\s*$/i, "").trim();
+    // 5. Strip trailing punctuation
+    title = title.replace(/[,;:]+$/, "").trim();
+
+    return title.length >= 3 ? title + "…" : "";
   })();
 
   return (
@@ -785,20 +1022,26 @@ function CookMode() {
 
         {/* ── Header ─────────────────────────────────────────────────── */}
         <div className="flex-shrink-0 flex items-center justify-between px-4 pt-12 pb-2">
-          <button onClick={() => navigate({ to: "/recipe" })}
-            className="text-[12px] text-text-secondary font-mono active:opacity-70 h-10 px-2 flex items-center gap-1">
-            <ArrowLeft className="w-3.5 h-3.5" /> Back
+          {/* Step 0: back = return to prep page. Step 1+: back = previous step. */}
+          <button
+            onClick={() => step === 0 ? setPrepDone(false) : goTo(step - 1)}
+            className="text-[12px] text-text-secondary font-mono active:opacity-70 h-10 px-2 flex items-center gap-1"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> {step === 0 ? "Prep" : "Back"}
           </button>
           <span className="font-mono text-[10px] text-text-tertiary uppercase tracking-widest text-center truncate max-w-[140px]">
             {recipe.name}
           </span>
           <div className="flex items-center gap-2">
-            <button onClick={toggleVoice}
+            <button
+              onClick={toggleVoice}
+              title={!SR ? VOICE_UNAVAILABLE_MSG : undefined}
               className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 ${
                 voiceActive
                   ? "bg-ember text-bg-base shadow-[0_0_14px_rgba(232,117,26,0.6)]"
                   : "bg-bg-raised border border-border-default text-text-secondary"
-              }`}>
+              } ${!SR ? "opacity-40 cursor-not-allowed active:scale-100" : ""}`}
+            >
               {voiceActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
             </button>
             <button onClick={() => setShowExitConfirm(true)}
@@ -859,7 +1102,7 @@ function CookMode() {
           <motion.div key={step}
             initial={{ opacity: 0, x: 32 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -32 }}
             transition={{ type: "spring", stiffness: 360, damping: 30 }}
-            className="flex-1 flex flex-col px-6 pt-2 overflow-y-auto pb-4"
+            className="flex-1 min-h-0 flex flex-col px-6 pt-2 overflow-y-auto pb-4"
           >
             <div className="relative mb-5">
               <span className="absolute right-0 top-0 font-display text-[96px] font-light text-bg-surface leading-none select-none pointer-events-none">
@@ -900,7 +1143,7 @@ function CookMode() {
                   </div>
                   {!curTimer?.done && (
                     <button onClick={() => toggleTimerByRef(step)}
-                      className="relative z-10 h-11 px-5 rounded-xl bg-ember text-bg-base text-[14px] font-semibold active:scale-95 transition flex items-center gap-2">
+                      className="relative z-10 h-11 px-5 rounded-xl btn-ember text-[14px] font-semibold active:scale-95 transition flex items-center gap-2">
                       {curTimer?.running
                         ? <><Pause className="w-4 h-4" />Pause</>
                         : <><Play className="w-4 h-4" />{curTimer ? "Resume" : "Start"}</>}
@@ -929,13 +1172,13 @@ function CookMode() {
         </AnimatePresence>
 
         {/* ── Sticky nav buttons ────────────────────────────────────────── */}
-        <div className="flex-shrink-0 flex gap-3 px-4 pb-10 pt-3 border-t border-border-subtle bg-bg-base">
+        <div className="flex-shrink-0 flex gap-3 px-4 pb-safe pt-3 border-t border-border-subtle bg-bg-base">
           <button onClick={() => goTo(step - 1)} disabled={step === 0}
             className="flex-1 h-12 rounded-xl bg-bg-surface border border-border-default text-text-secondary flex items-center justify-center gap-2 text-[14px] active:scale-95 transition disabled:opacity-30 disabled:active:scale-100">
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
           <button onClick={() => goTo(step + 1)}
-            className="flex-1 h-12 rounded-xl bg-ember text-bg-base flex items-center justify-center gap-2 text-[14px] font-semibold active:scale-95 transition shadow-[0_4px_16px_rgba(232,117,26,0.35)]">
+            className="flex-1 h-12 rounded-xl btn-ember flex items-center justify-center gap-2 text-[14px] font-semibold active:scale-95 transition">
             {step === total - 1 ? "Finish" : "Next"} <ArrowRight className="w-4 h-4" />
           </button>
         </div>
@@ -949,6 +1192,7 @@ function CookMode() {
               steps={steps}
               onClose={() => setTimerModalIdx(null)}
               onToggle={(idx) => toggleTimerByRef(idx)}
+              onDismiss={dismissTimer}
             />
           )}
         </AnimatePresence>
@@ -995,10 +1239,12 @@ function CookMode() {
         <AnimatePresence>
           {showTimerPrompt && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/75 flex items-end z-50">
+              className="absolute inset-0 bg-black/75 backdrop-blur-sm flex items-end z-50"
+              onClick={skipTimerPrompt}>
               <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
                 transition={{ type: "spring", stiffness: 360, damping: 30 }}
-                className="w-full bg-bg-surface rounded-t-3xl p-8 pb-12">
+                className="w-full bg-bg-surface rounded-t-3xl p-8 pb-safe-lg"
+                onClick={e => e.stopPropagation()}>
                 <div className="w-12 h-1 bg-border-default rounded-full mx-auto mb-6" />
                 <div className="text-center mb-6">
                   <motion.span animate={{ rotate: [0, -10, 10, -5, 5, 0] }} transition={{ duration: 0.6, delay: 0.1 }}
@@ -1007,32 +1253,22 @@ function CookMode() {
                     {cur?.timerMinutes}-minute timer for this step
                   </h3>
                   <p className="text-[13px] text-text-secondary mt-2">
-                    Start it — it keeps running while you move on.
+                    Start it. It keeps running while you move on.
                   </p>
+                  {voiceActive && (
+                    <p className="text-[12px] text-ember-text mt-2 flex items-center justify-center gap-1.5">
+                      <Mic className="w-3 h-3" /> Say "start" or "skip"
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-3">
-                  <button onClick={() => {
-                    toggleTimerByRef(step);
-                    setShowTimerPrompt(false);
-                    if (pendingStep !== null) {
-                      const ps = pendingStep;
-                      setPendingStep(null);
-                      if (ps >= total) setShowFinish(true);
-                      else { hapticStep(); setStep(ps); stepRef.current = ps; }
-                    }
-                  }} className="w-full h-14 rounded-2xl bg-ember text-bg-base text-[15px] font-semibold active:scale-[0.98] transition">
-                    Start timer and continue
+                  <button onClick={confirmTimerPrompt}
+                    className="w-full h-14 rounded-xl btn-ember text-[15px] font-semibold active:scale-[0.98] transition">
+                    Start timer
                   </button>
-                  <button onClick={() => {
-                    setShowTimerPrompt(false);
-                    if (pendingStep !== null) {
-                      const ps = pendingStep;
-                      setPendingStep(null);
-                      if (ps >= total) setShowFinish(true);
-                      else { hapticStep(); setStep(ps); stepRef.current = ps; }
-                    }
-                  }} className="w-full h-14 rounded-2xl bg-bg-raised border border-border-default text-text-primary text-[14px] active:scale-[0.98] transition">
-                    Skip — move on
+                  <button onClick={skipTimerPrompt}
+                    className="w-full h-14 rounded-xl bg-bg-raised border border-border-default text-text-primary text-[14px] active:scale-[0.98] transition">
+                    Skip
                   </button>
                 </div>
               </motion.div>
@@ -1044,20 +1280,22 @@ function CookMode() {
         <AnimatePresence>
           {showFinish && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/75 flex items-end z-50">
+              className="absolute inset-0 bg-black/75 backdrop-blur-sm flex items-end z-50"
+              onClick={() => setShowFinish(false)}>
               <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
                 transition={{ type: "spring", stiffness: 360, damping: 30 }}
-                className="w-full bg-bg-surface rounded-t-3xl p-8 pb-12">
+                className="w-full bg-bg-surface rounded-t-3xl p-8 pb-safe-lg"
+                onClick={e => e.stopPropagation()}>
                 <div className="w-12 h-1 bg-border-default rounded-full mx-auto mb-8" />
                 <h2 className="font-display text-[28px] font-light text-text-primary text-center">All done?</h2>
                 <p className="text-[14px] text-text-secondary text-center mt-3">Confirm if you've finished cooking.</p>
                 <div className="mt-8 space-y-3">
                   <button onClick={() => { setShowFinish(false); setShowAchieve(true); }}
-                    className="w-full h-14 rounded-2xl bg-ember text-bg-base text-[15px] font-semibold active:scale-[0.98] transition">
-                    Yes, I'm done ✓
+                    className="w-full h-14 rounded-xl btn-ember text-[15px] font-semibold active:scale-[0.98] transition">
+                    I'm done
                   </button>
                   <button onClick={() => setShowFinish(false)}
-                    className="w-full h-14 rounded-2xl bg-bg-raised border border-border-default text-text-primary text-[14px] active:scale-[0.98] transition">
+                    className="w-full h-14 rounded-xl bg-bg-raised border border-border-default text-text-primary text-[14px] active:scale-[0.98] transition">
                     Go back
                   </button>
                 </div>
@@ -1070,10 +1308,10 @@ function CookMode() {
         <AnimatePresence>
           {showExitConfirm && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black/75 flex items-end z-50">
+              className="absolute inset-0 bg-black/75 backdrop-blur-sm flex items-end z-50">
               <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
                 transition={{ type: "spring", stiffness: 360, damping: 30 }}
-                className="w-full bg-bg-surface rounded-t-3xl p-8 pb-12">
+                className="w-full bg-bg-surface rounded-t-3xl p-8 pb-safe-lg">
                 <div className="w-12 h-1 bg-border-default rounded-full mx-auto mb-6" />
                 <div className="text-center mb-6">
                   <span className="text-3xl block mb-3">🍳</span>
@@ -1084,11 +1322,11 @@ function CookMode() {
                 </div>
                 <div className="space-y-3">
                   <button onClick={() => setShowExitConfirm(false)}
-                    className="w-full h-14 rounded-2xl bg-ember text-bg-base text-[15px] font-semibold active:scale-[0.98] transition">
+                    className="w-full h-14 rounded-xl btn-ember text-[15px] font-semibold active:scale-[0.98] transition">
                     Keep cooking
                   </button>
                   <button onClick={() => { stopVoice(); navigate({ to: "/" }); }}
-                    className="w-full h-14 rounded-2xl bg-bg-raised border border-border-default text-text-secondary text-[14px] active:scale-[0.98] transition">
+                    className="w-full h-14 rounded-xl bg-bg-raised border border-border-default text-text-secondary text-[14px] active:scale-[0.98] transition">
                     Exit anyway
                   </button>
                 </div>
@@ -1116,7 +1354,7 @@ function CookMode() {
                 className="w-16 h-[2px] bg-ember rounded-full my-8" />
               <motion.button initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.9 }}
                 onClick={finish}
-                className="w-full h-14 rounded-2xl bg-ember text-bg-base text-[15px] font-semibold active:scale-[0.98] transition shadow-[0_4px_20px_rgba(232,117,26,0.35)]">
+                className="w-full h-14 rounded-xl btn-ember text-[15px] font-semibold active:scale-[0.98] transition">
                 How did it go? →
               </motion.button>
             </motion.div>
@@ -1126,7 +1364,11 @@ function CookMode() {
         {/* ── Prep screen — shown on first entry, dismissed once ────────── */}
         <AnimatePresence>
           {!prepDone && (
-            <PrepScreen recipe={recipe} onStart={() => setPrepDone(true)} />
+            <PrepScreen
+              recipe={recipe}
+              onStart={() => setPrepDone(true)}
+              onBack={() => navigate({ to: "/recipe" })}
+            />
           )}
         </AnimatePresence>
 
