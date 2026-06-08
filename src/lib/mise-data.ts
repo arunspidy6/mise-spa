@@ -5,7 +5,7 @@ export const STAPLES_DEFAULTS = [
   // Oils & fats
   "Olive oil", "Butter",
   // Core seasonings
-  "Black pepper", "Chilli flakes",
+  "Salt", "Black pepper", "Chilli flakes",
   // Aromatics
   "Garlic", "Onion",
   // Warm spices
