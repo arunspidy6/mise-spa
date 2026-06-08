@@ -108,12 +108,30 @@ SELF-CHECK before returning:
 [ ] Description is ≤ 15 words and names the hero ingredient.
 [ ] JSON is valid and complete — no trailing commas, no missing closing brackets.`;
 
+// ── CORS ─────────────────────────────────────────────────────────────────────
+// Never wildcard a paid, unauthenticated endpoint — reflect only our own origins
+// so a third-party page can't spend the API budget from a user's browser.
+// (Native apps don't send an Origin and aren't CORS-restricted, so they still work.)
+const ALLOWED_ORIGIN: RegExp[] = [
+  /^https:\/\/mise-spa(-code)?\.vercel\.app$/,
+  /-aruns-projects-10c588ee\.vercel\.app$/, // this team's Vercel preview deploys
+  /^http:\/\/localhost(:\d+)?$/,             // local dev
+  /\.loca\.lt$/,                             // tunnel used for native web-preview testing
+];
+function setCors(req: VercelRequest, res: VercelResponse) {
+  const origin = req.headers.origin as string | undefined;
+  if (origin && ALLOWED_ORIGIN.some((re) => re.test(origin))) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Device-ID");
+}
+
 // ── Handler ────────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  setCors(req, res);
 
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
@@ -127,14 +145,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (isRateLimited(ip)) {
     return res.status(429).json({
       error: "Too many requests — please wait a moment before trying again.",
-    });
-  }
-
-  // Global circuit breaker — protects the bill if traffic spikes across many IPs.
-  if (globalCapReached()) {
-    console.warn("Global hourly generation cap hit — shedding load.");
-    return res.status(429).json({
-      error: "The kitchen's a little busy right now. Please try again shortly.",
     });
   }
 
@@ -179,13 +189,27 @@ ${meal ? `MEAL: It is currently ${meal} time. Generate a dish that is appropriat
 
 You do NOT need to use every ingredient — choose the combination that makes the best single dish. Treat different cuts of the same meat as interchangeable (e.g. lamb chops, lamb diced and lamb mince are all just "lamb"); the cut should not change which dish you pick.${excludeName ? `\n\nDo NOT generate "${excludeName}" — the user has already seen that recipe and wants something different.` : ""}${avoidList.length ? `\n\nThe user has RECENTLY COOKED the dishes below. You MUST generate something clearly different — a different cooking method, flavour profile, or cuisine. Do not produce a near-duplicate or a minor variation of any of these, even if a different cut of the same protein is now selected:\n${avoidList.map(n => `- ${n}`).join("\n")}` : ""}`;
 
+  // Hourly circuit breaker — checked/incremented only here, after validation and
+  // right before the paid call, so malformed/empty requests can't burn the budget.
+  if (globalCapReached()) {
+    console.warn("Global hourly generation cap hit — shedding load.");
+    return res.status(429).json({
+      error: "The kitchen's a little busy right now. Please try again shortly.",
+    });
+  }
+
   // ── Anthropic call with prompt caching ─────────────────────────────────
   // The system block is sent with cache_control so Anthropic caches it after
   // the first request. Subsequent calls with the same system text pay only for
   // the cache read (10% of normal input cost) instead of full token ingestion.
+  // AbortController bounds the call so a slow upstream returns a deterministic
+  // 504 instead of pinning the function until Vercel's maxDuration.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25000); // < 30s maxDuration
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
@@ -238,8 +262,14 @@ You do NOT need to use every ingredient — choose the combination that makes th
     }
 
     return res.status(200).json(recipe);
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      console.error("Anthropic request timed out");
+      return res.status(504).json({ error: "Generation timed out — please try again." });
+    }
     console.error("Handler error:", err);
     return res.status(500).json({ error: "Internal error" });
+  } finally {
+    clearTimeout(timeout);
   }
 }

@@ -1,9 +1,25 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  res.setHeader("Access-Control-Allow-Origin", "*");
+// Never wildcard a paid, unauthenticated endpoint — reflect only our own origins
+// so a third-party page can't spend the API budget from a user's browser.
+const ALLOWED_ORIGIN: RegExp[] = [
+  /^https:\/\/mise-spa(-code)?\.vercel\.app$/,
+  /-aruns-projects-10c588ee\.vercel\.app$/,
+  /^http:\/\/localhost(:\d+)?$/,
+  /\.loca\.lt$/,
+];
+function setCors(req: VercelRequest, res: VercelResponse) {
+  const origin = req.headers.origin as string | undefined;
+  if (origin && ALLOWED_ORIGIN.some((re) => re.test(origin))) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
+  res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Device-ID");
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  setCors(req, res);
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
 
@@ -39,9 +55,14 @@ Return ONLY JSON:
 
 If not a real food ingredient set isValid:false. No explanation.`;
 
+  // AbortController bounds the upstream call so a stalled Anthropic request
+  // fails fast (504) instead of pinning the function until Vercel's timeout.
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 9000); // Haiku is fast
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         "x-api-key": apiKey,
@@ -68,8 +89,14 @@ If not a real food ingredient set isValid:false. No explanation.`;
     catch { return res.status(200).json({ isValid: false }); }
 
     return res.status(200).json(result);
-  } catch (err) {
+  } catch (err: any) {
+    if (err?.name === "AbortError") {
+      console.error("Anthropic classify request timed out");
+      return res.status(504).json({ error: "Classification timed out" });
+    }
     console.error("Classify handler error:", err);
     return res.status(500).json({ error: "Internal error" });
+  } finally {
+    clearTimeout(timeout);
   }
 }
