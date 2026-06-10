@@ -1,37 +1,68 @@
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
-// Warm per-cuisine gradient sits UNDER every image so there's never a flat black
-// flash and the skeleton/placeholder always reads as on-brand.
+// Warm per-cuisine gradient sits UNDER every image — always visible while loading
 const CUISINE_FALLBACK: Record<string, string> = {
-  Italian:         "from-[#5a3a10] to-[#2a1a08]",
-  Japanese:        "from-[#1d3a2a] to-[#0a1f14]",
-  Mexican:         "from-[#5a2a10] to-[#2a1404]",
-  Asian:           "from-[#3a1a08] to-[#1a0a04]",
-  Chinese:         "from-[#4a1a10] to-[#1f0805]",
-  Thai:            "from-[#1f4a2a] to-[#0a1f12]",
-  Indian:          "from-[#5a3a08] to-[#2a1a04]",
-  "Middle Eastern":"from-[#4a2a08] to-[#1f1004]",
-  Mediterranean:   "from-[#1a3a4a] to-[#08191f]",
-  American:        "from-[#4a1a1a] to-[#1f0808]",
+  Italian:          "from-[#5a3a10] to-[#2a1a08]",
+  Japanese:         "from-[#1d3a2a] to-[#0a1f14]",
+  Mexican:          "from-[#5a2a10] to-[#2a1404]",
+  Asian:            "from-[#3a1a08] to-[#1a0a04]",
+  Chinese:          "from-[#4a1a10] to-[#1f0805]",
+  Thai:             "from-[#1f4a2a] to-[#0a1f12]",
+  Indian:           "from-[#5a3a08] to-[#2a1a04]",
+  "Middle Eastern": "from-[#4a2a08] to-[#1f1004]",
+  Mediterranean:    "from-[#1a3a4a] to-[#08191f]",
+  American:         "from-[#4a1a1a] to-[#1f0808]",
 };
 
-const LOCAL_FALLBACK = "/recipe-fallback.svg"; // bundled, 100% available
+const LOCAL_FALLBACK = "/recipe-fallback.svg";
 
-// picsum fallback — consistent seed per recipe, used only if primary fetch fails
+// Maps our recipe names → the best TheMealDB search term.
+// TheMealDB is a free food-photo database with real, dish-accurate images.
+const MEAL_SEARCH: Record<string, string> = {
+  "Soy-glazed chicken thighs with garlic rice":           "teriyaki chicken",
+  "Chicken thigh and potato traybake":                    "roast chicken",
+  "Pan-fried chicken breast with garlic and lemon butter":"chicken lemon",
+  "Chicken breast soy stir fry":                         "chicken stir fry",
+  "Spiced tomato eggs (shakshuka)":                      "shakshuka",
+  "Egg fried rice":                                      "egg fried rice",
+  "Garlic butter pasta":                                 "spaghetti aglio olio",
+  "Beef mince tacos":                                    "tacos",
+  "Salmon with soy glaze":                               "salmon",
+  "Bacon and egg pasta":                                 "spaghetti carbonara",
+  "Spiced chickpea curry":                               "chickpea curry",
+  "Lentil soup":                                         "lentil soup",
+  "Potato and onion hash with eggs":                     "potato hash",
+  "Pan-seared steak with garlic butter":                 "beef steak",
+  "Spiced lamb with rice":                               "lamb",
+  "Pork chops with garlic butter":                       "pork chops",
+};
+
+// Search TheMealDB for the closest matching food photo.
+// Returns the full meal-thumbnail URL, or null on no result / network error.
+async function fetchMealDbImage(recipeName: string, signal: AbortSignal): Promise<string | null> {
+  const query = MEAL_SEARCH[recipeName] ?? recipeName.split(" ").slice(0, 3).join(" ");
+  const url   = `https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(query)}`;
+  try {
+    const r    = await fetch(url, { signal });
+    if (!r.ok) return null;
+    const data = await r.json() as { meals: { strMealThumb: string }[] | null };
+    return data.meals?.[0]?.strMealThumb ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// picsum fallback — consistent seed per recipe, never random
 function stockPhoto(cuisine: string, alt: string): string {
-  const seed = `${cuisine}-${alt}`
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 50);
+  const seed = `${cuisine}-${alt}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50);
   return `https://picsum.photos/seed/${encodeURIComponent(seed)}/800/500`;
 }
 
-type Stage = "primary" | "stock" | "local";
+type Stage = "mealdb" | "stock" | "local";
 
 export function RecipeImage({
-  src,
+  src: _src,   // kept for API compatibility; TheMealDB takes priority
   cuisine,
   alt,
   height = 220,
@@ -47,85 +78,65 @@ export function RecipeImage({
 }) {
   const fallbackGrad = CUISINE_FALLBACK[cuisine] ?? "from-[#3a2a10] to-[#1a0f04]";
 
-  const [stage, setStage]       = useState<Stage>(src ? "primary" : "stock");
+  const [stage,      setStage]      = useState<Stage>("mealdb");
   const [displaySrc, setDisplaySrc] = useState<string | null>(null);
-  const [loaded, setLoaded]     = useState(false);
+  const [loaded,     setLoaded]     = useState(false);
   const blobRef = useRef<string | null>(null);
 
-  // Cleanup any object URL when unmounting
+  // Revoke any blob URL when unmounting
   useEffect(() => {
-    return () => {
-      if (blobRef.current) URL.revokeObjectURL(blobRef.current);
-    };
+    return () => { if (blobRef.current) URL.revokeObjectURL(blobRef.current); };
   }, []);
 
+  // When the recipe changes, reset everything back to the primary stage
   useEffect(() => {
+    setStage("mealdb");
+    setLoaded(false);
+    setDisplaySrc(null);
+    if (blobRef.current) { URL.revokeObjectURL(blobRef.current); blobRef.current = null; }
+  }, [alt]);
+
+  // Drive image loading based on current stage
+  useEffect(() => {
+    let cancelled = false;
+    const ctrl = new AbortController();
+
     setLoaded(false);
     setDisplaySrc(null);
 
-    // Revoke previous blob URL on stage change
-    if (blobRef.current) {
-      URL.revokeObjectURL(blobRef.current);
-      blobRef.current = null;
-    }
-
-    if (stage === "primary" && src) {
-      // Use fetch → blob to bypass ERR_BLOCKED_BY_ORB on cross-origin AI image
-      // URLs (e.g. pollinations.ai). The blob URL is same-origin so Chrome/Safari
-      // render it without the ORB security check.
-      const ctrl  = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), 10000); // 10 s timeout
-
-      fetch(src, { signal: ctrl.signal })
-        .then(r => {
-          if (!r.ok) throw new Error("bad status");
-          const ct = r.headers.get("content-type") ?? "";
-          if (!ct.startsWith("image/")) throw new Error("not image");
-          return r.blob();
-        })
-        .then(blob => {
-          clearTimeout(timer);
-          const url = URL.createObjectURL(blob);
-          blobRef.current = url;
-          setDisplaySrc(url);
-          setLoaded(true);
-        })
-        .catch(() => {
-          clearTimeout(timer);
-          setStage("stock");
-        });
-
-      return () => {
-        ctrl.abort();
-        clearTimeout(timer);
-      };
-    }
-
-    if (stage === "stock") {
+    if (stage === "mealdb") {
+      fetchMealDbImage(alt, ctrl.signal).then(imgUrl => {
+        if (cancelled) return;
+        if (imgUrl) setDisplaySrc(imgUrl);
+        else         setStage("stock");
+      });
+    } else if (stage === "stock") {
       setDisplaySrc(stockPhoto(cuisine, alt));
-    }
-
-    if (stage === "local") {
+    } else if (stage === "local") {
       setDisplaySrc(LOCAL_FALLBACK);
     }
+
+    return () => { cancelled = true; ctrl.abort(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, src]);
+  }, [stage, alt, cuisine]);
 
   const handleLoad  = () => setLoaded(true);
-  const handleError = () => setStage(s => (s === "stock" ? "local" : s));
+  const handleError = () => {
+    if (stage === "mealdb") setStage("stock");
+    else if (stage === "stock") setStage("local");
+  };
 
   return (
     <div
       className={cn("relative w-full overflow-hidden bg-bg-overlay", className)}
       style={{ height }}
     >
-      {/* Warm gradient base — always present beneath the image */}
+      {/* Warm cuisine gradient — always visible under/before the photo */}
       <div className={cn("absolute inset-0 bg-gradient-to-br", fallbackGrad)} />
 
-      {/* Skeleton shimmer until the current image finishes loading */}
+      {/* Skeleton shimmer while the image loads */}
       {!loaded && <div className="absolute inset-0 skeleton" />}
 
-      {/* Image element (key forces remount when displaySrc changes) */}
       {displaySrc && (
         <img
           key={displaySrc}
@@ -140,10 +151,12 @@ export function RecipeImage({
         />
       )}
 
-      {/* Dark gradient overlay for legible text overlaid on the photo */}
+      {/* Darkening vignette keeps text overlaid on the photo legible */}
       <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 pointer-events-none" />
 
-      {children && <div className="absolute inset-0 flex flex-col justify-end">{children}</div>}
+      {children && (
+        <div className="absolute inset-0 flex flex-col justify-end">{children}</div>
+      )}
     </div>
   );
 }
