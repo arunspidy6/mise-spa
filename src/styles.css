@@ -79,13 +79,16 @@
   --border-default: oklch(0.378 0.058 35);
   --border-strong:  oklch(0.478 0.070 38);
 
-  /* Brand orange — Swiggy #FF5200 */
-  --ember:      oklch(0.652 0.228 32);
-  --ember-chip: oklch(0.558 0.198 31);
-  --ember-dim:  oklch(0.652 0.228 32 / 0.38);
-  --ember-glow: oklch(0.652 0.228 32 / 0.14);
-  --ember-text: oklch(0.820 0.158 42);
-  --on-ember:   oklch(0.965 0.015 72);
+  /* Brand — Ember terracotta #E2701E (gloss-ready) */
+  --ember:      oklch(0.665 0.165 50);
+  --ember-chip: oklch(0.575 0.150 48);
+  --ember-dim:  oklch(0.665 0.165 50 / 0.40);
+  --ember-glow: oklch(0.665 0.165 50 / 0.14);
+  --ember-text: oklch(0.815 0.140 56);
+  --on-ember:   oklch(0.205 0.045 45);   /* dark text on the bright ember */
+  --ember-grad-top: oklch(0.715 0.170 53);
+  --ember-grad-bot: oklch(0.605 0.155 46);
+  --ember-gradient: linear-gradient(180deg, var(--ember-grad-top) 0%, var(--ember-grad-bot) 100%);
 
   /* Illustration ink */
   --ink:      oklch(0.852 0.105 47);
@@ -104,7 +107,7 @@
   --shadow-md:     0 6px 20px oklch(0 0 0 / 0.55);
   --shadow-lg:     0 14px 40px oklch(0 0 0 / 0.65);
   --shadow-ember:  0 4px 16px oklch(0 0 0 / 0.40);
-  --shadow-button: 0 2px 8px oklch(0 0 0 / 0.35);
+  --shadow-button: 0 8px 20px oklch(0 0 0 / 0.40), inset 0 1px 0 oklch(1 0 0 / 0.30);
   --shadow-card:   0 6px 22px oklch(0 0 0 / 0.45), inset 0 1px 0 oklch(1 0 0 / 0.04);
 
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
@@ -181,9 +184,9 @@
     color: var(--text-tertiary);
   }
 
-  /* Filled ember button — flat fill, coloured shadow */
+  /* Filled ember button — gloss gradient fill + top sheen */
   .btn-ember {
-    background: var(--ember);
+    background: var(--ember-gradient);
     box-shadow: var(--shadow-button);
     color: var(--on-ember);
   }

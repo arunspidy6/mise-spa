@@ -81,8 +81,8 @@ function Home() {
                 whileTap={{ scale: 0.97 }}
                 className="rounded-2xl flex items-center gap-4 px-5 py-5"
                 style={{
-                  background: "var(--ember)",
-                  boxShadow: "0 4px 16px oklch(0 0 0 / 0.35)",
+                  background: "var(--ember-gradient)",
+                  boxShadow: "var(--shadow-button)",
                   color: "var(--on-ember)",
                 }}
               >

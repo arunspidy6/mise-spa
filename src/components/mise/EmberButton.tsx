@@ -15,7 +15,7 @@ export function EmberButton({
   const isPrimary = variant === "primary";
 
   const primaryStyle: CSSProperties = {
-    background: "var(--ember)",
+    background: "var(--ember-gradient)",
     boxShadow: "var(--shadow-button)",
     color: "var(--on-ember)",
   };
