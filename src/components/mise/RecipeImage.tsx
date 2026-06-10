@@ -18,17 +18,28 @@ const CUISINE_FALLBACK: Record<string, string> = {
 
 const LOCAL_FALLBACK = "/recipe-fallback.svg"; // bundled, 100% available
 
-// Keyword-based real food photo (Flickr CDN, no API key) — reliable fallback
-// when the primary AI-generated image is slow or unavailable.
+// picsum.photos — reliable CDN with proper MIME types, no ORB issues.
+// Uses a deterministic seed so the same recipe always shows the same photo.
 function stockPhoto(cuisine: string, alt: string): string {
-  const words = `${cuisine} ${alt}`
+  const seed = `${cuisine}-${alt}`
     .toLowerCase()
-    .replace(/[^a-z\s]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length > 2)
-    .slice(0, 3);
-  const kw = [...new Set([...words, "food"])].join(",");
-  return `https://loremflickr.com/800/500/${encodeURIComponent(kw)}`;
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 50);
+  return `https://picsum.photos/seed/${encodeURIComponent(seed)}/800/500`;
+}
+
+// Detect and replace AI-image URLs that are known to trigger ERR_BLOCKED_BY_ORB
+// (pollinations.ai serves non-image MIME types on first response, Chrome blocks it).
+// Swap for a consistent picsum photo using the seed already embedded in the URL.
+function sanitiseSrc(src: string | undefined): string | undefined {
+  if (!src) return undefined;
+  if (src.includes("pollinations.ai")) {
+    const m = src.match(/seed=(\d+)/);
+    const n = m ? m[1] : String(src.length);
+    return `https://picsum.photos/seed/mise-recipe-${n}/800/500`;
+  }
+  return src;
 }
 
 type Stage = "primary" | "stock" | "local";
@@ -50,13 +61,16 @@ export function RecipeImage({
 }) {
   const fallbackGrad = CUISINE_FALLBACK[cuisine] ?? "from-[#3a2a10] to-[#1a0f04]";
 
-  const [stage, setStage] = useState<Stage>(src ? "primary" : "stock");
+  // Sanitise the primary src — swap known ORB-blocked origins for picsum
+  const safeSrc = sanitiseSrc(src);
+
+  const [stage, setStage] = useState<Stage>(safeSrc ? "primary" : "stock");
   const [loaded, setLoaded] = useState(false);
   const loadedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeSrc =
-    stage === "primary" ? src : stage === "stock" ? stockPhoto(cuisine, alt) : LOCAL_FALLBACK;
+    stage === "primary" ? safeSrc : stage === "stock" ? stockPhoto(cuisine, alt) : LOCAL_FALLBACK;
 
   const advance = () => setStage((s) => (s === "primary" ? "stock" : "local"));
 
