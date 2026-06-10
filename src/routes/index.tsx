@@ -91,8 +91,8 @@ function Home() {
                 whileTap={{ scale: 0.97 }}
                 className="relative overflow-hidden rounded-2xl flex items-center gap-4 px-5 py-4"
                 style={{
-                  background: "linear-gradient(to bottom, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.04) 50%, transparent 100%), var(--ember)",
-                  boxShadow: "var(--shadow-button), inset 0 1px 0 rgba(255,255,255,0.28)",
+                  background: "var(--ember)",
+                  boxShadow: "var(--shadow-button)",
                   color: "var(--on-ember)",
                 }}
               >
