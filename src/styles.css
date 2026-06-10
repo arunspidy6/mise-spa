@@ -230,3 +230,10 @@
   background-size: 200% 100%;
   animation: shimmer 1.5s linear infinite;
 }
+
+/* Bobbing dish — echoes the recipe-finding loader, used while a photo loads */
+@keyframes food-bob {
+  0%, 100% { transform: translateY(0) rotate(-5deg); }
+  50%      { transform: translateY(-7px) rotate(5deg); }
+}
+.animate-food-bob { animation: food-bob 1.4s var(--ease-out) infinite; }
