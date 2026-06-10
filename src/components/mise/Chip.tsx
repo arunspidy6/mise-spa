@@ -26,12 +26,15 @@ export function Chip({
       className={cn(
         "inline-flex items-center gap-1.5 h-8 px-3 rounded-full font-mono text-[11px] uppercase tracking-wider transition-all duration-150 active:scale-95 border",
         isActive
-          ? "bg-[#e8751a] text-[#0f0e0c] border-[#e8751a]"
+          ? "bg-ember-chip border-ember-chip font-semibold"
           : "bg-bg-raised text-text-secondary border-border-default hover:text-text-primary"
       )}
     >
       {emoji && <span className="text-sm">{emoji}</span>}
-      <span className="font-sans normal-case tracking-normal text-[13px] font-medium">{label}</span>
+      <span
+        className="font-sans normal-case tracking-normal text-[13px] font-medium"
+        style={isActive ? { color: "oklch(0.965 0.018 72)" } : undefined}
+      >{label}</span>
       {isActive && showCheck && <Check className="w-3 h-3" />}
     </button>
   );

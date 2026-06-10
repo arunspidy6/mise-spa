@@ -106,7 +106,7 @@ function FeedbackPage() {
           <button
             onClick={submit}
             disabled={!selected}
-            style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.08) 0%, transparent 40%), var(--ember)", boxShadow: "var(--shadow-button)", color: "#0C0806" }}
+            style={{ background: "linear-gradient(to bottom, rgba(255,255,255,0.08) 0%, transparent 40%), var(--ember)", boxShadow: "var(--shadow-button)", color: "var(--on-ember)" }}
             className="w-full h-14 rounded-xl text-[15px] font-semibold active:scale-[0.98] transition disabled:opacity-40">
             Save feedback →
           </button>

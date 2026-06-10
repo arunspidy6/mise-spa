@@ -7,102 +7,155 @@
 @theme inline {
   --font-display: "Fraunces", ui-serif, Georgia, serif;
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-mono: "JetBrains Mono", "DM Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 14px;
-  --radius-2xl: 18px;
+  --radius-sm:  6px;
+  --radius-md:  10px;
+  --radius-lg:  14px;
+  --radius-xl:  18px;
+  --radius-2xl: 24px;
 
-  --color-background: var(--bg-base);
-  --color-foreground: var(--text-primary);
-  --color-card: var(--bg-surface);
-  --color-card-foreground: var(--text-primary);
-  --color-popover: var(--bg-overlay);
+  --color-background:         var(--bg-base);
+  --color-foreground:         var(--text-primary);
+  --color-card:               var(--bg-surface);
+  --color-card-foreground:    var(--text-primary);
+  --color-popover:            var(--bg-overlay);
   --color-popover-foreground: var(--text-primary);
-  --color-primary: var(--ember);
+  --color-primary:            var(--ember);
   --color-primary-foreground: var(--on-ember);
-  --color-secondary: var(--bg-raised);
+  --color-secondary:          var(--bg-raised);
   --color-secondary-foreground: var(--text-primary);
-  --color-muted: var(--bg-raised);
-  --color-muted-foreground: var(--text-secondary);
-  --color-accent: var(--ember-glow);
-  --color-accent-foreground: var(--ember-text);
-  --color-destructive: var(--error);
+  --color-muted:              var(--bg-raised);
+  --color-muted-foreground:   var(--text-secondary);
+  --color-accent:             var(--ember-glow);
+  --color-accent-foreground:  var(--ember-text);
+  --color-destructive:        var(--error);
   --color-destructive-foreground: var(--text-primary);
-  --color-border: var(--border-subtle);
-  --color-input: var(--bg-surface);
-  --color-ring: var(--ember);
+  --color-border:             var(--border-subtle);
+  --color-input:              var(--bg-surface);
+  --color-ring:               var(--ember);
 
-  --color-bg-base: var(--bg-base);
-  --color-bg-surface: var(--bg-surface);
-  --color-bg-elevated: var(--bg-elevated);
-  --color-bg-raised: var(--bg-raised);
-  --color-bg-overlay: var(--bg-overlay);
-  --color-text-primary: var(--text-primary);
+  --color-bg-base:        var(--bg-base);
+  --color-bg-surface:     var(--bg-surface);
+  --color-bg-elevated:    var(--bg-elevated);
+  --color-bg-raised:      var(--bg-raised);
+  --color-bg-overlay:     var(--bg-overlay);
+  --color-text-primary:   var(--text-primary);
   --color-text-secondary: var(--text-secondary);
-  --color-text-tertiary: var(--text-tertiary);
-  --color-border-subtle: var(--border-subtle);
+  --color-text-tertiary:  var(--text-tertiary);
+  --color-border-subtle:  var(--border-subtle);
   --color-border-default: var(--border-default);
-  --color-border-strong: var(--border-strong);
-  --color-ember: var(--ember);
-  --color-ember-dim: var(--ember-dim);
-  --color-ember-glow: var(--ember-glow);
-  --color-ember-text: var(--ember-text);
-  --color-on-ember: var(--on-ember);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
-  --color-error: var(--error);
+  --color-border-strong:  var(--border-strong);
+  --color-ember:          var(--ember);
+  --color-ember-chip:     var(--ember-chip);
+  --color-ember-dim:      var(--ember-dim);
+  --color-ember-glow:     var(--ember-glow);
+  --color-ember-text:     var(--ember-text);
+  --color-on-ember:       var(--on-ember);
+  --color-success:        var(--success);
+  --color-warning:        var(--warning);
+  --color-error:          var(--error);
 }
 
-/* ── Dark Kitchen — default theme ───────────────────────────────────────────
-   Warm near-black backgrounds (cast iron / charred wood palette, hue ~44°)
-   with a deep caramel ember accent. The tile grid on the bg is kitchen-tile.  */
+/* ── Dark burnt terracotta working canvas ────────────────────────────────────
+   All working screens (inventory, session, recipe, cook, journal) run on this
+   deep charred-clay canvas. Hero screens (home, loader) use .theme-terracotta
+   below. Flat design: zero shadows, zero gradients on surfaces. */
 :root {
-  /* Backgrounds — warm charcoal scale */
-  --bg-base:     oklch(0.11 0.016 44);   /* cast iron near-black */
-  --bg-surface:  oklch(0.16 0.016 43);   /* dark charcoal */
-  --bg-elevated: oklch(0.20 0.015 43);
-  --bg-raised:   oklch(0.25 0.015 43);
-  --bg-overlay:  oklch(0.30 0.014 43);
+  /* Dark burnt clay — like kiln-fired terracotta left in the ashes */
+  --bg-base:     oklch(0.155 0.040 29);   /* deep charred clay */
+  --bg-surface:  oklch(0.205 0.046 31);   /* card surfaces */
+  --bg-elevated: oklch(0.255 0.050 32);   /* raised sheets */
+  --bg-raised:   oklch(0.308 0.053 33);   /* inputs, chips */
+  --bg-overlay:  oklch(0.362 0.054 34);   /* heaviest tint */
 
-  /* Text — warm cream/parchment, all pass WCAG AA */
-  --text-primary:   oklch(0.94 0.012 75);   /* warm cream — ~13:1 */
-  --text-secondary: oklch(0.73 0.013 73);   /* ~7:1 */
-  --text-tertiary:  oklch(0.61 0.011 70);   /* ~4.5:1 */
+  /* Warm cream on dark clay */
+  --text-primary:   oklch(0.965 0.018 72);  /* bright warm cream */
+  --text-secondary: oklch(0.820 0.025 60);  /* readable secondary — 5.5:1 on bg-base */
+  --text-tertiary:  oklch(0.655 0.032 50);  /* hint text — 3.5:1 on bg-base */
 
-  /* Borders */
-  --border-subtle:  oklch(0.29 0.012 44);
-  --border-default: oklch(0.36 0.013 43);
-  --border-strong:  oklch(0.46 0.013 43);
+  /* Warm dark borders — just enough to define edges */
+  --border-subtle:  oklch(0.292 0.046 33);
+  --border-default: oklch(0.378 0.058 35);
+  --border-strong:  oklch(0.478 0.070 38);
 
-  /* Brand — Ember orange: warm cooking fire */
-  --ember:      oklch(0.72 0.168 48);
-  --ember-dim:  oklch(0.43 0.120 45);
-  --ember-glow: oklch(0.72 0.168 48 / 0.15);
-  --ember-text: oklch(0.83 0.130 60);
-  --on-ember:   oklch(0.11 0.016 44);   /* dark charcoal on bright ember — ~5:1 ✓ */
+  /* Corten — working-screen accent */
+  --ember:      oklch(0.527 0.196 38);          /* button orange — 10 % less bright */
+  --ember-chip: oklch(0.440 0.175 38);          /* chip orange — 25 % less bright */
+  --ember-dim:  oklch(0.527 0.196 38 / 0.40);
+  --ember-glow: oklch(0.527 0.196 38 / 0.16);
+  --ember-text: oklch(0.800 0.158 46);          /* lighter corten text on dark */
+  --on-ember:   oklch(0.135 0.038 28);          /* near-black on button orange ≥4:1 */
 
-  /* Tile grid line colour — whisper-faint grout lines on the dark kitchen bg.
-     Kept very low alpha so it never reads as texture through translucent UI. */
-  --tile-color:  oklch(0.30 0.016 44 / 0.20);
+  /* Illustration ink */
+  --ink:      oklch(0.852 0.105 48);
+  --ink-soft: oklch(0.527 0.196 38 / 0.20);
 
-  /* Semantic */
-  --success: oklch(0.66 0.12 150);
-  --warning: oklch(0.78 0.14 85);
-  --error:   oklch(0.62 0.18 25);
+  /* Barely-there dot grid on dark */
+  --tile-color: oklch(0.272 0.034 32 / 0.40);
 
-  /* Shadows */
+  /* Semantic states */
+  --success: oklch(0.58 0.14 145);
+  --warning: oklch(0.72 0.15 75);
+  --error:   oklch(0.58 0.18 22);
+
+  /* Shadows — pronounced, soft elevation so cards & buttons float */
   --shadow-sm:     0 1px 3px oklch(0 0 0 / 0.50);
-  --shadow-md:     0 4px 16px oklch(0 0 0 / 0.60);
-  --shadow-lg:     0 8px 32px oklch(0 0 0 / 0.70);
-  --shadow-ember:  0 4px 24px oklch(0.72 0.168 48 / 0.25);
-  --shadow-button: 0 2px 10px oklch(0 0 0 / 0.55), 0 1px 3px oklch(0 0 0 / 0.40);
-  --shadow-card:   0 2px 12px oklch(0 0 0 / 0.45), inset 0 1px 0 oklch(1 0 0 / 0.05);
+  --shadow-md:     0 6px 20px oklch(0 0 0 / 0.55);
+  --shadow-lg:     0 14px 40px oklch(0 0 0 / 0.65);
+  --shadow-ember:  0 8px 26px oklch(0.527 0.196 38 / 0.42);
+  --shadow-button: 0 6px 20px oklch(0.527 0.196 38 / 0.38), 0 2px 6px oklch(0 0 0 / 0.40);
+  --shadow-card:   0 6px 22px oklch(0 0 0 / 0.45), inset 0 1px 0 oklch(1 0 0 / 0.04);
 
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ── Monte: Corten flood ─────────────────────────────────────────────────────
+   Home screen and loader use this token override. Wrap any subtree in
+   .theme-terracotta and the entire canvas flips to the corten field.
+   Surfaces become lighter corten tints, text becomes cream, --ember inverts
+   to espresso so the CTA button reads as dark-on-terracotta.
+   Line-art ink becomes Bordeaux (#5f1d1a) — dark strokes on the warm field. */
+.theme-terracotta {
+  /* Corten flood — monochrome terracotta */
+  --bg-base:     oklch(0.520 0.178 35);   /* corten #b84b30 */
+  --bg-surface:  oklch(0.575 0.158 38);
+  --bg-elevated: oklch(0.625 0.138 40);
+  --bg-raised:   oklch(0.668 0.120 42);
+  --bg-overlay:  oklch(0.710 0.104 44);
+
+  /* Cream on corten */
+  --text-primary:   oklch(0.966 0.020 85);
+  --text-secondary: oklch(0.898 0.028 78);
+  --text-tertiary:  oklch(0.818 0.040 72);
+
+  /* Borders: deeper corten separators */
+  --border-subtle:  oklch(0.468 0.162 32 / 0.50);
+  --border-default: oklch(0.418 0.148 30 / 0.65);
+  --border-strong:  oklch(0.368 0.126 28 / 0.80);
+
+  /* Accent inverts to espresso on corten canvas */
+  --ember:      oklch(0.220 0.055 33);          /* espresso fill */
+  --ember-dim:  oklch(0.220 0.055 33 / 0.35);
+  --ember-glow: oklch(0.220 0.055 33 / 0.16);
+  --ember-text: oklch(0.220 0.055 33);
+  --on-ember:   oklch(0.966 0.020 85);          /* cream on espresso */
+
+  /* Illustration ink: Bordeaux on corten (#5f1d1a) */
+  --ink:      oklch(0.280 0.095 25);
+  --ink-soft: oklch(0.280 0.095 25 / 0.18);
+
+  /* Dot tile — barely-there on corten */
+  --tile-color: oklch(0.465 0.168 32 / 0.22);
+
+  /* Shadows on corten hero — shadow-only, no orange glow on a bright canvas */
+  --shadow-sm:     0 1px 3px oklch(0.18 0.04 33 / 0.30);
+  --shadow-md:     0 6px 20px oklch(0.18 0.04 33 / 0.28);
+  --shadow-lg:     0 14px 40px oklch(0.18 0.04 33 / 0.32);
+  --shadow-ember:  0 8px 24px oklch(0.18 0.04 33 / 0.28);
+  --shadow-button: 0 8px 22px oklch(0.18 0.04 33 / 0.32), 0 2px 6px oklch(0 0 0 / 0.18);
+  --shadow-card:   0 6px 20px oklch(0.18 0.04 33 / 0.20), inset 0 1px 0 oklch(1 0 0 / 0.10);
 }
 
 @layer base {
@@ -118,6 +171,7 @@
 
 @layer utilities {
   .font-display { font-family: var(--font-display); font-feature-settings: "ss01"; }
+
   .label-eyebrow {
     font-family: var(--font-sans);
     font-size: 12px;
@@ -126,16 +180,19 @@
     text-transform: uppercase;
     color: var(--text-tertiary);
   }
-  .shadow-ember  { box-shadow: var(--shadow-ember); }
-  .shadow-button { box-shadow: var(--shadow-button); }
-  .shadow-card   { box-shadow: var(--shadow-card); }
 
+  /* Filled ember button — gradient top-highlight + flat ember, with shadow */
   .btn-ember {
     background: linear-gradient(to bottom, rgba(255,255,255,0.08) 0%, transparent 40%), var(--ember);
     box-shadow: var(--shadow-button);
     color: var(--on-ember);
   }
   .btn-ember:active { opacity: 0.92; }
+
+  .shadow-ember  { box-shadow: var(--shadow-ember); }
+  .shadow-button { box-shadow: var(--shadow-button); }
+  .shadow-card   { box-shadow: var(--shadow-card); }
+
   .scrollbar-hide::-webkit-scrollbar { display: none; }
   .scrollbar-hide { scrollbar-width: none; }
 
@@ -145,14 +202,14 @@
 
 @keyframes ember-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.6; transform: scale(0.85); }
+  50%       { opacity: 0.55; transform: scale(0.88); }
 }
 .animate-ember-pulse { animation: ember-pulse 1.4s var(--ease-out) infinite; }
 
-/* INTENTIONAL global type bump: every Tailwind text-[Npx] utility renders at
-   N+1px. This nudges all body/caption text up 1px app-wide without editing
-   hundreds of classNames. Not an off-by-one bug — making these 1:1 would shrink
-   all small text and undo the tuned typography. */
+/* INTENTIONAL global type bump: every text-[Npx] utility renders at N+1px.
+   This nudges all body/caption text up 1px app-wide without editing hundreds
+   of classNames. Not an off-by-one bug — making these 1:1 would shrink all
+   small text and undo the tuned typography. */
 .text-\[10px\] { font-size: 11px; }
 .text-\[11px\] { font-size: 12px; }
 .text-\[12px\] { font-size: 13px; }
@@ -160,11 +217,16 @@
 .text-\[14px\] { font-size: 15px; }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
 }
 .skeleton {
-  background: linear-gradient(90deg, var(--bg-raised) 25%, var(--bg-overlay) 50%, var(--bg-raised) 75%);
+  background: linear-gradient(
+    90deg,
+    var(--bg-raised) 25%,
+    var(--bg-overlay) 50%,
+    var(--bg-raised) 75%
+  );
   background-size: 200% 100%;
   animation: shimmer 1.5s linear infinite;
 }
