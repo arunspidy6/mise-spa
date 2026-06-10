@@ -79,17 +79,17 @@
   --border-default: oklch(0.378 0.058 35);
   --border-strong:  oklch(0.478 0.070 38);
 
-  /* Terracotta accent — orange +15% saturation */
-  --ember:      oklch(0.525 0.170 36);
-  --ember-chip: oklch(0.440 0.140 35);
-  --ember-dim:  oklch(0.525 0.170 36 / 0.38);
-  --ember-glow: oklch(0.525 0.170 36 / 0.14);
-  --ember-text: oklch(0.790 0.136 44);
+  /* Brand red-orange — #D7441F */
+  --ember:      oklch(0.590 0.191 33);
+  --ember-chip: oklch(0.495 0.158 32);
+  --ember-dim:  oklch(0.590 0.191 33 / 0.38);
+  --ember-glow: oklch(0.590 0.191 33 / 0.14);
+  --ember-text: oklch(0.790 0.140 40);
   --on-ember:   oklch(0.965 0.015 72);
 
   /* Illustration ink */
   --ink:      oklch(0.852 0.105 47);
-  --ink-soft: oklch(0.525 0.170 36 / 0.18);
+  --ink-soft: oklch(0.590 0.191 33 / 0.18);
 
   /* Barely-there dot grid on dark */
   --tile-color: oklch(0.272 0.034 32 / 0.40);
@@ -103,8 +103,8 @@
   --shadow-sm:     0 1px 3px oklch(0 0 0 / 0.50);
   --shadow-md:     0 6px 20px oklch(0 0 0 / 0.55);
   --shadow-lg:     0 14px 40px oklch(0 0 0 / 0.65);
-  --shadow-ember:  0 8px 26px oklch(0.525 0.170 36 / 0.36);
-  --shadow-button: 0 6px 18px oklch(0.525 0.170 36 / 0.32), 0 2px 6px oklch(0 0 0 / 0.38);
+  --shadow-ember:  0 8px 26px oklch(0.590 0.191 33 / 0.36);
+  --shadow-button: 0 6px 18px oklch(0.590 0.191 33 / 0.32), 0 2px 6px oklch(0 0 0 / 0.38);
   --shadow-card:   0 6px 22px oklch(0 0 0 / 0.45), inset 0 1px 0 oklch(1 0 0 / 0.04);
 
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
@@ -118,12 +118,12 @@
    to espresso so the CTA button reads as dark-on-terracotta.
    Line-art ink becomes Bordeaux (#5f1d1a) — dark strokes on the warm field. */
 .theme-terracotta {
-  /* Terracotta flood — +15% saturation */
-  --bg-base:     oklch(0.515 0.147 34);
-  --bg-surface:  oklch(0.565 0.129 36);
-  --bg-elevated: oklch(0.612 0.110 38);
-  --bg-raised:   oklch(0.655 0.092 39);
-  --bg-overlay:  oklch(0.697 0.076 40);
+  /* Home flood — #D7441F family */
+  --bg-base:     oklch(0.505 0.147 31);
+  --bg-surface:  oklch(0.555 0.130 33);
+  --bg-elevated: oklch(0.602 0.112 35);
+  --bg-raised:   oklch(0.646 0.094 37);
+  --bg-overlay:  oklch(0.690 0.076 39);
 
   /* Cream on terracotta */
   --text-primary:   oklch(0.966 0.020 85);
@@ -181,9 +181,9 @@
     color: var(--text-tertiary);
   }
 
-  /* Filled ember button — gradient top-highlight + flat ember, with shadow */
+  /* Filled ember button — flat fill, coloured shadow */
   .btn-ember {
-    background: linear-gradient(to bottom, rgba(255,255,255,0.08) 0%, transparent 40%), var(--ember);
+    background: var(--ember);
     box-shadow: var(--shadow-button);
     color: var(--on-ember);
   }

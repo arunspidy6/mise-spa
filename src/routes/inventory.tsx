@@ -384,7 +384,7 @@ function Chip({ label, active, mode, onClick }: {
         borderColor: "var(--ember-chip)",
         color: "oklch(0.965 0.018 72)",   /* cream — 5.2:1 on darker chip orange */
         fontWeight: 600,
-        boxShadow: "0 2px 8px oklch(0 0 0 / 0.30)",
+        boxShadow: "0 2px 8px oklch(0 0 0 / 0.28)",
       }
     : removeMode
       ? {
