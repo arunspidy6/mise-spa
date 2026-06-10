@@ -353,7 +353,7 @@ function VoiceHintOverlay({ onDismiss }: { onDismiss: () => void }) {
       <motion.div
         initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
         transition={{ type: "spring", stiffness: 400, damping: 18, delay: 0.05 }}
-        className="w-16 h-16 rounded-full bg-ember flex items-center justify-center mb-5 shadow-[0_0_24px_rgba(232,117,26,0.5)]"
+        className="w-16 h-16 rounded-full bg-ember flex items-center justify-center mb-5 shadow-[0_0_24px_oklch(0.520_0.178_35_/_0.5)]"
       >
         <Mic className="w-7 h-7 text-bg-base" />
       </motion.div>
@@ -799,6 +799,15 @@ function CookMode() {
     advanceToPending();                   // move on without starting it
   }, [advanceToPending]);
 
+  // Tap outside the sheet = cancel: close the prompt and STAY on the current
+  // step (don't auto-advance to the pending step).
+  const cancelTimerPrompt = useCallback(() => {
+    setShowTimerPrompt(false);
+    showTimerPromptRef.current = false;
+    setPendingStep(null);
+    pendingStepRef.current = null;
+  }, []);
+
   // ── Voice command processing ───────────────────────────────────────────
   // Debounced — wait 400ms for speech to stabilise before acting.
   // Deduplicates — same command within 2s is ignored (prevents 6x "next").
@@ -1038,7 +1047,7 @@ function CookMode() {
               title={!SR ? VOICE_UNAVAILABLE_MSG : undefined}
               className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 ${
                 voiceActive
-                  ? "bg-ember text-bg-base shadow-[0_0_14px_rgba(232,117,26,0.6)]"
+                  ? "bg-ember text-bg-base shadow-[0_0_14px_oklch(0.520_0.178_35_/_0.55)]"
                   : "bg-bg-raised border border-border-default text-text-secondary"
               } ${!SR ? "opacity-40 cursor-not-allowed active:scale-100" : ""}`}
             >
@@ -1210,8 +1219,8 @@ function CookMode() {
               onClick={() => { setShowHint(false); localStorage.setItem("mise_hint_v4", "1"); }}>
               <div className="flex items-center gap-10">
                 {[
-                  { Icon: ArrowLeft,  bg: "bg-bg-surface border-border-default", tc: "text-text-secondary", label: "Previous" },
-                  { Icon: ArrowRight, bg: "bg-ember",                             tc: "text-bg-base",       label: "Next step" },
+                  { Icon: ArrowLeft,  bg: "bg-bg-surface border border-border-default", tc: "text-text-secondary", label: "Previous" },
+                  { Icon: ArrowRight, bg: "bg-ember",                                   tc: "text-bg-base",       label: "Next step" },
                 ].map(({ Icon, bg, tc, label }, i) => (
                   <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ type: "spring", stiffness: 320, damping: 26, delay: 0.08 + i * 0.1 }}
@@ -1240,7 +1249,7 @@ function CookMode() {
           {showTimerPrompt && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="absolute inset-0 bg-black/75 backdrop-blur-sm flex items-end z-50"
-              onClick={skipTimerPrompt}>
+              onClick={cancelTimerPrompt}>
               <motion.div initial={{ y: 100 }} animate={{ y: 0 }} exit={{ y: 100 }}
                 transition={{ type: "spring", stiffness: 360, damping: 30 }}
                 className="w-full bg-bg-surface rounded-t-3xl p-8 pb-safe-lg"
@@ -1326,7 +1335,7 @@ function CookMode() {
                     Keep cooking
                   </button>
                   <button onClick={() => { stopVoice(); navigate({ to: "/" }); }}
-                    className="w-full h-14 rounded-xl bg-bg-raised border border-border-default text-text-secondary text-[14px] active:scale-[0.98] transition">
+                    className="w-full h-14 rounded-xl bg-bg-raised border border-border-default text-text-primary text-[14px] active:scale-[0.98] transition">
                     Exit anyway
                   </button>
                 </div>

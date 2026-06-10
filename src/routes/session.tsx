@@ -14,16 +14,17 @@ export const Route = createFileRoute("/session")({ component: SessionSetup });
 type ErrState = { reason: string; detail: string };
 
 // ── Loader animation ─────────────────────────────────────────────────────────
-// Carousel dishes — slides one at a time with bouncy swap
+// Hand-drawn bubbling pot in the terracotta theme. The dish names cycle below
+// so it still feels like Mise is "flipping through" options for you.
 const DISHES = [
-  { emoji: "🥘", name: "Soy-glazed chicken" },
-  { emoji: "🍳", name: "Shakshuka" },
-  { emoji: "🍜", name: "Egg fried rice" },
-  { emoji: "🥩", name: "Garlic butter steak" },
-  { emoji: "🫕", name: "Chickpea curry" },
-  { emoji: "🍝", name: "Garlic butter pasta" },
-  { emoji: "🐟", name: "Soy-glazed salmon" },
-  { emoji: "🫙", name: "Lentil soup" },
+  "Soy-glazed chicken",
+  "Shakshuka",
+  "Egg fried rice",
+  "Garlic butter steak",
+  "Chickpea curry",
+  "Garlic butter pasta",
+  "Soy-glazed salmon",
+  "Lentil soup",
 ];
 
 const LOADER_MESSAGES = [
@@ -33,57 +34,90 @@ const LOADER_MESSAGES = [
   "Almost ready…",
 ];
 
+// Bubbling pot — single-weight line art with rising steam + simmering bubbles.
+function BubblingPot() {
+  return (
+    <svg width="184" height="172" viewBox="0 0 180 172" fill="none" style={{ overflow: "visible" }}>
+      {/* steam */}
+      <motion.g
+        stroke="var(--ink)" strokeWidth={4} strokeLinecap="round" fill="none"
+        animate={{ opacity: [0.25, 0.9, 0.25], y: [4, -6, 4] }}
+        transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+      >
+        <path d="M64 34 q-8 -12 2 -22 q7 -7 0 -16" />
+        <path d="M90 28 q8 -13 -2 -23 q-7 -7 0 -15" opacity={0.85} />
+        <path d="M116 34 q-8 -12 3 -20 q6 -6 0 -15" opacity={0.7} />
+      </motion.g>
+
+      {/* pot */}
+      <g stroke="var(--ink)" strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" fill="none">
+        <path d="M40 76 q-2 56 12 76 q38 14 76 0 q14 -20 12 -76 Z" />
+        <path d="M32 76 q58 -14 116 0" />
+        <path d="M32 84 q-16 2 -14 16 q1 9 12 9" />
+        <path d="M148 84 q16 2 14 16 q-1 9 -12 9" />
+      </g>
+
+      {/* simmering bubbles */}
+      {[
+        { cx: 72, cy: 108, r: 6, d: 0 },
+        { cx: 96, cy: 118, r: 8, d: 0.4 },
+        { cx: 118, cy: 106, r: 5, d: 0.8 },
+      ].map((b, i) => (
+        <motion.circle
+          key={i}
+          cx={b.cx} cy={b.cy} r={b.r}
+          fill="var(--ink-soft)" stroke="var(--ink)" strokeWidth={3}
+          animate={{ scale: [0.5, 1, 0.5], opacity: [0.3, 1, 0.3] }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: b.d }}
+          style={{ transformOrigin: `${b.cx}px ${b.cy}px` }}
+        />
+      ))}
+    </svg>
+  );
+}
+
 function RecipeLoader() {
   const [dishIdx, setDishIdx] = useState(0);
   const [msgIdx, setMsgIdx] = useState(0);
-  const [direction, setDirection] = useState(1);
 
   useEffect(() => {
     const dishTimer = setInterval(() => {
-      setDirection(1);
       setDishIdx(i => (i + 1) % DISHES.length);
-    }, 900);
+    }, 1100);
     const msgTimer = setInterval(() => {
       setMsgIdx(i => (i + 1) % LOADER_MESSAGES.length);
     }, 1800);
     return () => { clearInterval(dishTimer); clearInterval(msgTimer); };
   }, []);
 
-  const dish = DISHES[dishIdx];
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-bg-base z-50 flex flex-col items-center justify-center px-8"
+      className="theme-terracotta fixed inset-0 bg-bg-base z-50 flex flex-col items-center justify-center px-8"
     >
-      {/* Carousel card */}
-      <div className="relative w-72 h-48 mb-8 overflow-hidden">
-        <AnimatePresence mode="wait" custom={direction}>
-          <motion.div
+      <motion.div
+        animate={{ y: [0, -6, 0] }}
+        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+        className="mb-6"
+      >
+        <BubblingPot />
+      </motion.div>
+
+      {/* Cycling dish name — feels like Mise is leafing through the options */}
+      <div className="h-8 flex items-center justify-center mb-7">
+        <AnimatePresence mode="wait">
+          <motion.p
             key={dishIdx}
-            custom={direction}
-            initial={{ x: 80 * direction, opacity: 0, scale: 0.9 }}
-            animate={{ x: 0, opacity: 1, scale: 1 }}
-            exit={{ x: -80 * direction, opacity: 0, scale: 0.9 }}
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -10, opacity: 0 }}
             transition={{ type: "spring", stiffness: 400, damping: 26 }}
-            className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-bg-surface border border-border-subtle rounded-3xl"
+            className="font-display italic text-[19px] font-light text-ember-text text-center"
           >
-            <motion.span
-              animate={{
-                y: [0, -8, 0],
-                rotate: [-4, 4, -4],
-              }}
-              transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
-              className="text-[64px]"
-            >
-              {dish.emoji}
-            </motion.span>
-            <p className="font-display text-[18px] font-light text-text-primary text-center leading-snug px-4">
-              {dish.name}
-            </p>
-          </motion.div>
+            {DISHES[dishIdx]}
+          </motion.p>
         </AnimatePresence>
       </div>
 
@@ -99,7 +133,7 @@ function RecipeLoader() {
         ))}
       </div>
 
-      {/* Cycling message */}
+      {/* Cycling status message */}
       <AnimatePresence mode="wait">
         <motion.p
           key={msgIdx}

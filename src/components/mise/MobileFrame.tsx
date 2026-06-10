@@ -1,10 +1,12 @@
 import { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
-export function MobileFrame({ children }: { children: ReactNode }) {
+export function MobileFrame({ children, className }: { children: ReactNode; className?: string }) {
   return (
     // 100dvh = dynamic viewport height — shrinks/grows with Chrome's URL bar
     // so the layout never jumps and sticky bottom bars stay in view.
-    <div className="w-full bg-bg-base flex justify-center overflow-hidden" style={{ height: "100dvh" }}>
+    // `className` lets a route opt into a theme override (e.g. "theme-terracotta").
+    <div className={cn("w-full bg-bg-base flex justify-center overflow-hidden", className)} style={{ height: "100dvh" }}>
       <div className="relative w-full max-w-[420px] h-full flex flex-col overflow-hidden bg-bg-base">
         {/* Dotted grid texture — isolated background layer pinned at z-0, never on top of UI */}
         <div

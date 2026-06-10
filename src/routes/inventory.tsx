@@ -366,7 +366,7 @@ export const Route = createFileRoute("/inventory")({
 });
 
 const STEPS = [
-  { key: "staples" as const,    label: "Pantry staples",  title: "What's in your kitchen?",       intro: "Everything in orange is in your kitchen. Tap to remove what you don't have.", mode: "remove" as const, sections: STAPLE_SECTIONS },
+  { key: "staples" as const,    label: "Pantry staples",  title: "What's in your kitchen?",       intro: "Everything highlighted is in your kitchen. Tap to remove what you don't have.", mode: "remove" as const, sections: STAPLE_SECTIONS },
   { key: "proteins" as const,   label: "Proteins",         title: "What proteins do you have?",    intro: "Select everything you have right now. This drives your recipes.",            mode: "add" as const,    sections: PROTEIN_SECTIONS },
   { key: "carbs" as const,      label: "Carbs",            title: "Anything carby?",               intro: "Pick what you actually have.",                                              mode: "add" as const,    sections: CARB_SECTIONS },
   { key: "vegetables" as const, label: "Vegetables",       title: "Veg in the fridge or counter?", intro: "Even just a few opens up a lot of options.",                                mode: "add" as const,    sections: VEG_SECTIONS },
@@ -377,17 +377,39 @@ const STEPS = [
 function Chip({ label, active, mode, onClick }: {
   label: string; active: boolean; mode: "add" | "remove"; onClick: () => void;
 }) {
+  const removeMode = mode === "remove";
+  const style: React.CSSProperties = active
+    ? {
+        background: "var(--ember-chip)",
+        borderColor: "var(--ember-chip)",
+        color: "oklch(0.965 0.018 72)",   /* cream — 5.2:1 on darker chip orange */
+        fontWeight: 600,
+        boxShadow: "0 2px 8px oklch(0 0 0 / 0.30)",
+      }
+    : removeMode
+      ? {
+          background: "var(--bg-surface)",
+          borderColor: "var(--border-subtle)",
+          color: "var(--text-tertiary)",
+          textDecorationLine: "line-through",
+          boxShadow: "var(--shadow-sm)",
+        }
+      : {
+          background: "var(--bg-elevated)",
+          borderColor: "var(--border-default)",
+          color: "var(--text-secondary)",
+          boxShadow: "var(--shadow-sm)",
+        };
   return (
-    <button type="button" onClick={onClick}
-      className={`inline-flex items-center gap-1.5 h-9 px-3 rounded-full text-[13px] font-medium transition-all active:scale-95 border
-        ${mode === "remove"
-          ? active ? "bg-ember border-ember text-on-ember" : "bg-bg-raised border-border-subtle text-text-tertiary line-through"
-          : active ? "bg-ember border-ember text-on-ember" : "bg-bg-raised border-border-default text-text-secondary"
-        }`}
+    <button
+      type="button"
+      onClick={onClick}
+      style={style}
+      className="inline-flex items-center gap-1.5 h-10 px-4 rounded-full text-[13px] font-medium border transition-all duration-150 active:scale-[0.94] hover:brightness-[1.06]"
     >
-      {active && mode === "add" && <CheckCircle2 className="w-3 h-3" />}
+      {active && mode === "add" && <CheckCircle2 className="w-3.5 h-3.5" />}
       {label}
-      {active && mode === "remove" && <X className="w-3 h-3 opacity-50" />}
+      {active && mode === "remove" && <X className="w-3.5 h-3.5 opacity-60" />}
     </button>
   );
 }
@@ -672,11 +694,11 @@ function InventoryFlow() {
 
             {cur.mode === "remove" && (
               <div className="mt-4">
-                <div className="rounded-xl bg-bg-raised border border-border-subtle px-4 py-3 flex gap-3">
+                <div className="rounded-xl border border-border-subtle px-4 py-3 flex gap-3 bg-bg-elevated">
                   <span className="text-base mt-0.5">👇</span>
                   <div>
                     <p className="text-[13px] font-semibold text-text-primary">Tap to remove what you don't have</p>
-                    <p className="text-[12px] text-text-secondary mt-0.5 leading-relaxed">Everything in orange is assumed to be in your kitchen.</p>
+                    <p className="text-[12px] text-text-secondary mt-0.5 leading-relaxed">Everything highlighted is assumed to be in your kitchen.</p>
                   </div>
                 </div>
 
@@ -688,7 +710,7 @@ function InventoryFlow() {
             )}
 
             {cur.key === "proteins" && (
-              <div className="mt-3 rounded-lg bg-ember-glow border border-ember-dim px-4 py-3">
+              <div className="mt-3 rounded-lg border border-ember-dim px-4 py-3 bg-ember-glow">
                 <p className="text-[13px] font-semibold text-ember-text">Most important step</p>
                 <p className="text-[12px] text-text-secondary mt-0.5">Your protein drives which recipes we suggest.</p>
               </div>

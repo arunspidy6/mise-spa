@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mise Native — UI Preview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #111;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    display: flex;
+    gap: 24px;
+    padding: 24px;
+    overflow-x: auto;
+    min-height: 100vh;
+    align-items: flex-start;
+  }
+
+  .phone {
+    width: 390px;
+    min-width: 390px;
+    background: #080808;
+    border-radius: 54px;
+    padding: 12px;
+    border: 1.5px solid rgba(255,255,255,0.12);
+    box-shadow: 0 30px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06);
+    flex-shrink: 0;
+  }
+  .screen {
+    width: 100%;
+    border-radius: 44px;
+    overflow: hidden;
+    background: #080808;
+    position: relative;
+    height: 760px;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+  .screen::-webkit-scrollbar { display: none; }
+  .screen-label {
+    color: rgba(255,255,255,0.4);
+    font-size: 11px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    text-align: center;
+    margin-top: 12px;
+    font-weight: 600;
+  }
+
+  /* Status bar */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 24px 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: white;
+  }
+  .status-icons { display: flex; gap: 6px; align-items: center; font-size: 11px; }
+
+  /* Colors */
+  :root {
+    --bg: #080808;
+    --bg-surface: #161618;
+    --bg-elevated: #1e1e21;
+    --bg-highlight: #26262a;
+    --ember: #FF6B35;
+    --ember-light: #FF8C5A;
+    --ember-deep: #D44E1A;
+    --ember-glow: rgba(255,107,53,0.12);
+    --ember-border: rgba(255,107,53,0.35);
+    --ember-dim: rgba(255,107,53,0.28);
+    --label: #ffffff;
+    --label-secondary: rgba(235,235,245,0.65);
+    --label-tertiary: rgba(235,235,245,0.36);
+    --border-subtle: rgba(255,255,255,0.07);
+    --border-medium: rgba(255,255,255,0.12);
+  }
+
+  /* ──────────────── HOME SCREEN ──────────────── */
+  .ambient-glow {
+    position: absolute;
+    top: -40px;
+    left: 15%;
+    width: 70%;
+    height: 200px;
+    background: var(--ember);
+    border-radius: 50%;
+    opacity: 0.05;
+    filter: blur(40px);
+    pointer-events: none;
+  }
+  .home-content { padding: 0 20px; padding-bottom: 100px; position: relative; }
+
+  /* Header */
+  .header { display: flex; justify-content: space-between; align-items: center; padding: 20px 0 16px; }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .greeting-emoji { font-size: 28px; }
+  .greeting-text { font-size: 11px; color: var(--label-tertiary); margin-bottom: 2px; }
+  .header-title { font-size: 22px; font-weight: 700; color: var(--label); }
+  .avatar-btn {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: linear-gradient(135deg, #2E1206, #1A0A04);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px;
+    border: 1px solid var(--border-subtle);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+  }
+
+  /* Stats strip */
+  .stats-strip { display: flex; gap: 8px; margin-bottom: 20px; }
+  .stat-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 12px; color: var(--label-secondary); font-weight: 500;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.22);
+  }
+  .stat-dot { width: 6px; height: 6px; border-radius: 50%; background: #32D74B; }
+  .stat-arrow { color: var(--label-tertiary); font-size: 10px; }
+
+  /* Hero card */
+  .hero-wrap { position: relative; margin-bottom: 24px; }
+  .hero-glow-halo {
+    position: absolute;
+    bottom: -16px; left: 10%; width: 80%; height: 60px;
+    background: var(--ember);
+    border-radius: 50%;
+    opacity: 0.20;
+    filter: blur(20px);
+  }
+  .hero-card {
+    background: linear-gradient(135deg, #3D1A0A, #200E04, #120702);
+    border-radius: 28px;
+    padding: 28px 24px 24px;
+    border: 1px solid var(--border-medium);
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-shimmer {
+    position: absolute; top: 0; left: 0;
+    width: 60%; height: 50%;
+    background: rgba(255,255,255,0.03);
+    border-radius: 28px 0 60px 0;
+  }
+  .hero-icon-wrap { position: relative; display: inline-block; margin-bottom: 4px; }
+  .hero-icon-glow {
+    position: absolute; width: 60px; height: 60px; border-radius: 50%;
+    background: var(--ember); opacity: 0.18; top: 4px; left: 4px;
+    filter: blur(8px);
+  }
+  .hero-emoji { font-size: 58px; line-height: 1.1; position: relative; }
+  .hero-title { font-size: 28px; font-weight: 700; color: var(--label); margin: 12px 0 6px; }
+  .hero-subtitle { font-size: 15px; color: var(--label-secondary); line-height: 1.5; margin-bottom: 16px; }
+  .ember-btn {
+    background: linear-gradient(135deg, #FF8C5A, #FF6B35, #D44E1A);
+    border: none; border-radius: 22px;
+    padding: 16px 24px;
+    width: 100%;
+    font-size: 17px; font-weight: 700; color: white;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    position: relative; overflow: hidden;
+    box-shadow: 0 6px 18px rgba(255,107,53,0.55);
+    cursor: pointer;
+  }
+  .ember-btn::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 50%;
+    background: rgba(255,255,255,0.1);
+    border-radius: 22px 22px 0 0;
+  }
+
+  /* Section label */
+  .section-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 1.4px;
+    text-transform: uppercase; color: var(--label-tertiary);
+    margin-bottom: 12px; margin-top: 4px;
+  }
+
+  /* Cuisine grid */
+  .cuisine-grid { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
+  .cuisine-tile {
+    width: 96px; border-radius: 18px;
+    border: 1px solid rgba(255,255,255,0.07);
+    overflow: hidden;
+    transition: transform 0.15s;
+  }
+  .cuisine-tile:hover { transform: scale(1.04); }
+  .cuisine-tile-inner {
+    padding: 14px 8px;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+  }
+  .cuisine-emoji-wrap {
+    width: 52px; height: 52px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative; overflow: hidden;
+  }
+  .cuisine-emoji-highlight {
+    position: absolute; top: 0; left: 0; right: 0; height: 50%;
+    border-radius: 14px 14px 0 0;
+  }
+  .cuisine-emoji { font-size: 30px; position: relative; }
+  .cuisine-label { font-size: 11px; font-weight: 500; color: var(--label-secondary); text-align: center; }
+
+  /* Tab bar */
+  .tab-bar {
+    position: sticky; bottom: 0;
+    background: rgba(8,8,8,0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,0.06);
+    display: flex;
+    padding: 10px 8px 28px;
+  }
+  .tab-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px; border-radius: 16px; cursor: pointer; position: relative; }
+  .tab-item.active { background: rgba(255,107,53,0.12); border: 1px solid rgba(255,107,53,0.35); }
+  .tab-icon { font-size: 20px; }
+  .tab-label { font-size: 10px; font-weight: 500; color: var(--label-tertiary); }
+  .tab-label.active { color: var(--ember); font-weight: 700; }
+
+  /* ──────────────── SESSION SCREEN ──────────────── */
+  .session-content { padding: 0 20px; padding-bottom: 100px; }
+  .nav-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    height: 52px; padding: 0 4px; margin-bottom: 8px;
+  }
+  .back-btn {
+    width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: var(--ember); cursor: pointer;
+  }
+  .nav-title { font-size: 17px; font-weight: 600; color: var(--label); }
+
+  /* Time grid 2x2 */
+  .time-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 4px; }
+  .time-card {
+    border-radius: 18px; overflow: hidden;
+    border: 1px solid var(--border-subtle);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    cursor: pointer;
+  }
+  .time-card.selected { border-color: var(--ember-border); box-shadow: 0 4px 12px rgba(255,107,53,0.4); }
+  .time-card-inner {
+    padding: 18px 16px; display: flex; flex-direction: column; gap: 6px;
+    background: var(--bg-surface);
+    position: relative;
+  }
+  .time-card.selected .time-card-inner { background: linear-gradient(135deg, #2E1206, #1A0A04); }
+  .time-emoji { font-size: 26px; }
+  .time-label { font-size: 15px; font-weight: 500; color: var(--label-secondary); }
+  .time-card.selected .time-label { color: var(--label); font-weight: 700; }
+  .time-check {
+    position: absolute; top: 10px; right: 10px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--ember);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: white;
+  }
+
+  /* Servings */
+  .servings-card {
+    background: var(--bg-surface);
+    border-radius: 20px; border: 1px solid var(--border-subtle);
+    padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    margin-bottom: 4px;
+  }
+  .stepper-btn {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: var(--bg-elevated); border: 1px solid var(--border-subtle);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; color: var(--ember); cursor: pointer;
+  }
+  .servings-center { text-align: center; }
+  .servings-num { font-size: 44px; font-weight: 700; color: var(--label); line-height: 1.1; letter-spacing: -1px; }
+  .servings-unit { font-size: 13px; color: var(--label-tertiary); }
+
+  /* Chips vibes */
+  .vibe-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: flex; align-items: center; gap: 6px;
+    padding: 10px 16px; border-radius: 999px;
+    border: 1px solid var(--border-subtle);
+    font-size: 14px; font-weight: 500; cursor: pointer;
+  }
+  .chip.unselected { background: var(--bg-surface); color: var(--label-secondary); }
+  .chip.selected {
+    background: linear-gradient(135deg, #FF8C5A, #FF6B35, #D44E1A);
+    color: white; font-weight: 700;
+    border-color: var(--ember);
+    box-shadow: 0 3px 8px rgba(255,107,53,0.35);
+  }
+
+  /* ──────────────── COOK SCREEN ──────────────── */
+  .cook-content { padding: 0; height: 100%; display: flex; flex-direction: column; }
+  .cook-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px 12px;
+  }
+  .cook-back { font-size: 12px; font-weight: 600; color: var(--label-secondary); display: flex; align-items: center; gap: 4px; }
+  .cook-title { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--label-tertiary); }
+  .cook-icons { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; cursor: pointer;
+  }
+  .icon-btn.mic { background: rgba(255,107,53,0.12); border: 1px solid rgba(255,107,53,0.35); }
+  .icon-btn.close { background: var(--bg-elevated); border: 1px solid var(--border-subtle); }
+  .progress-bar { display: flex; gap: 4px; padding: 0 20px 16px; }
+  .progress-seg { height: 3px; border-radius: 2px; flex: 1; }
+  .progress-seg.done { background: var(--ember); }
+  .progress-seg.active { background: var(--ember); opacity: 0.6; }
+  .progress-seg.todo { background: rgba(255,255,255,0.15); }
+
+  .step-body { flex: 1; padding: 0 20px; }
+  .step-meta { font-size: 11px; font-weight: 700; letter-spacing: 1.2px; color: var(--ember); text-transform: uppercase; margin-bottom: 8px; }
+  .step-preview { font-size: 15px; font-weight: 600; color: var(--ember); margin-bottom: 12px; opacity: 0.8; }
+  .step-ghost { position: absolute; right: 20px; top: 80px; font-size: 120px; font-weight: 900; color: rgba(255,255,255,0.03); line-height: 1; }
+  .step-instruction { font-size: 24px; font-weight: 700; color: var(--label); line-height: 1.4; margin-bottom: 20px; }
+
+  .timer-card {
+    background: var(--bg-surface);
+    border-radius: 20px; border: 1px solid var(--border-subtle);
+    padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+  }
+  .timer-label { font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--label-tertiary); text-transform: uppercase; margin-bottom: 4px; }
+  .timer-display { font-size: 36px; font-weight: 700; color: var(--ember); letter-spacing: 1px; }
+  .timer-start-btn {
+    background: linear-gradient(135deg, #FF8C5A, #FF6B35, #D44E1A);
+    border: none; border-radius: 12px;
+    padding: 10px 18px;
+    font-size: 15px; font-weight: 700; color: white;
+    display: flex; align-items: center; gap: 6px;
+    box-shadow: 0 4px 12px rgba(255,107,53,0.45);
+    cursor: pointer; position: relative; overflow: hidden;
+  }
+  .timer-start-btn::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 50%;
+    background: rgba(255,255,255,0.1); border-radius: 12px 12px 0 0;
+  }
+
+  .cook-nav {
+    display: flex; gap: 12px;
+    padding: 12px 20px;
+    border-top: 1px solid var(--border-subtle);
+  }
+  .cook-nav-back {
+    flex: 1; height: 52px; border-radius: 16px;
+    background: var(--bg-surface); border: 1px solid var(--border-subtle);
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: 15px; font-weight: 600; color: var(--label-secondary); cursor: pointer;
+  }
+  .cook-nav-next {
+    flex: 1; height: 52px; border-radius: 16px;
+    background: linear-gradient(135deg, #FF8C5A, #FF6B35, #D44E1A);
+    border: none;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    font-size: 15px; font-weight: 700; color: white; cursor: pointer;
+    position: relative; overflow: hidden;
+    box-shadow: 0 4px 14px rgba(255,107,53,0.45);
+  }
+  .cook-nav-next::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 50%;
+    background: rgba(255,255,255,0.1);
+  }
+</style>
+</head>
+<body>
+
+<!-- ── PHONE 1: HOME ──────────────────────────────────── -->
+<div class="phone">
+  <div class="screen">
+    <div class="ambient-glow"></div>
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons">
+        <span>●●●●</span>
+        <span>WiFi</span>
+        <span>🔋</span>
+      </div>
+    </div>
+
+    <div class="home-content">
+      <!-- Header -->
+      <div class="header">
+        <div class="header-left">
+          <span class="greeting-emoji">🌙</span>
+          <div>
+            <div class="greeting-text">Good evening</div>
+            <div class="header-title">What are we cooking?</div>
+          </div>
+        </div>
+        <div class="avatar-btn">🧑‍🍳</div>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-strip">
+        <div class="stat-pill">
+          <div class="stat-dot"></div>
+          <span>12 ingredients</span>
+          <span class="stat-arrow">›</span>
+        </div>
+        <div class="stat-pill">
+          <span style="font-size:12px;color:#FF6B35">↗</span>
+          <span>Last recipe</span>
+          <span class="stat-arrow">›</span>
+        </div>
+      </div>
+
+      <!-- Hero card -->
+      <div class="hero-wrap">
+        <div class="hero-glow-halo"></div>
+        <div class="hero-card">
+          <div class="hero-shimmer"></div>
+          <div class="hero-icon-wrap">
+            <div class="hero-icon-glow"></div>
+            <div class="hero-emoji">🔥</div>
+          </div>
+          <div class="hero-title">Ready to cook?</div>
+          <div class="hero-subtitle">Tell us your time and mood — we'll find the perfect recipe from your pantry.</div>
+          <button class="ember-btn">✦ Let's Cook</button>
+        </div>
+      </div>
+
+      <!-- Cuisine tiles -->
+      <div class="section-label">Pick a cuisine</div>
+      <div class="cuisine-grid">
+        <!-- Italian -->
+        <div class="cuisine-tile" style="box-shadow: 0 4px 8px rgba(255,107,53,0.25);">
+          <div class="cuisine-tile-inner" style="background: linear-gradient(135deg, rgba(255,107,53,0.16), rgba(255,107,53,0.08), rgba(22,22,24,0.98));">
+            <div class="cuisine-emoji-wrap" style="background: rgba(255,107,53,0.22); box-shadow: 0 3px 10px rgba(255,107,53,0.5);">
+              <div class="cuisine-emoji-highlight" style="background: rgba(255,107,53,0.18);"></div>
+              <span class="cuisine-emoji">🍝</span>
+            </div>
+            <span class="cuisine-label">Italian</span>
+          </div>
+        </div>
+        <!-- Asian -->
+        <div class="cuisine-tile" style="box-shadow: 0 4px 8px rgba(255,55,95,0.25);">
+          <div class="cuisine-tile-inner" style="background: linear-gradient(135deg, rgba(255,55,95,0.16), rgba(255,55,95,0.08), rgba(22,22,24,0.98));">
+            <div class="cuisine-emoji-wrap" style="background: rgba(255,55,95,0.22); box-shadow: 0 3px 10px rgba(255,55,95,0.5);">
+              <div class="cuisine-emoji-highlight" style="background: rgba(255,55,95,0.18);"></div>
+              <span class="cuisine-emoji">🥢</span>
+            </div>
+            <span class="cuisine-label">Asian</span>
+          </div>
+        </div>
+        <!-- Mexican -->
+        <div class="cuisine-tile" style="box-shadow: 0 4px 8px rgba(255,214,10,0.25);">
+          <div class="cuisine-tile-inner" style="background: linear-gradient(135deg, rgba(255,214,10,0.16), rgba(255,214,10,0.08), rgba(22,22,24,0.98));">
+            <div class="cuisine-emoji-wrap" style="background: rgba(255,214,10,0.22); box-shadow: 0 3px 10px rgba(255,214,10,0.5);">
+              <div class="cuisine-emoji-highlight" style="background: rgba(255,214,10,0.18);"></div>
+              <span class="cuisine-emoji">🌮</span>
+            </div>
+            <span class="cuisine-label">Mexican</span>
+          </div>
+        </div>
+        <!-- Indian -->
+        <div class="cuisine-tile" style="box-shadow: 0 4px 8px rgba(255,159,10,0.25);">
+          <div class="cuisine-tile-inner" style="background: linear-gradient(135deg, rgba(255,159,10,0.16), rgba(255,159,10,0.08), rgba(22,22,24,0.98));">
+            <div class="cuisine-emoji-wrap" style="background: rgba(255,159,10,0.22); box-shadow: 0 3px 10px rgba(255,159,10,0.5);">
+              <div class="cuisine-emoji-highlight" style="background: rgba(255,159,10,0.18);"></div>
+              <span class="cuisine-emoji">🍛</span>
+            </div>
+            <span class="cuisine-label">Indian</span>
+          </div>
+        </div>
+        <!-- Mediterranean -->
+        <div class="cuisine-tile" style="box-shadow: 0 4px 8px rgba(64,203,224,0.25);">
+          <div class="cuisine-tile-inner" style="background: linear-gradient(135deg, rgba(64,203,224,0.16), rgba(64,203,224,0.08), rgba(22,22,24,0.98));">
+            <div class="cuisine-emoji-wrap" style="background: rgba(64,203,224,0.22); box-shadow: 0 3px 10px rgba(64,203,224,0.5);">
+              <div class="cuisine-emoji-highlight" style="background: rgba(64,203,224,0.18);"></div>
+              <span class="cuisine-emoji">🫒</span>
+            </div>
+            <span class="cuisine-label">Mediterranean</span>
+          </div>
+        </div>
+        <!-- Middle Eastern -->
+        <div class="cuisine-tile" style="box-shadow: 0 4px 8px rgba(191,90,242,0.25);">
+          <div class="cuisine-tile-inner" style="background: linear-gradient(135deg, rgba(191,90,242,0.16), rgba(191,90,242,0.08), rgba(22,22,24,0.98));">
+            <div class="cuisine-emoji-wrap" style="background: rgba(191,90,242,0.22); box-shadow: 0 3px 10px rgba(191,90,242,0.5);">
+              <div class="cuisine-emoji-highlight" style="background: rgba(191,90,242,0.18);"></div>
+              <span class="cuisine-emoji">🥙</span>
+            </div>
+            <span class="cuisine-label">Middle Eastern</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab bar -->
+    <div style="position:sticky;bottom:0;">
+      <div class="tab-bar">
+        <div class="tab-item active">
+          <div class="tab-icon">⌂</div>
+          <div class="tab-label active">Home</div>
+        </div>
+        <div class="tab-item">
+          <div class="tab-icon">☰</div>
+          <div class="tab-label">Pantry</div>
+        </div>
+        <div class="tab-item">
+          <div class="tab-icon">◷</div>
+          <div class="tab-label">History</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="screen-label">Home</div>
+</div>
+
+<!-- ── PHONE 2: SESSION ──────────────────────────────── -->
+<div class="phone">
+  <div class="screen">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons"><span>●●●●</span><span>🔋</span></div>
+    </div>
+    <div class="session-content">
+      <div class="nav-bar">
+        <div class="back-btn">‹</div>
+        <div class="nav-title">Preferences</div>
+        <div style="width:44px"></div>
+      </div>
+
+      <div class="section-label">How long do you have?</div>
+      <div class="time-grid">
+        <div class="time-card selected">
+          <div class="time-card-inner">
+            <div class="time-emoji">⏰</div>
+            <div class="time-label">30 min</div>
+            <div class="time-check">✓</div>
+          </div>
+        </div>
+        <div class="time-card">
+          <div class="time-card-inner">
+            <div class="time-emoji">🕐</div>
+            <div class="time-label">45 min</div>
+          </div>
+        </div>
+        <div class="time-card">
+          <div class="time-card-inner">
+            <div class="time-emoji">🌙</div>
+            <div class="time-label">1 hr</div>
+          </div>
+        </div>
+        <div class="time-card">
+          <div class="time-card-inner">
+            <div class="time-emoji">🌛</div>
+            <div class="time-label">1.5 hr+</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-top:20px;">Cooking for</div>
+      <div class="servings-card">
+        <div class="stepper-btn">−</div>
+        <div class="servings-center">
+          <div class="servings-num">2</div>
+          <div class="servings-unit">people</div>
+        </div>
+        <div class="stepper-btn">+</div>
+      </div>
+
+      <div class="section-label" style="margin-top:20px;">Vibes</div>
+      <div class="vibe-grid">
+        <div class="chip selected"><span>🥗</span> Healthy</div>
+        <div class="chip unselected"><span>🍲</span> Comfort</div>
+        <div class="chip selected"><span>⚡</span> Quick</div>
+        <div class="chip unselected"><span>✨</span> Fancy</div>
+        <div class="chip unselected"><span>🌿</span> Light</div>
+        <div class="chip selected"><span>🌶️</span> Spicy</div>
+        <div class="chip unselected"><span>🫕</span> One-pot</div>
+      </div>
+    </div>
+
+    <!-- Footer CTA -->
+    <div style="position:sticky;bottom:0;background:rgba(8,8,8,0.95);border-top:1px solid rgba(255,255,255,0.06);padding:12px 20px 32px;">
+      <button class="ember-btn">✦ Find my recipe</button>
+    </div>
+  </div>
+  <div class="screen-label">Session</div>
+</div>
+
+<!-- ── PHONE 3: COOK MODE ─────────────────────────────── -->
+<div class="phone">
+  <div class="screen">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-icons"><span>●●●●</span><span>🔋</span></div>
+    </div>
+
+    <div class="cook-content">
+      <div class="cook-header">
+        <div class="cook-back">← Back</div>
+        <div class="cook-title">Spiced Lamb Kofta</div>
+        <div class="cook-icons">
+          <div class="icon-btn mic">🎙</div>
+          <div class="icon-btn close">✕</div>
+        </div>
+      </div>
+
+      <div class="progress-bar">
+        <div class="progress-seg done"></div>
+        <div class="progress-seg done"></div>
+        <div class="progress-seg active"></div>
+        <div class="progress-seg todo"></div>
+        <div class="progress-seg todo"></div>
+      </div>
+
+      <div class="step-body" style="position:relative;">
+        <div class="step-ghost">03</div>
+        <div class="step-meta">Step 3 of 5</div>
+        <div class="step-preview">Grill high heat…</div>
+        <div class="step-instruction">Grill on high heat for 4 minutes each side until nicely charred and cooked through.</div>
+
+        <div class="timer-card">
+          <div>
+            <div class="timer-label">Running</div>
+            <div class="timer-display">03:42</div>
+          </div>
+          <button class="timer-start-btn">⏸ Pause</button>
+        </div>
+      </div>
+
+      <div class="cook-nav">
+        <div class="cook-nav-back">← Back</div>
+        <div class="cook-nav-next">Next →</div>
+      </div>
+    </div>
+
+    <!-- Tab bar -->
+    <div class="tab-bar">
+      <div class="tab-item">
+        <div class="tab-icon">⌂</div>
+        <div class="tab-label">Home</div>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">☰</div>
+        <div class="tab-label">Pantry</div>
+      </div>
+      <div class="tab-item">
+        <div class="tab-icon">◷</div>
+        <div class="tab-label">History</div>
+      </div>
+    </div>
+  </div>
+  <div class="screen-label">Cook Mode</div>
+</div>
+
+</body>
+</html>

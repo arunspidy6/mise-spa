@@ -31,14 +31,14 @@ export function CuisineTile({
       className="relative flex flex-col items-center justify-center py-4 px-2 gap-2.5 rounded-2xl overflow-hidden text-left"
       style={{
         background: `linear-gradient(165deg, ${color}28 0%, ${color}12 45%, var(--bg-surface) 100%)`,
-        border: `1px solid ${selected ? color + "60" : "oklch(0.31 0.011 60 / 0.7)"}`,
+        border: `1px solid ${selected ? color + "60" : "var(--border-default)"}`,
         boxShadow: selected
           ? `0 0 18px ${color}35, 0 2px 10px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08)`
           : "0 2px 10px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)",
         transition: "border-color 0.2s, box-shadow 0.2s",
       }}
     >
-      {/* 3D emoji container */}
+      {/* Emoji container */}
       <motion.div
         animate={selected ? { scale: [1, 1.15, 1] } : {}}
         transition={{ duration: 0.3 }}
@@ -63,7 +63,7 @@ export function CuisineTile({
         {label}
       </span>
 
-      {/* Selected checkmark badge */}
+      {/* Selected check */}
       {selected && (
         <motion.div
           initial={{ scale: 0, opacity: 0 }}
@@ -71,16 +71,13 @@ export function CuisineTile({
           exit={{ scale: 0, opacity: 0 }}
           transition={{ type: "spring", stiffness: 500, damping: 22 }}
           className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center"
-          style={{
-            background: color,
-            boxShadow: `0 2px 8px ${color}60`,
-          }}
+          style={{ background: color, boxShadow: `0 2px 8px ${color}60` }}
         >
           <span className="text-[9px] font-bold text-white leading-none">✓</span>
         </motion.div>
       )}
 
-      {/* Hover shimmer overlay */}
+      {/* Hover shimmer */}
       <motion.div
         className="pointer-events-none absolute inset-0 rounded-2xl"
         style={{ background: `linear-gradient(135deg, ${color}0A 0%, transparent 60%)` }}

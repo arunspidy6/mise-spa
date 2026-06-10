@@ -15,9 +15,8 @@ export function EmberButton({
   const isPrimary = variant === "primary";
 
   const primaryStyle: CSSProperties = {
-    // Layered background: subtle top highlight + flat ember — matches the home CTA
-    background: "linear-gradient(to bottom, rgba(255,255,255,0.08) 0%, transparent 40%), var(--ember)",
-    boxShadow: "var(--shadow-button)",
+    background: "linear-gradient(to bottom, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.04) 50%, transparent 100%), var(--ember)",
+    boxShadow: "var(--shadow-button), inset 0 1px 0 rgba(255,255,255,0.28)",
     color: "var(--on-ember)",
   };
 
@@ -28,8 +27,8 @@ export function EmberButton({
       className={cn(
         "inline-flex items-center justify-center gap-2 font-medium transition-all duration-150",
         "active:scale-[0.97] disabled:opacity-40 disabled:cursor-not-allowed disabled:active:scale-100",
-        "rounded-xl",   // --radius-xl = 14px, consistent with all primary buttons
-        size === "sm"   && "h-8 px-3 text-[13px]",
+        "rounded-xl",
+        size === "sm"   && "h-8  px-3 text-[13px]",
         size === "md"   && "h-11 px-5 text-[14px]",
         size === "lg"   && "h-14 px-6 text-[15px]",
         size === "hero" && "h-[72px] px-6 text-[15px]",
