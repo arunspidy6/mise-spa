@@ -95,7 +95,7 @@ function RecipeLoader() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="theme-terracotta fixed inset-0 bg-bg-base z-50 flex flex-col items-center justify-center px-8"
+      className="fixed inset-0 bg-bg-base z-50 flex flex-col items-center justify-center px-8"
     >
       <motion.div
         animate={{ y: [0, -6, 0] }}

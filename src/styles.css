@@ -103,8 +103,8 @@
   --shadow-sm:     0 1px 3px oklch(0 0 0 / 0.50);
   --shadow-md:     0 6px 20px oklch(0 0 0 / 0.55);
   --shadow-lg:     0 14px 40px oklch(0 0 0 / 0.65);
-  --shadow-ember:  0 8px 26px oklch(0.590 0.191 33 / 0.36);
-  --shadow-button: 0 6px 18px oklch(0.590 0.191 33 / 0.32), 0 2px 6px oklch(0 0 0 / 0.38);
+  --shadow-ember:  0 4px 16px oklch(0 0 0 / 0.40);
+  --shadow-button: 0 2px 8px oklch(0 0 0 / 0.35);
   --shadow-card:   0 6px 22px oklch(0 0 0 / 0.45), inset 0 1px 0 oklch(1 0 0 / 0.04);
 
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);

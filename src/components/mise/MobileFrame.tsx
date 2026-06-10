@@ -7,7 +7,7 @@ export function MobileFrame({ children, className }: { children: ReactNode; clas
     // so the layout never jumps and sticky bottom bars stay in view.
     // `className` lets a route opt into a theme override (e.g. "theme-terracotta").
     <div className={cn("w-full bg-bg-base flex justify-center overflow-hidden", className)} style={{ height: "100dvh" }}>
-      <div className="relative w-full max-w-[420px] h-full flex flex-col overflow-hidden bg-bg-base">
+      <div className="relative w-full h-full flex flex-col overflow-hidden bg-bg-base">
         {/* Dotted grid texture — isolated background layer pinned at z-0, never on top of UI */}
         <div
           aria-hidden="true"
