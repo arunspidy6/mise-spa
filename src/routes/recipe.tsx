@@ -134,7 +134,7 @@ function RecipeCard() {
   return (
     <MobileFrame>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        <div className="flex-shrink-0 px-4 pt-12 pb-2">
+        <div className="flex-shrink-0 px-4 pt-5 pb-2">
           <button onClick={() => navigate({ to: "/session" })}
             className="w-10 h-10 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
             <ArrowLeft className="w-5 h-5" />
