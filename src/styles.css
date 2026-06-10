@@ -79,17 +79,17 @@
   --border-default: oklch(0.378 0.058 35);
   --border-strong:  oklch(0.478 0.070 38);
 
-  /* Brand red-orange — #D7441F */
-  --ember:      oklch(0.590 0.191 33);
-  --ember-chip: oklch(0.495 0.158 32);
-  --ember-dim:  oklch(0.590 0.191 33 / 0.38);
-  --ember-glow: oklch(0.590 0.191 33 / 0.14);
-  --ember-text: oklch(0.790 0.140 40);
+  /* Brand orange — Swiggy #FF5200 */
+  --ember:      oklch(0.652 0.228 32);
+  --ember-chip: oklch(0.558 0.198 31);
+  --ember-dim:  oklch(0.652 0.228 32 / 0.38);
+  --ember-glow: oklch(0.652 0.228 32 / 0.14);
+  --ember-text: oklch(0.820 0.158 42);
   --on-ember:   oklch(0.965 0.015 72);
 
   /* Illustration ink */
   --ink:      oklch(0.852 0.105 47);
-  --ink-soft: oklch(0.590 0.191 33 / 0.18);
+  --ink-soft: oklch(0.652 0.228 32 / 0.18);
 
   /* Barely-there dot grid on dark */
   --tile-color: oklch(0.272 0.034 32 / 0.40);
@@ -118,22 +118,22 @@
    to espresso so the CTA button reads as dark-on-terracotta.
    Line-art ink becomes Bordeaux (#5f1d1a) — dark strokes on the warm field. */
 .theme-terracotta {
-  /* Home flood — #D7441F family */
-  --bg-base:     oklch(0.505 0.147 31);
-  --bg-surface:  oklch(0.555 0.130 33);
-  --bg-elevated: oklch(0.602 0.112 35);
-  --bg-raised:   oklch(0.646 0.094 37);
-  --bg-overlay:  oklch(0.690 0.076 39);
+  /* Home flood — Swiggy #FF5200 family */
+  --bg-base:     oklch(0.652 0.228 32);   /* vivid orange flood */
+  --bg-surface:  oklch(0.682 0.206 33);
+  --bg-elevated: oklch(0.710 0.182 34);
+  --bg-raised:   oklch(0.736 0.158 35);
+  --bg-overlay:  oklch(0.760 0.136 36);
 
-  /* Cream on terracotta */
-  --text-primary:   oklch(0.966 0.020 85);
-  --text-secondary: oklch(0.898 0.026 78);
-  --text-tertiary:  oklch(0.818 0.036 70);
+  /* Cream on vivid orange */
+  --text-primary:   oklch(0.972 0.015 85);
+  --text-secondary: oklch(0.910 0.020 78);
+  --text-tertiary:  oklch(0.830 0.028 70);
 
   /* Borders */
-  --border-subtle:  oklch(0.462 0.129 32 / 0.48);
-  --border-default: oklch(0.412 0.115 30 / 0.62);
-  --border-strong:  oklch(0.362 0.094 28 / 0.78);
+  --border-subtle:  oklch(0.540 0.190 31 / 0.45);
+  --border-default: oklch(0.488 0.172 30 / 0.58);
+  --border-strong:  oklch(0.435 0.152 28 / 0.74);
 
   /* Accent inverts to dark espresso on terracotta */
   --ember:      oklch(0.215 0.048 30);          /* espresso fill */

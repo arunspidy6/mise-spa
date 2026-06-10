@@ -34,45 +34,56 @@ const LOADER_MESSAGES = [
   "Almost ready…",
 ];
 
-// Bubbling pot — single-weight line art with rising steam + simmering bubbles.
-function BubblingPot() {
+// 3-D app-icon style loader — floating rounded square with depth, highlight
+// and glow shadow. The icon face tilts gently on both axes to sell the depth.
+function ThreeDCookIcon() {
   return (
-    <svg width="184" height="172" viewBox="0 0 180 172" fill="none" style={{ overflow: "visible" }}>
-      {/* steam */}
-      <motion.g
-        stroke="var(--ink)" strokeWidth={4} strokeLinecap="round" fill="none"
-        animate={{ opacity: [0.25, 0.9, 0.25], y: [4, -6, 4] }}
-        transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+    <div className="relative" style={{ perspective: "900px" }}>
+      {/* Glow pool beneath the icon — shrinks as icon rises */}
+      <motion.div
+        animate={{ opacity: [0.55, 0.25, 0.55], scaleX: [1, 0.82, 1] }}
+        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute left-1/2 -translate-x-1/2 -bottom-5 w-24 h-5 rounded-full blur-2xl"
+        style={{ background: "var(--ember)" }}
+      />
+
+      {/* Icon — floats up/down, tilts left/right */}
+      <motion.div
+        animate={{
+          y:       [0, -12, 0],
+          rotateX: [4,  10,  4],
+          rotateY: [-6, 6,  -6],
+        }}
+        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
+        style={{ transformStyle: "preserve-3d" }}
       >
-        <path d="M64 34 q-8 -12 2 -22 q7 -7 0 -16" />
-        <path d="M90 28 q8 -13 -2 -23 q-7 -7 0 -15" opacity={0.85} />
-        <path d="M116 34 q-8 -12 3 -20 q6 -6 0 -15" opacity={0.7} />
-      </motion.g>
-
-      {/* pot */}
-      <g stroke="var(--ink)" strokeWidth={4.5} strokeLinecap="round" strokeLinejoin="round" fill="none">
-        <path d="M40 76 q-2 56 12 76 q38 14 76 0 q14 -20 12 -76 Z" />
-        <path d="M32 76 q58 -14 116 0" />
-        <path d="M32 84 q-16 2 -14 16 q1 9 12 9" />
-        <path d="M148 84 q16 2 14 16 q-1 9 -12 9" />
-      </g>
-
-      {/* simmering bubbles */}
-      {[
-        { cx: 72, cy: 108, r: 6, d: 0 },
-        { cx: 96, cy: 118, r: 8, d: 0.4 },
-        { cx: 118, cy: 106, r: 5, d: 0.8 },
-      ].map((b, i) => (
-        <motion.circle
-          key={i}
-          cx={b.cx} cy={b.cy} r={b.r}
-          fill="var(--ink-soft)" stroke="var(--ink)" strokeWidth={3}
-          animate={{ scale: [0.5, 1, 0.5], opacity: [0.3, 1, 0.3] }}
-          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut", delay: b.d }}
-          style={{ transformOrigin: `${b.cx}px ${b.cy}px` }}
+        {/* Visible bottom edge — gives the physical-depth illusion */}
+        <div
+          className="w-28 h-28 rounded-[28px] absolute -bottom-[5px]"
+          style={{ background: "oklch(0.478 0.196 28)" }}
         />
-      ))}
-    </svg>
+
+        {/* Main face */}
+        <div
+          className="relative w-28 h-28 rounded-[28px] flex items-center justify-center"
+          style={{
+            background: "linear-gradient(145deg, oklch(0.740 0.218 40) 0%, var(--ember) 45%, oklch(0.530 0.208 28) 100%)",
+            boxShadow: [
+              "inset 0 2px 4px rgba(255,255,255,0.28)",   /* top-edge highlight */
+              "inset 0 -1px 2px rgba(0,0,0,0.18)",        /* bottom-edge shadow */
+              "0 18px 48px oklch(0 0 0 / 0.55)",          /* ambient drop shadow */
+            ].join(", "),
+          }}
+        >
+          <span
+            className="text-[52px] select-none leading-none"
+            style={{ filter: "drop-shadow(0 3px 5px rgba(0,0,0,0.35))" }}
+          >
+            🍳
+          </span>
+        </div>
+      </motion.div>
+    </div>
   );
 }
 
@@ -97,13 +108,9 @@ function RecipeLoader() {
       exit={{ opacity: 0 }}
       className="fixed inset-0 bg-bg-base z-50 flex flex-col items-center justify-center px-8"
     >
-      <motion.div
-        animate={{ y: [0, -6, 0] }}
-        transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-        className="mb-6"
-      >
-        <BubblingPot />
-      </motion.div>
+      <div className="mb-10">
+        <ThreeDCookIcon />
+      </div>
 
       {/* Cycling dish name — feels like Mise is leafing through the options */}
       <div className="h-8 flex items-center justify-center mb-7">

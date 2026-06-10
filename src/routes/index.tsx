@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Package, Clock, ArrowRight } from "lucide-react";
+import { Package, Clock, ArrowRight, UtensilsCrossed } from "lucide-react";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { useMise } from "@/store/mise";
 
@@ -96,11 +96,18 @@ function Home() {
                   color: "var(--on-ember)",
                 }}
               >
+                {/* Icon tile — rounded square matching the other button icons */}
+                <div
+                  className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.18)" }}
+                >
+                  <UtensilsCrossed className="w-5 h-5" style={{ color: "var(--on-ember)" }} />
+                </div>
                 <div className="flex-1">
                   <p className="font-display text-[22px] font-light leading-tight">Cook something</p>
                   <p className="text-[12px] mt-0.5" style={{ opacity: 0.80 }}>{mainCTASub}</p>
                 </div>
-                <ArrowRight className="w-5 h-5 flex-shrink-0" />
+                <ArrowRight className="w-5 h-5 flex-shrink-0 opacity-70" />
               </motion.div>
             </Link>
 
