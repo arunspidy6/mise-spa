@@ -617,6 +617,8 @@ function CookMode() {
   const [timerModalIdx, setTimerModalIdx] = useState<number | null>(null);
   const [voiceActive, setVoiceActive] = useState(false);
   const [voiceHint, setVoiceHint] = useState(false);
+  // First-time discovery nudge — shown once after the nav hint clears
+  const [voicePromo, setVoicePromo] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<"idle"|"listening"|"heard">("idle");
   const [voiceTranscript, setVoiceTranscript] = useState("");
   // Real mic amplitude levels for waveform — 5 bars, 0-1
@@ -654,6 +656,26 @@ function CookMode() {
     if ("wakeLock" in navigator) navigator.wakeLock.request("screen").then(l => { wl = l; }).catch(() => {});
     return () => wl?.release();
   }, []);
+
+  // ── Voice promo — show once after nav hint clears ──────────────────────
+  // New users: the nav hint is visible first; we wait for it to be dismissed.
+  // Returning users who haven't seen the promo: show after 1.5 s on entry.
+  useEffect(() => {
+    if (!SR || localStorage.getItem("mise_voice_promo")) return; // no SR or already seen
+    if (showHint) return;                                         // wait for nav hint
+    const t = setTimeout(() => setVoicePromo(true), 1500);
+    return () => clearTimeout(t);
+  }, [showHint]);
+
+  // Auto-dismiss the promo after 7 s; also mark seen immediately on tap (via dismiss fn)
+  useEffect(() => {
+    if (!voicePromo) return;
+    const t = setTimeout(() => {
+      setVoicePromo(false);
+      localStorage.setItem("mise_voice_promo", "1");
+    }, 7000);
+    return () => clearTimeout(t);
+  }, [voicePromo]);
 
   // ── Unlock audio ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -951,7 +973,13 @@ function CookMode() {
     if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   }, [stopAudioAnalyser]);
 
+  const dismissVoicePromo = useCallback(() => {
+    setVoicePromo(false);
+    localStorage.setItem("mise_voice_promo", "1");
+  }, []);
+
   const toggleVoice = useCallback(() => {
+    dismissVoicePromo(); // tapping mic counts as "seen"
     if (voiceActive) {
       stopVoice();
     } else {
@@ -1042,23 +1070,66 @@ function CookMode() {
             {recipe.name}
           </span>
           <div className="flex items-center gap-2">
-            <button
-              onClick={toggleVoice}
-              title={!SR ? VOICE_UNAVAILABLE_MSG : undefined}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 ${
-                voiceActive
-                  ? "bg-ember text-bg-base shadow-[0_0_14px_oklch(0.520_0.178_35_/_0.55)]"
-                  : "bg-bg-raised border border-border-default text-text-secondary"
-              } ${!SR ? "opacity-40 cursor-not-allowed active:scale-100" : ""}`}
-            >
-              {voiceActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
-            </button>
+            {/* Mic button — pulsing ring draws attention while voice promo is showing */}
+            <div className="relative">
+              {voicePromo && !voiceActive && (
+                <motion.div
+                  className="absolute inset-0 rounded-full border-2 border-ember"
+                  animate={{ scale: [1, 1.65], opacity: [0.7, 0] }}
+                  transition={{ duration: 1.2, repeat: Infinity, ease: "easeOut" }}
+                />
+              )}
+              <button
+                onClick={toggleVoice}
+                title={!SR ? VOICE_UNAVAILABLE_MSG : undefined}
+                className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 ${
+                  voiceActive
+                    ? "bg-ember text-bg-base shadow-[0_0_14px_oklch(0.520_0.178_35_/_0.55)]"
+                    : voicePromo
+                      ? "bg-ember/20 border-2 border-ember text-ember-text"
+                      : "bg-bg-raised border border-border-default text-text-secondary"
+                } ${!SR ? "opacity-40 cursor-not-allowed active:scale-100" : ""}`}
+              >
+                {voiceActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+              </button>
+            </div>
             <button onClick={() => setShowExitConfirm(true)}
               className="w-9 h-9 bg-bg-raised rounded-full border border-border-default flex items-center justify-center text-text-primary active:scale-90">
               <X className="w-4 h-4" />
             </button>
           </div>
         </div>
+
+        {/* ── Voice discovery promo — shows once on first cook ─────────── */}
+        <AnimatePresence>
+          {voicePromo && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="flex-shrink-0 overflow-hidden"
+            >
+              <button
+                onClick={dismissVoicePromo}
+                className="w-full flex items-center gap-3 px-4 py-3 bg-ember/10 border-b border-ember-dim/50 text-left active:bg-ember/15 transition-colors"
+              >
+                <div className="w-8 h-8 rounded-full bg-ember/20 border border-ember-dim flex items-center justify-center flex-shrink-0">
+                  <Mic className="w-3.5 h-3.5 text-ember-text" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[12px] font-semibold text-ember-text leading-tight">
+                    Cook hands-free with voice
+                  </p>
+                  <p className="text-[11px] text-text-secondary leading-tight mt-0.5">
+                    Tap the mic — say "next", "start timer", "done"
+                  </p>
+                </div>
+                <X className="w-3.5 h-3.5 text-text-tertiary flex-shrink-0" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* ── Voice status bar ────────────────────────────────────────── */}
         <AnimatePresence>
