@@ -53,16 +53,13 @@ async function fetchMealDbImage(recipeName: string, signal: AbortSignal): Promis
   }
 }
 
-// picsum fallback — consistent seed per recipe, never random
-function stockPhoto(cuisine: string, alt: string): string {
-  const seed = `${cuisine}-${alt}`.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 50);
-  return `https://picsum.photos/seed/${encodeURIComponent(seed)}/800/500`;
-}
-
-type Stage = "mealdb" | "stock" | "local";
+// Stage order: the dish-matched image from the recipe (pollinations, generated
+// for THIS exact dish) is primary; TheMealDB real photo is a fallback; the local
+// SVG is the last resort. No random stock photos — every image matches the dish.
+type Stage = "src" | "mealdb" | "local";
 
 export function RecipeImage({
-  src: _src,   // kept for API compatibility; TheMealDB takes priority
+  src,         // dish-matched image (recipe.image) — primary source
   cuisine,
   alt,
   height = 220,
@@ -78,7 +75,7 @@ export function RecipeImage({
 }) {
   const fallbackGrad = CUISINE_FALLBACK[cuisine] ?? "from-[#3a2a10] to-[#1a0f04]";
 
-  const [stage,      setStage]      = useState<Stage>("mealdb");
+  const [stage,      setStage]      = useState<Stage>(src ? "src" : "mealdb");
   const [displaySrc, setDisplaySrc] = useState<string | null>(null);
   const [loaded,     setLoaded]     = useState(false);
   const blobRef = useRef<string | null>(null);
@@ -90,11 +87,11 @@ export function RecipeImage({
 
   // When the recipe changes, reset everything back to the primary stage
   useEffect(() => {
-    setStage("mealdb");
+    setStage(src ? "src" : "mealdb");
     setLoaded(false);
     setDisplaySrc(null);
     if (blobRef.current) { URL.revokeObjectURL(blobRef.current); blobRef.current = null; }
-  }, [alt]);
+  }, [alt, src]);
 
   // Drive image loading based on current stage
   useEffect(() => {
@@ -104,26 +101,26 @@ export function RecipeImage({
     setLoaded(false);
     setDisplaySrc(null);
 
-    if (stage === "mealdb") {
+    if (stage === "src") {
+      setDisplaySrc(src || LOCAL_FALLBACK);
+    } else if (stage === "mealdb") {
       fetchMealDbImage(alt, ctrl.signal).then(imgUrl => {
         if (cancelled) return;
         if (imgUrl) setDisplaySrc(imgUrl);
-        else         setStage("stock");
+        else         setStage("local");
       });
-    } else if (stage === "stock") {
-      setDisplaySrc(stockPhoto(cuisine, alt));
     } else if (stage === "local") {
       setDisplaySrc(LOCAL_FALLBACK);
     }
 
     return () => { cancelled = true; ctrl.abort(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, alt, cuisine]);
+  }, [stage, alt, cuisine, src]);
 
   const handleLoad  = () => setLoaded(true);
   const handleError = () => {
-    if (stage === "mealdb") setStage("stock");
-    else if (stage === "stock") setStage("local");
+    if (stage === "src") setStage("mealdb");
+    else if (stage === "mealdb") setStage("local");
   };
 
   return (
