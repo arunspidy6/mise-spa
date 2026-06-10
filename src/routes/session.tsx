@@ -34,54 +34,58 @@ const LOADER_MESSAGES = [
   "Almost ready…",
 ];
 
-// 3-D app-icon style loader — floating rounded square with depth, highlight
-// and glow shadow. The icon face tilts gently on both axes to sell the depth.
-function ThreeDCookIcon() {
+// ── Food ticker loader ────────────────────────────────────────────────────────
+// A conveyor-belt of 3D food-icon tiles scrolling horizontally.
+// Each tile is an app-icon–style rounded square with gradient face, depth edge,
+// and highlight — the whole row loops seamlessly with Framer Motion.
+
+const FOOD_EMOJIS = [
+  "🍳","🌮","🍜","🥘","🍱","🥗","🍝","🥩","🫕","🍛","🥙","🧆","🍣","🍲","🫔","🧇",
+];
+
+function FoodTile({ emoji }: { emoji: string }) {
   return (
-    <div className="relative" style={{ perspective: "900px" }}>
-      {/* Glow pool beneath the icon — shrinks as icon rises */}
-      <motion.div
-        animate={{ opacity: [0.55, 0.25, 0.55], scaleX: [1, 0.82, 1] }}
-        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
-        className="absolute left-1/2 -translate-x-1/2 -bottom-5 w-24 h-5 rounded-full blur-2xl"
-        style={{ background: "var(--ember)" }}
-      />
+    <div
+      className="w-[60px] h-[60px] rounded-2xl flex-shrink-0 flex items-center justify-center select-none"
+      style={{
+        background: "linear-gradient(145deg, oklch(0.720 0.200 42) 0%, var(--ember) 50%, oklch(0.430 0.180 26) 100%)",
+        boxShadow: [
+          "inset 0 2px 3px rgba(255,255,255,0.22)",
+          "0 3px 0 oklch(0.380 0.155 24)",
+          "0 8px 22px oklch(0 0 0 / 0.48)",
+        ].join(", "),
+      }}
+    >
+      <span className="text-[26px] leading-none" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.38))" }}>
+        {emoji}
+      </span>
+    </div>
+  );
+}
 
-      {/* Icon — floats up/down, tilts left/right */}
+function FoodTicker() {
+  // Duplicate the array so the loop resets invisibly
+  const items = [...FOOD_EMOJIS, ...FOOD_EMOJIS];
+  const ITEM_W  = 60;
+  const GAP     = 12; // gap-3 = 12px
+  const TOTAL   = FOOD_EMOJIS.length * (ITEM_W + GAP);
+
+  return (
+    <div
+      className="w-full overflow-hidden"
+      style={{
+        WebkitMaskImage: "linear-gradient(to right, transparent, black 14%, black 86%, transparent)",
+        maskImage:        "linear-gradient(to right, transparent, black 14%, black 86%, transparent)",
+      }}
+    >
       <motion.div
-        animate={{
-          y:       [0, -12, 0],
-          rotateX: [4,  10,  4],
-          rotateY: [-6, 6,  -6],
-        }}
-        transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
-        style={{ transformStyle: "preserve-3d" }}
+        className="flex gap-3"
+        animate={{ x: [0, -TOTAL] }}
+        transition={{ duration: 16, repeat: Infinity, ease: "linear" }}
       >
-        {/* Visible bottom edge — gives the physical-depth illusion */}
-        <div
-          className="w-28 h-28 rounded-[28px] absolute -bottom-[5px]"
-          style={{ background: "oklch(0.478 0.196 28)" }}
-        />
-
-        {/* Main face */}
-        <div
-          className="relative w-28 h-28 rounded-[28px] flex items-center justify-center"
-          style={{
-            background: "linear-gradient(145deg, oklch(0.740 0.218 40) 0%, var(--ember) 45%, oklch(0.530 0.208 28) 100%)",
-            boxShadow: [
-              "inset 0 2px 4px rgba(255,255,255,0.28)",   /* top-edge highlight */
-              "inset 0 -1px 2px rgba(0,0,0,0.18)",        /* bottom-edge shadow */
-              "0 18px 48px oklch(0 0 0 / 0.55)",          /* ambient drop shadow */
-            ].join(", "),
-          }}
-        >
-          <span
-            className="text-[52px] select-none leading-none"
-            style={{ filter: "drop-shadow(0 3px 5px rgba(0,0,0,0.35))" }}
-          >
-            🍳
-          </span>
-        </div>
+        {items.map((emoji, i) => (
+          <FoodTile key={i} emoji={emoji} />
+        ))}
       </motion.div>
     </div>
   );
@@ -108,8 +112,9 @@ function RecipeLoader() {
       exit={{ opacity: 0 }}
       className="fixed inset-0 bg-bg-base z-50 flex flex-col items-center justify-center px-8"
     >
-      <div className="mb-10">
-        <ThreeDCookIcon />
+      {/* Horizontal conveyor belt of 3D food tiles */}
+      <div className="w-full mb-10">
+        <FoodTicker />
       </div>
 
       {/* Cycling dish name — feels like Mise is leafing through the options */}

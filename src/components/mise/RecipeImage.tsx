@@ -38,10 +38,61 @@ const MEAL_SEARCH: Record<string, string> = {
   "Pork chops with garlic butter":                       "pork chops",
 };
 
+// Known dish types and proteins — used to build a smart query for
+// API-generated recipes that aren't in MEAL_SEARCH.
+const DISH_TYPES = [
+  "wrap","curry","pasta","soup","stew","risotto","tacos","taco",
+  "stir fry","roast","burger","salad","noodles","carbonara","shakshuka",
+  "tagine","pilaf","fritters","traybake","fried rice","biryani","ramen",
+  "bowl","bake","hash","chops","schnitzel","steak",
+];
+const PROTEINS = [
+  "chicken","beef","pork","lamb","salmon","tuna","prawn","shrimp",
+  "egg","tofu","lentil","chickpea","fish","turkey","duck","mince",
+];
+const SKIP_WORDS = new Set([
+  "cumin","spiced","glazed","seared","fried","baked","roasted","crispy",
+  "creamy","smoky","honey","garlic","butter","lemon","soy","spicy","pan",
+  "slow","oven","with","and","in","of","a","the","my","for","leg","thigh",
+  "breast","fillet","chunk","piece","slice","fresh","juicy","tender",
+]);
+
+// Build the best possible TheMealDB search query for any recipe name —
+// library recipes via MEAL_SEARCH, API-generated ones via NLP extraction.
+function buildMealDbQuery(recipeName: string): string {
+  if (MEAL_SEARCH[recipeName]) return MEAL_SEARCH[recipeName];
+
+  // Parenthetical hint wins: "Spiced tomato eggs (shakshuka)" → "shakshuka"
+  const paren = recipeName.match(/\(([^)]+)\)/);
+  if (paren) return paren[1].trim();
+
+  const lower = recipeName.toLowerCase();
+
+  // Protein + dish type is the most specific combination
+  for (const dish of DISH_TYPES) {
+    if (lower.includes(dish)) {
+      for (const p of PROTEINS) {
+        if (lower.includes(p)) return `${p} ${dish}`;
+      }
+      return dish;
+    }
+  }
+
+  // Protein alone is better than nothing
+  for (const p of PROTEINS) {
+    if (lower.includes(p)) return p;
+  }
+
+  // Last resort: strip descriptors and take first 2 real words
+  const words = lower.replace(/[-()]/g, " ").split(/\s+/)
+    .filter(w => w.length > 2 && !SKIP_WORDS.has(w));
+  return words.slice(0, 2).join(" ");
+}
+
 // Search TheMealDB for the closest matching food photo.
 // Returns the full meal-thumbnail URL, or null on no result / network error.
 async function fetchMealDbImage(recipeName: string, signal: AbortSignal): Promise<string | null> {
-  const query = MEAL_SEARCH[recipeName] ?? recipeName.split(" ").slice(0, 3).join(" ");
+  const query = buildMealDbQuery(recipeName);
   const url   = `https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(query)}`;
   try {
     const r    = await fetch(url, { signal });

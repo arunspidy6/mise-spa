@@ -45,104 +45,96 @@ function Home() {
   const caption = hasSetup ? "What are you cooking?" : "Let's get you cooking.";
 
   return (
-    // Dark canvas — same as every other screen, orange CTA pops against it
     <MobileFrame>
       <div className="flex-1 flex flex-col px-6 overflow-hidden">
 
-        {/* ── ZONE 1 — Identity ─────────────────────────────────────────
-            Large display wordmark anchors the brand. Greeting below it
-            contextualises the session without competing. */}
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...SPRING, delay: 0.04 }}
-          className="pt-14 pb-10"
-        >
-          <h1 className="font-display text-[56px] font-light leading-none text-text-primary tracking-tight">
-            Mise<span className="text-ember">.</span>
-          </h1>
+        {/* ── CENTRE BLOCK — vertically fills available space, content centred ── */}
+        <div className="flex-1 flex flex-col justify-center gap-5 min-h-0">
 
-          <div className="flex items-center gap-2 mt-3">
-            <span className="text-[17px] leading-none">{getTimeIcon()}</span>
-            <p className="text-[14px] text-text-secondary leading-snug">
-              {getGreeting()}.{" "}
-              <span className="text-text-primary font-medium">{caption}</span>
-            </p>
-          </div>
-        </motion.div>
-
-        {/* ── ZONE 2 — Primary action ───────────────────────────────────
-            The orange CTA is the focal point. Glow shadow makes it float
-            off the dark surface. Icon tile and arrow give it structure. */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ ...SPRING, delay: 0.16 }}
-        >
-          <Link to={mainCTATo} className="block">
-            <motion.div
-              whileHover={{ scale: 1.012, transition: { type: "spring", stiffness: 500, damping: 22 } }}
-              whileTap={{ scale: 0.97 }}
-              className="rounded-2xl flex items-center gap-4 px-5 py-5"
-              style={{
-                background: "var(--ember)",
-                boxShadow: "0 10px 36px oklch(0.652 0.228 32 / 0.40), 0 2px 8px oklch(0 0 0 / 0.25)",
-                color: "var(--on-ember)",
-              }}
-            >
-              <div
-                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(255,255,255,0.20)" }}
-              >
-                <UtensilsCrossed className="w-6 h-6" />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <p className="font-display text-[24px] font-light leading-tight">Cook something</p>
-                <p className="text-[12px] mt-0.5" style={{ opacity: 0.72 }}>{mainCTASub}</p>
-              </div>
-
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                style={{ background: "rgba(255,255,255,0.20)" }}
-              >
-                <ArrowRight className="w-4 h-4" />
-              </div>
-            </motion.div>
-          </Link>
-        </motion.div>
-
-        {/* ── Secondary: update kitchen — only after first setup ────────── */}
-        {showUpdateKitchen && (
+          {/* Identity */}
           <motion.div
-            initial={{ opacity: 0, y: 14 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ ...SPRING, delay: 0.28 }}
-            className="mt-3"
+            transition={{ ...SPRING, delay: 0.04 }}
           >
-            <Link to="/inventory" search={{ from: "home" }} className="block">
+            <h1 className="font-display text-[54px] font-light leading-none text-text-primary tracking-tight mb-3">
+              Mise<span className="text-ember">.</span>
+            </h1>
+            <div className="flex items-center gap-2">
+              <span className="text-[17px] leading-none">{getTimeIcon()}</span>
+              <p className="text-[14px] text-text-secondary leading-snug">
+                {getGreeting()}.{" "}
+                <span className="text-text-primary font-medium">{caption}</span>
+              </p>
+            </div>
+          </motion.div>
+
+          {/* Primary CTA — flat shadow only, no coloured glow */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ ...SPRING, delay: 0.16 }}
+          >
+            <Link to={mainCTATo} className="block">
               <motion.div
-                whileTap={{ scale: 0.98 }}
-                className="rounded-xl flex items-center gap-3.5 px-4 py-3.5 bg-bg-surface border border-border-default"
+                whileHover={{ scale: 1.012, transition: { type: "spring", stiffness: 500, damping: 22 } }}
+                whileTap={{ scale: 0.97 }}
+                className="rounded-2xl flex items-center gap-4 px-5 py-5"
+                style={{
+                  background: "var(--ember)",
+                  boxShadow: "0 4px 16px oklch(0 0 0 / 0.35)",
+                  color: "var(--on-ember)",
+                }}
               >
-                <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-bg-raised">
-                  <Package className="w-4 h-4 text-text-secondary" />
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.20)" }}
+                >
+                  <UtensilsCrossed className="w-6 h-6" />
                 </div>
-                <span className="text-[14px] text-text-primary font-medium flex-1">
-                  Update my kitchen
-                </span>
-                {itemCount > 0 && (
-                  <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-bg-raised text-text-tertiary">
-                    {itemCount} items
-                  </span>
-                )}
+                <div className="flex-1 min-w-0">
+                  <p className="font-display text-[24px] font-light leading-tight">Cook something</p>
+                  <p className="text-[12px] mt-0.5" style={{ opacity: 0.72 }}>{mainCTASub}</p>
+                </div>
+                <div
+                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.20)" }}
+                >
+                  <ArrowRight className="w-4 h-4" />
+                </div>
               </motion.div>
             </Link>
           </motion.div>
-        )}
 
-        {/* ── Spacer pushes journal to the bottom ───────────────────────── */}
-        <div className="flex-1 min-h-0" />
+          {/* Update kitchen — secondary, only after first setup */}
+          {showUpdateKitchen && (
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ...SPRING, delay: 0.28 }}
+            >
+              <Link to="/inventory" search={{ from: "home" }} className="block">
+                <motion.div
+                  whileTap={{ scale: 0.98 }}
+                  className="rounded-xl flex items-center gap-3.5 px-4 py-3.5 bg-bg-surface border border-border-default"
+                >
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 bg-bg-raised">
+                    <Package className="w-4 h-4 text-text-secondary" />
+                  </div>
+                  <span className="text-[14px] text-text-primary font-medium flex-1">
+                    Update my kitchen
+                  </span>
+                  {itemCount > 0 && (
+                    <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-bg-raised text-text-tertiary">
+                      {itemCount} items
+                    </span>
+                  )}
+                </motion.div>
+              </Link>
+            </motion.div>
+          )}
+
+        </div>{/* end centre block */}
 
         {/* ── ZONE 3 — Utility / History ───────────────────────────────────
             Journal sits at the bottom — it's secondary. Ember-tinted count
