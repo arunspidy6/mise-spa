@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Package, Clock, ArrowRight, UtensilsCrossed } from "lucide-react";
+import { Package, Clock, ArrowRight } from "lucide-react";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { useMise } from "@/store/mise";
 
@@ -87,14 +87,14 @@ function Home() {
                 }}
               >
                 <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(255,255,255,0.20)" }}
+                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 text-[26px] leading-none"
+                  style={{ background: "rgba(0,0,0,0.14)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18)" }}
                 >
-                  <UtensilsCrossed className="w-6 h-6" />
+                  🍽️
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-display text-[24px] font-light leading-tight">Cook something</p>
-                  <p className="text-[12px] mt-0.5" style={{ opacity: 0.72 }}>{mainCTASub}</p>
+                  <p className="text-[12px] mt-0.5 font-medium" style={{ opacity: 0.92 }}>{mainCTASub}</p>
                 </div>
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
