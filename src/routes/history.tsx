@@ -13,7 +13,7 @@ function History() {
 
   return (
     <MobileFrame>
-      <div className="flex flex-col flex-1 min-h-0 overflow-y-auto px-4 pt-12 pb-safe">
+      <div className="flex flex-col flex-1 min-h-0 overflow-y-auto px-4 pt-5 pb-safe">
         <button onClick={() => navigate({ to: "/" })}
           className="w-10 h-10 -ml-2 flex items-center justify-center text-text-secondary mb-6 active:scale-90">
           <ArrowLeft className="w-5 h-5" />

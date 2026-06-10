@@ -659,7 +659,7 @@ function InventoryFlow() {
 
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 pt-12 pb-3">
+        <div className="flex items-center justify-between px-4 pt-5 pb-3">
           <button onClick={() => step === 0 ? goBack() : setStep(s => s - 1)}
             className="w-11 h-11 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
             <ArrowLeft className="w-5 h-5" />

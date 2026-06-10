@@ -185,7 +185,7 @@ function PrepScreen({ recipe, onStart, onBack }: { recipe: any; onStart: () => v
       className="absolute inset-0 bg-bg-base z-50 flex flex-col"
     >
       {/* Header with back-to-recipe arrow */}
-      <div className="flex-shrink-0 flex items-center px-4 pt-12 pb-0">
+      <div className="flex-shrink-0 flex items-center px-4 pt-5 pb-0">
         <button
           onClick={onBack}
           className="text-[12px] text-text-secondary font-mono active:opacity-70 h-10 px-2 flex items-center gap-1 -ml-2"
@@ -1030,7 +1030,7 @@ function CookMode() {
       <div className="flex flex-col h-full relative overflow-hidden">
 
         {/* ── Header ─────────────────────────────────────────────────── */}
-        <div className="flex-shrink-0 flex items-center justify-between px-4 pt-12 pb-2">
+        <div className="flex-shrink-0 flex items-center justify-between px-4 pt-5 pb-2">
           {/* Step 0: back = return to prep page. Step 1+: back = previous step. */}
           <button
             onClick={() => step === 0 ? setPrepDone(false) : goTo(step - 1)}
