@@ -79,17 +79,17 @@
   --border-default: oklch(0.378 0.058 35);
   --border-strong:  oklch(0.478 0.070 38);
 
-  /* Corten — working-screen accent */
-  --ember:      oklch(0.527 0.196 38);          /* button orange — 10 % less bright */
-  --ember-chip: oklch(0.440 0.175 38);          /* chip orange — 25 % less bright */
-  --ember-dim:  oklch(0.527 0.196 38 / 0.40);
-  --ember-glow: oklch(0.527 0.196 38 / 0.16);
-  --ember-text: oklch(0.800 0.158 46);          /* lighter corten text on dark */
-  --on-ember:   oklch(0.135 0.038 28);          /* near-black on button orange ≥4:1 */
+  /* Terracotta accent — orange +15% saturation */
+  --ember:      oklch(0.525 0.170 36);
+  --ember-chip: oklch(0.440 0.140 35);
+  --ember-dim:  oklch(0.525 0.170 36 / 0.38);
+  --ember-glow: oklch(0.525 0.170 36 / 0.14);
+  --ember-text: oklch(0.790 0.136 44);
+  --on-ember:   oklch(0.965 0.015 72);
 
   /* Illustration ink */
-  --ink:      oklch(0.852 0.105 48);
-  --ink-soft: oklch(0.527 0.196 38 / 0.20);
+  --ink:      oklch(0.852 0.105 47);
+  --ink-soft: oklch(0.525 0.170 36 / 0.18);
 
   /* Barely-there dot grid on dark */
   --tile-color: oklch(0.272 0.034 32 / 0.40);
@@ -103,8 +103,8 @@
   --shadow-sm:     0 1px 3px oklch(0 0 0 / 0.50);
   --shadow-md:     0 6px 20px oklch(0 0 0 / 0.55);
   --shadow-lg:     0 14px 40px oklch(0 0 0 / 0.65);
-  --shadow-ember:  0 8px 26px oklch(0.527 0.196 38 / 0.42);
-  --shadow-button: 0 6px 20px oklch(0.527 0.196 38 / 0.38), 0 2px 6px oklch(0 0 0 / 0.40);
+  --shadow-ember:  0 8px 26px oklch(0.525 0.170 36 / 0.36);
+  --shadow-button: 0 6px 18px oklch(0.525 0.170 36 / 0.32), 0 2px 6px oklch(0 0 0 / 0.38);
   --shadow-card:   0 6px 22px oklch(0 0 0 / 0.45), inset 0 1px 0 oklch(1 0 0 / 0.04);
 
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
@@ -118,44 +118,44 @@
    to espresso so the CTA button reads as dark-on-terracotta.
    Line-art ink becomes Bordeaux (#5f1d1a) — dark strokes on the warm field. */
 .theme-terracotta {
-  /* Corten flood — monochrome terracotta */
-  --bg-base:     oklch(0.520 0.178 35);   /* corten #b84b30 */
-  --bg-surface:  oklch(0.575 0.158 38);
-  --bg-elevated: oklch(0.625 0.138 40);
-  --bg-raised:   oklch(0.668 0.120 42);
-  --bg-overlay:  oklch(0.710 0.104 44);
+  /* Terracotta flood — +15% saturation */
+  --bg-base:     oklch(0.515 0.147 34);
+  --bg-surface:  oklch(0.565 0.129 36);
+  --bg-elevated: oklch(0.612 0.110 38);
+  --bg-raised:   oklch(0.655 0.092 39);
+  --bg-overlay:  oklch(0.697 0.076 40);
 
-  /* Cream on corten */
+  /* Cream on terracotta */
   --text-primary:   oklch(0.966 0.020 85);
-  --text-secondary: oklch(0.898 0.028 78);
-  --text-tertiary:  oklch(0.818 0.040 72);
+  --text-secondary: oklch(0.898 0.026 78);
+  --text-tertiary:  oklch(0.818 0.036 70);
 
-  /* Borders: deeper corten separators */
-  --border-subtle:  oklch(0.468 0.162 32 / 0.50);
-  --border-default: oklch(0.418 0.148 30 / 0.65);
-  --border-strong:  oklch(0.368 0.126 28 / 0.80);
+  /* Borders */
+  --border-subtle:  oklch(0.462 0.129 32 / 0.48);
+  --border-default: oklch(0.412 0.115 30 / 0.62);
+  --border-strong:  oklch(0.362 0.094 28 / 0.78);
 
-  /* Accent inverts to espresso on corten canvas */
-  --ember:      oklch(0.220 0.055 33);          /* espresso fill */
-  --ember-dim:  oklch(0.220 0.055 33 / 0.35);
-  --ember-glow: oklch(0.220 0.055 33 / 0.16);
-  --ember-text: oklch(0.220 0.055 33);
+  /* Accent inverts to dark espresso on terracotta */
+  --ember:      oklch(0.215 0.048 30);          /* espresso fill */
+  --ember-dim:  oklch(0.215 0.048 30 / 0.32);
+  --ember-glow: oklch(0.215 0.048 30 / 0.14);
+  --ember-text: oklch(0.215 0.048 30);
   --on-ember:   oklch(0.966 0.020 85);          /* cream on espresso */
 
-  /* Illustration ink: Bordeaux on corten (#5f1d1a) */
-  --ink:      oklch(0.280 0.095 25);
-  --ink-soft: oklch(0.280 0.095 25 / 0.18);
+  /* Illustration ink: Bordeaux */
+  --ink:      oklch(0.278 0.088 24);
+  --ink-soft: oklch(0.278 0.088 24 / 0.17);
 
-  /* Dot tile — barely-there on corten */
-  --tile-color: oklch(0.465 0.168 32 / 0.22);
+  /* Dot tile */
+  --tile-color: oklch(0.460 0.136 32 / 0.20);
 
-  /* Shadows on corten hero — shadow-only, no orange glow on a bright canvas */
-  --shadow-sm:     0 1px 3px oklch(0.18 0.04 33 / 0.30);
-  --shadow-md:     0 6px 20px oklch(0.18 0.04 33 / 0.28);
-  --shadow-lg:     0 14px 40px oklch(0.18 0.04 33 / 0.32);
-  --shadow-ember:  0 8px 24px oklch(0.18 0.04 33 / 0.28);
-  --shadow-button: 0 8px 22px oklch(0.18 0.04 33 / 0.32), 0 2px 6px oklch(0 0 0 / 0.18);
-  --shadow-card:   0 6px 20px oklch(0.18 0.04 33 / 0.20), inset 0 1px 0 oklch(1 0 0 / 0.10);
+  /* Shadows on terracotta hero */
+  --shadow-sm:     0 1px 3px oklch(0.18 0.040 30 / 0.28);
+  --shadow-md:     0 6px 20px oklch(0.18 0.040 30 / 0.25);
+  --shadow-lg:     0 14px 40px oklch(0.18 0.040 30 / 0.30);
+  --shadow-ember:  0 8px 24px oklch(0.18 0.040 30 / 0.25);
+  --shadow-button: 0 8px 22px oklch(0.18 0.040 30 / 0.30), 0 2px 6px oklch(0 0 0 / 0.16);
+  --shadow-card:   0 6px 20px oklch(0.18 0.040 30 / 0.18), inset 0 1px 0 oklch(1 0 0 / 0.09);
 }
 
 @layer base {
