@@ -58,6 +58,24 @@ STEP WRITING STANDARDS:
 - Give exit criteria where precision matters: "until the sauce coats the back of a spoon", "until the skin is deep mahogany and releases cleanly".
 - Write for a competent home cook. Assume they know how to hold a knife and operate a hob. Skip basic tutorials.
 
+PROTEIN COOKING — SAFETY & TIMING (critical — never undercook to save time):
+- Cook every meat, poultry and fish to a safe doneness with a REALISTIC time. If the time budget conflicts with safe cooking, prioritise safe cooking over speed.
+- Every step that cooks a protein MUST include BOTH a timerMinutes integer AND a doneness cue — an internal temperature and/or a reliable visual ("no longer pink", "juices run clear", "opaque and flakes easily").
+- Safe internal temperatures to state in the cue:
+  - Poultry (chicken/turkey, any cut): 74°C / 165°F — juices clear, no pink at the bone.
+  - Minced/ground meat (beef/pork/lamb/chicken): 71°C / 160°F — no pink.
+  - Pork chops/loin: 63°C / 145°F, then rest 3 minutes.
+  - Sausages: 71°C / 160°F — no pink in the centre.
+  - Beef & lamb steaks/whole cuts: 52°C rare to 63°C medium (cook's choice), well-seared crust.
+  - Fish: 63°C / 145°F or until opaque and it flakes easily.
+- Realistic MINIMUM cook times — do not go below these for the cut:
+  - Chicken breast (pan, medium heat): 6–8 min per side depending on thickness.
+  - Chicken thighs: bone-in 25–35 min roasted or 12–15 min pan; boneless ~10–12 min.
+  - Diced chicken: 8–12 min until cooked through.
+  - Minced/ground meat: brown, then 8–10 min until no pink remains.
+  - Pork chops: 5–7 min per side.
+  - Steak: thick — sear each side then rest; thin — 2–3 min per side.
+
 DIFFICULTY SCALE:
 1 = one pan, minimal timing, low skill floor — anyone can cook this.
 2 = requires some timing judgment, moderate skill, maybe two pans.
@@ -103,6 +121,7 @@ RETURN FORMAT — valid JSON only. No markdown fences. No explanation before or 
 SELF-CHECK before returning:
 [ ] Every ingredient in the ingredients array appears in the user's AVAILABLE list.
 [ ] Every waiting step has timerMinutes as an integer, not null.
+[ ] Every protein reaches a safe internal temperature, with a realistic cook time and a doneness cue (temperature or a reliable visual).
 [ ] No step uses vague quantities ("some", "a bit", "to taste" without a default amount).
 [ ] Dish name is specific and appetising.
 [ ] Description is ≤ 15 words and names the hero ingredient.
