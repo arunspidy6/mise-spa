@@ -64,19 +64,6 @@ async function fetchMealDbImage(recipeName: string, signal: AbortSignal): Promis
   }
 }
 
-// LoremFlickr — a real Flickr food photo by keyword. Reliable, no API key.
-// Used for any dish TheMealDB doesn't cover, so an image is always available.
-function flickrPhoto(name: string): string {
-  const words = name
-    .toLowerCase()
-    .replace(/[^a-z\s]/g, " ")
-    .split(/\s+/)
-    .filter((w) => w.length > 2 && w !== "with" && w !== "and")
-    .slice(0, 3);
-  const kw = [...new Set([...words, "food"])].join(",");
-  return `https://loremflickr.com/800/500/${encodeURIComponent(kw)}`;
-}
-
 // A relevant dish emoji to bob while the photo loads (echoes the find-recipes loader).
 function loaderEmoji(cuisine: string, name: string): string {
   const l = `${cuisine} ${name}`.toLowerCase();
@@ -90,7 +77,7 @@ function loaderEmoji(cuisine: string, name: string): string {
   return "🍽️";
 }
 
-type Stage = "mealdb" | "flickr" | "local";
+type Stage = "mealdb" | "local";
 
 export function RecipeImage({
   src: _src,   // pollinations URLs are dead (HTTP 402) — intentionally unused
@@ -131,10 +118,8 @@ export function RecipeImage({
       fetchMealDbImage(alt, ctrl.signal).then((imgUrl) => {
         if (cancelled) return;
         if (imgUrl) setDisplaySrc(imgUrl);
-        else        setStage("flickr");
+        else        setStage("local");
       });
-    } else if (stage === "flickr") {
-      setDisplaySrc(flickrPhoto(alt));
     } else {
       setDisplaySrc(LOCAL_FALLBACK);
     }
@@ -145,8 +130,7 @@ export function RecipeImage({
 
   const handleLoad  = () => setLoaded(true);
   const handleError = () => {
-    if (stage === "mealdb") setStage("flickr");
-    else if (stage === "flickr") setStage("local");
+    if (stage === "mealdb") setStage("local");
   };
 
   return (

@@ -49,7 +49,7 @@ function RecipeCard() {
     let next = null;
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
+      const timeout = setTimeout(() => controller.abort(), 28000);
       // Recently-cooked dishes so reroll respects the history-based dedupe,
       // just like the initial generation in session.tsx.
       const avoidRecipes = [...new Set(history.map(h => h.name))];
