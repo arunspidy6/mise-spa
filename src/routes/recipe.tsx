@@ -257,6 +257,9 @@ function RecipeCard() {
               These swaps don't work for me. Try a different recipe.
             </button>
           )}
+          <p className="text-center text-[10px] text-text-tertiary leading-snug pt-0.5">
+            AI-generated recipe — double-check cooking times, doneness &amp; allergens.
+          </p>
         </div>
       </div>
     </MobileFrame>
