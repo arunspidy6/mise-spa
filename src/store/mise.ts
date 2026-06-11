@@ -145,18 +145,9 @@ export const useMise = create<Store>()(
         ["mise-store-v1", "mise-store-v2", "mise-v1", "mise-v2"].forEach(k => {
           try { localStorage.removeItem(k); } catch {}
         });
-        // Fresh kitchen every visit: the user re-picks what they actually have.
-        // ONLY spices (staples) and appliances are remembered between sessions —
-        // proteins, carbs, vegetables and fridge items are all forgotten.
-        if (state) {
-          state.inventory.proteins = [];
-          state.inventory.carbs = [];
-          state.inventory.vegetables = [];
-          state.inventory.fridge = [];
-          state.inventory.customItems = [];
-          // Force the home flow back through inventory setup for the fresh items.
-          state.inventory.lastUpdated = null;
-        }
+        // Kitchen persists across visits — the full inventory (proteins, carbs,
+        // vegetables, fridge, staples, appliances, custom items) is remembered,
+        // so a refresh no longer wipes what the user selected.
       },
     }
   )

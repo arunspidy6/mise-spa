@@ -8,163 +8,11 @@ import { useMise } from "@/store/mise";
 import { findRecipes, getRecipe, getRecipeFromAPI } from "@/lib/generate-recipe";
 import type { CookHistory } from "@/lib/generate-recipe";
 import { TIME_OPTIONS } from "@/lib/mise-data";
+import { RecipeLoaderContent } from "@/components/mise/RecipeLoader";
 
 export const Route = createFileRoute("/session")({ component: SessionSetup });
 
 type ErrState = { reason: string; detail: string };
-
-// ── Loader animation ─────────────────────────────────────────────────────────
-// Hand-drawn bubbling pot in the terracotta theme. The dish names cycle below
-// so it still feels like Mise is "flipping through" options for you.
-const DISHES = [
-  "Soy-glazed chicken",
-  "Shakshuka",
-  "Egg fried rice",
-  "Garlic butter steak",
-  "Chickpea curry",
-  "Garlic butter pasta",
-  "Soy-glazed salmon",
-  "Lentil soup",
-];
-
-const LOADER_MESSAGES = [
-  "Checking what you have…",
-  "Finding something different…",
-  "Matching your ingredients…",
-  "Almost ready…",
-];
-
-// ── Food ticker loader ────────────────────────────────────────────────────────
-// A conveyor-belt of 3D food-icon tiles scrolling horizontally.
-// Each tile is an app-icon–style rounded square with gradient face, depth edge,
-// and highlight — the whole row loops seamlessly with Framer Motion.
-
-const FOOD_EMOJIS = [
-  "🍳","🌮","🍜","🥘","🍱","🥗","🍝","🥩","🫕","🍛","🥙","🧆","🍣","🍲","🫔","🧇",
-];
-
-function FoodTile({ emoji }: { emoji: string }) {
-  return (
-    <div
-      className="w-[60px] h-[60px] rounded-2xl flex-shrink-0 flex items-center justify-center select-none"
-      style={{
-        background: "linear-gradient(145deg, oklch(0.720 0.200 42) 0%, var(--ember) 50%, oklch(0.430 0.180 26) 100%)",
-        boxShadow: [
-          "inset 0 2px 3px rgba(255,255,255,0.22)",
-          "0 3px 0 oklch(0.380 0.155 24)",
-          "0 8px 22px oklch(0 0 0 / 0.48)",
-        ].join(", "),
-      }}
-    >
-      <span className="text-[26px] leading-none" style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.38))" }}>
-        {emoji}
-      </span>
-    </div>
-  );
-}
-
-function FoodTicker() {
-  // Duplicate the array so the loop resets invisibly
-  const items = [...FOOD_EMOJIS, ...FOOD_EMOJIS];
-  const ITEM_W  = 60;
-  const GAP     = 12; // gap-3 = 12px
-  const TOTAL   = FOOD_EMOJIS.length * (ITEM_W + GAP);
-
-  return (
-    <div
-      className="w-full overflow-hidden"
-      style={{
-        WebkitMaskImage: "linear-gradient(to right, transparent, black 14%, black 86%, transparent)",
-        maskImage:        "linear-gradient(to right, transparent, black 14%, black 86%, transparent)",
-      }}
-    >
-      <motion.div
-        className="flex gap-3"
-        animate={{ x: [0, -TOTAL] }}
-        transition={{ duration: 16, repeat: Infinity, ease: "linear" }}
-      >
-        {items.map((emoji, i) => (
-          <FoodTile key={i} emoji={emoji} />
-        ))}
-      </motion.div>
-    </div>
-  );
-}
-
-function RecipeLoader() {
-  const [dishIdx, setDishIdx] = useState(0);
-  const [msgIdx, setMsgIdx] = useState(0);
-
-  useEffect(() => {
-    const dishTimer = setInterval(() => {
-      setDishIdx(i => (i + 1) % DISHES.length);
-    }, 1100);
-    const msgTimer = setInterval(() => {
-      setMsgIdx(i => (i + 1) % LOADER_MESSAGES.length);
-    }, 1800);
-    return () => { clearInterval(dishTimer); clearInterval(msgTimer); };
-  }, []);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-bg-base z-50 flex flex-col items-center justify-center px-8"
-    >
-      {/* Horizontal conveyor belt of 3D food tiles */}
-      <div className="w-full mb-10">
-        <FoodTicker />
-      </div>
-
-      {/* Cycling dish name — feels like Mise is leafing through the options */}
-      <div className="h-8 flex items-center justify-center mb-7">
-        <AnimatePresence mode="wait">
-          <motion.p
-            key={dishIdx}
-            initial={{ y: 10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -10, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 400, damping: 26 }}
-            className="font-display italic text-[19px] font-light text-ember-text text-center"
-          >
-            {DISHES[dishIdx]}
-          </motion.p>
-        </AnimatePresence>
-      </div>
-
-      {/* Dot indicators */}
-      <div className="flex gap-1.5 mb-8">
-        {DISHES.map((_, i) => (
-          <motion.div
-            key={i}
-            animate={{ width: i === dishIdx ? 20 : 6, opacity: i === dishIdx ? 1 : 0.3 }}
-            transition={{ type: "spring", stiffness: 400, damping: 20 }}
-            className="h-1.5 rounded-full bg-ember"
-          />
-        ))}
-      </div>
-
-      {/* Cycling status message */}
-      <AnimatePresence mode="wait">
-        <motion.p
-          key={msgIdx}
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -6 }}
-          transition={{ type: "spring", stiffness: 300, damping: 28 }}
-          className="font-display text-[20px] font-light text-text-primary text-center"
-        >
-          {LOADER_MESSAGES[msgIdx]}
-        </motion.p>
-      </AnimatePresence>
-
-      <p className="text-[12px] text-text-secondary mt-3 text-center">
-        Something you haven't made before
-      </p>
-    </motion.div>
-  );
-}
 
 function SessionSetup() {
   const navigate = useNavigate();
@@ -250,7 +98,11 @@ function SessionSetup() {
   return (
     <MobileFrame>
       <AnimatePresence>
-        {loading && <RecipeLoader />}
+        {loading && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-bg-base z-50 flex items-center justify-center">
+            <RecipeLoaderContent />
+          </motion.div>
+        )}
       </AnimatePresence>
 
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">

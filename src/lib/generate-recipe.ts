@@ -1087,6 +1087,16 @@ export function currentMealType(d: Date = new Date()): MealType {
   return "dinner";
 }
 
+// On localhost (vite dev) the /api serverless functions don't run, so the call
+// must go to the deployed Vercel API instead. localhost is whitelisted in the
+// API's CORS, so this cross-origin call is allowed. In production it stays
+// same-origin (empty base).
+export const API_BASE =
+  typeof window !== "undefined" &&
+  /^(localhost|127\.0\.0\.1|\[::1\])$/.test(window.location.hostname)
+    ? "https://mise-spa.vercel.app"
+    : "";
+
 export async function getRecipeFromAPI(
   inventory: Inventory,
   session: SessionPayload,
@@ -1094,7 +1104,7 @@ export async function getRecipeFromAPI(
   excludeName?: string,
   avoidRecipes: string[] = [],
 ): Promise<Recipe> {
-  const res = await fetch("/api/generate-recipe", {
+  const res = await fetch(`${API_BASE}/api/generate-recipe`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ inventory, session, excludeName, avoidRecipes, mealType: currentMealType() }),

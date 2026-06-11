@@ -1,69 +1,16 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { ArrowLeft, ArrowRight, Clock, Users, RotateCw, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { RecipeImage } from "@/components/mise/RecipeImage";
+import { RecipeLoaderContent } from "@/components/mise/RecipeLoader";
 import { useMise } from "@/store/mise";
 import { getRecipe, getRecipeFromAPI } from "@/lib/generate-recipe";
 
 export const Route = createFileRoute("/recipe")({ component: RecipeCard });
 
-
-// ── Reroll Loader — same carousel animation as session ────────────────────
-const REROLL_DISHES = [
-  { emoji: "🥘", name: "Something hearty" },
-  { emoji: "🍳", name: "Something quick" },
-  { emoji: "🍜", name: "Something comforting" },
-  { emoji: "🥩", name: "Something bold" },
-  { emoji: "🫕", name: "Something warming" },
-];
-
-function RerollLoaderContent() {
-  const [idx, setIdx] = useState(0);
-  const [dir] = useState(1);
-  useEffect(() => {
-    const t = setInterval(() => setIdx(i => (i + 1) % REROLL_DISHES.length), 700);
-    return () => clearInterval(t);
-  }, []);
-  const dish = REROLL_DISHES[idx];
-  return (
-    <div className="flex flex-col items-center justify-center px-8 w-full h-full">
-      <div className="relative w-56 h-40 mb-6 overflow-hidden">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={idx}
-            initial={{ x: 60 * dir, opacity: 0, scale: 0.92 }}
-            animate={{ x: 0, opacity: 1, scale: 1 }}
-            exit={{ x: -60 * dir, opacity: 0, scale: 0.92 }}
-            transition={{ type: "spring", stiffness: 420, damping: 28 }}
-            className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-bg-surface border border-border-subtle rounded-3xl"
-          >
-            <motion.span
-              animate={{ y: [0, -6, 0], rotate: [-3, 3, -3] }}
-              transition={{ duration: 1.2, repeat: Infinity, ease: "easeInOut" }}
-              className="text-[48px]"
-            >
-              {dish.emoji}
-            </motion.span>
-            <p className="font-display text-[15px] font-light text-text-primary">{dish.name}</p>
-          </motion.div>
-        </AnimatePresence>
-      </div>
-      <div className="flex gap-1.5 mb-5">
-        {REROLL_DISHES.map((_, i) => (
-          <motion.div key={i}
-            animate={{ width: i === idx ? 16 : 5, opacity: i === idx ? 1 : 0.3 }}
-            transition={{ type: "spring", stiffness: 400, damping: 20 }}
-            className="h-1.5 rounded-full bg-ember"
-          />
-        ))}
-      </div>
-      <p className="font-display text-[18px] font-light text-text-primary">Finding something different…</p>
-    </div>
-  );
-}
 
 function RecipeCard() {
   const navigate = useNavigate();
@@ -151,7 +98,7 @@ function RecipeCard() {
           style={{ pointerEvents: rerolling ? "auto" : "none" }}
           className="absolute inset-0 bg-bg-base/96 z-50"
         >
-          {rerolling && <RerollLoaderContent />}
+          {rerolling && <RecipeLoaderContent subtitle="" />}
         </motion.div>
 
         <div className="flex-1 min-h-0 overflow-y-auto">

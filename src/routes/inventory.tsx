@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { useMise } from "@/store/mise";
+import { API_BASE } from "@/lib/generate-recipe";
 import {
   STAPLE_SECTIONS, PROTEIN_SECTIONS, CARB_SECTIONS,
   VEG_SECTIONS, FRIDGE_SECTIONS, APPLIANCE_SECTIONS,
@@ -528,7 +529,7 @@ function CustomItemInput({
     // ③ API classification (once per device, then cached)
     setStatus("checking");
     try {
-      const res = await fetch("/api/classify-ingredient", {
+      const res = await fetch(`${API_BASE}/api/classify-ingredient`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ingredient: lower }),
