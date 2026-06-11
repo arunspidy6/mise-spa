@@ -7,7 +7,7 @@ import { EmberButton } from "@/components/mise/EmberButton";
 import { RecipeImage } from "@/components/mise/RecipeImage";
 import { RecipeLoaderContent } from "@/components/mise/RecipeLoader";
 import { useMise } from "@/store/mise";
-import { getRecipe, getRecipeFromAPI } from "@/lib/generate-recipe";
+import { getRecipeFromAPI } from "@/lib/generate-recipe";
 
 export const Route = createFileRoute("/recipe")({ component: RecipeCard });
 
@@ -53,16 +53,24 @@ function RecipeCard() {
       // Recently-cooked dishes so reroll respects the history-based dedupe,
       // just like the initial generation in session.tsx.
       const avoidRecipes = [...new Set(history.map(h => h.name))];
+      let apiFailure: "no_recipe" | "api_unreachable" | null = null;
       try {
         next = await getRecipeFromAPI(inventory, session, controller.signal, recipe.name, avoidRecipes);
-      } catch {
-        // API unavailable or timed out — use local library
+      } catch (apiErr) {
+        const m = apiErr instanceof Error ? apiErr.message : "";
+        apiFailure = m === "no_recipe" ? "no_recipe" : "api_unreachable";
       } finally {
         clearTimeout(timeout);
       }
 
+      // Honest failure — keep the current recipe and say so, never a random one.
       if (!next) {
-        next = getRecipe(inventory, session, history, recipe.name);
+        setErrMsg(
+          apiFailure === "no_recipe"
+            ? "We couldn't find a different recipe for these ingredients right now. Try updating your kitchen."
+            : "Couldn't reach the recipe kitchen. Check your connection and try again."
+        );
+        return;
       }
 
       setRecipe(next);

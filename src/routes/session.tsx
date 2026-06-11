@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { useMise } from "@/store/mise";
-import { findRecipes, getRecipe, getRecipeFromAPI } from "@/lib/generate-recipe";
+import { getRecipeFromAPI } from "@/lib/generate-recipe";
 import type { CookHistory } from "@/lib/generate-recipe";
 import { TIME_OPTIONS } from "@/lib/mise-data";
 import { RecipeLoaderContent } from "@/components/mise/RecipeLoader";
@@ -60,25 +60,33 @@ function SessionSetup() {
       // dish isn't re-suggested just because a different cut of the same meat
       // (e.g. lamb diced vs lamb chops) was selected.
       const avoidRecipes = [...new Set(history.map(h => h.name))].slice(0, 8);
+      let apiFailure: "no_recipe" | "api_unreachable" | null = null;
       try {
         recipe = await getRecipeFromAPI(inventory, session, controller.signal, undefined, avoidRecipes);
-      } catch {
-        // API unavailable or timed out — fall back to local library
+      } catch (apiErr) {
+        const m = apiErr instanceof Error ? apiErr.message : "";
+        apiFailure = m === "no_recipe" ? "no_recipe" : "api_unreachable";
       } finally {
         clearTimeout(timeout);
       }
 
       if (genId !== genIdRef.current) return;
 
+      // Honest failure — never silently substitute a random library recipe.
       if (!recipe) {
-        // Library fallback: validate first so we show a useful error if there's no match
-        const check = findRecipes(inventory);
-        if (!check.ok) {
-          setLoading(false);
-          setErr({ reason: check.reason, detail: check.detail });
-          return;
+        setLoading(false);
+        if (apiFailure === "no_recipe") {
+          setErr({
+            reason: "no_recipe",
+            detail: "We couldn't make a good recipe from these ingredients right now. At breakfast time, things like bacon, sausages, eggs, oats or bread work best — try adding some, or come back at lunch.",
+          });
+        } else {
+          setErr({
+            reason: "api_unreachable",
+            detail: "We couldn't reach the recipe kitchen. Check your connection and try again.",
+          });
         }
-        recipe = getRecipe(inventory, session, history);
+        return;
       }
 
       if (genId !== genIdRef.current) return;
@@ -174,7 +182,11 @@ function SessionSetup() {
           {err && (
             <div className="mb-4 rounded-xl bg-bg-surface border border-border-default p-4 space-y-3">
               <p className="text-[13px] font-semibold text-text-primary">
-                {isProteinErr ? `No recipes found for ${inventory.proteins.join(", ")}` : "No recipes matched your kitchen"}
+                {isProteinErr
+                  ? `No recipes found for ${inventory.proteins.join(", ")}`
+                  : err.reason === "api_unreachable"
+                    ? "Couldn't reach the kitchen"
+                    : "Couldn't find a recipe"}
               </p>
               <p className="text-[12px] text-text-secondary leading-relaxed">{err.detail}</p>
               <div className="space-y-2 pt-1">

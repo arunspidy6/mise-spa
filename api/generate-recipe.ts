@@ -204,9 +204,16 @@ APPLIANCES: ${(inventory.appliances || ["Hob/Stove"]).join(", ")}
 TIME: max ${session?.timeMinutes ?? 30} minutes
 SERVINGS: ${session?.servings ?? 2}
 ${session?.cuisine ? `CUISINE: ${session.cuisine}` : "CUISINE: your choice — be creative, avoid repeating the same cuisine twice"}
-${meal ? `MEAL CONTEXT: It's currently ${meal} time, so lean toward something you'd enjoy at ${meal} — but this is only a SOFT preference. Featuring the user's selected protein as the hero ALWAYS takes priority over the meal type (a chicken dish at breakfast is completely fine).` : ""}
+${meal === "breakfast"
+  ? `MEAL: It is currently BREAKFAST time. Generate a genuine breakfast dish.
+- PRIORITISE breakfast ingredients from the AVAILABLE list: bacon, sausages, eggs, oats, bread/toast, tortillas, potatoes (hash), milk, yoghurt, cheese, tomatoes, mushrooms, spinach.
+- DE-PRIORITISE dinner proteins (chicken, lamb, beef/steak, pork chops, fish): do NOT build the dish around them even if selected — leave them for lunch/dinner.
+- If the AVAILABLE list has NO breakfast-appropriate ingredients at all, do NOT force a weird dish — return exactly: {"error":"no_recipe"}`
+  : meal
+    ? `MEAL: It is currently ${meal} time. Generate a dish appropriate for ${meal} — a proper main. Feature the user's selected protein as the hero.`
+    : ""}
 
-If the user selected a meat, poultry or fish protein, it MUST be the hero of the dish — never return a protein-free dish (e.g. just eggs) when a real protein was provided. You do NOT need to use every other ingredient — choose the combination that makes the best single dish. Treat different cuts of the same meat as interchangeable (e.g. lamb chops, lamb diced and lamb mince are all just "lamb"); the cut should not change which dish you pick.${excludeName ? `\n\nDo NOT generate "${excludeName}" — the user has already seen that recipe and wants something different.` : ""}${avoidList.length ? `\n\nThe user has RECENTLY COOKED the dishes below. You MUST generate something clearly different — a different cooking method, flavour profile, or cuisine. Do not produce a near-duplicate or a minor variation of any of these, even if a different cut of the same protein is now selected:\n${avoidList.map(n => `- ${n}`).join("\n")}` : ""}`;
+At lunch and dinner: if the user selected a meat, poultry or fish protein, it MUST be the hero of the dish. At breakfast the MEAL rule above wins — breakfast ingredients take priority over dinner proteins. You do NOT need to use every ingredient — choose the combination that makes the best single dish. Treat different cuts of the same meat as interchangeable (e.g. lamb chops, lamb diced and lamb mince are all just "lamb"); the cut should not change which dish you pick.${excludeName ? `\n\nDo NOT generate "${excludeName}" — the user has already seen that recipe and wants something different.` : ""}${avoidList.length ? `\n\nThe user has RECENTLY COOKED the dishes below. You MUST generate something clearly different — a different cooking method, flavour profile, or cuisine. Do not produce a near-duplicate or a minor variation of any of these, even if a different cut of the same protein is now selected:\n${avoidList.map(n => `- ${n}`).join("\n")}` : ""}`;
 
   // Hourly circuit breaker — checked/incremented only here, after validation and
   // right before the paid call, so malformed/empty requests can't burn the budget.
@@ -275,6 +282,11 @@ If the user selected a meat, poultry or fish protein, it MUST be the hero of the
     let recipe;
     try { recipe = JSON.parse(raw); }
     catch { return res.status(502).json({ error: "Invalid JSON from model" }); }
+
+    // Model honestly declined (e.g. no breakfast-appropriate ingredients).
+    if (recipe?.error === "no_recipe") {
+      return res.status(200).json({ error: "no_recipe" });
+    }
 
     if (!recipe.name || !recipe.steps) {
       return res.status(502).json({ error: "Invalid recipe shape" });

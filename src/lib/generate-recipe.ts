@@ -1112,6 +1112,7 @@ export async function getRecipeFromAPI(
   });
   if (!res.ok) throw new Error("api_failed");
   const data = await res.json();
+  if (data?.error === "no_recipe") throw new Error("no_recipe");
   if (data.error || !data.name || !data.steps) throw new Error("api_failed");
   return data as Recipe;
 }
