@@ -3,6 +3,7 @@ import { useState } from "react";
 import { ArrowLeft, ArrowRight, Clock, Users, RotateCw, ChevronDown, ChevronUp } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
+import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { RecipeImage } from "@/components/mise/RecipeImage";
 import { RecipeLoaderContent } from "@/components/mise/RecipeLoader";
@@ -109,7 +110,7 @@ function RecipeCard() {
           {rerolling && <RecipeLoaderContent subtitle="" />}
         </motion.div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         <motion.div key={recipe.name}
           initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
           className="px-4 space-y-4 pt-2 pb-4">
@@ -248,7 +249,7 @@ function RecipeCard() {
         </div>{/* end scroll */}
 
         {/* Sticky bottom CTAs — always visible */}
-        <div className="flex-shrink-0 px-4 pb-safe pt-3 bg-bg-base border-t border-border-subtle space-y-2">
+        <KeyboardAwareFooter className="space-y-2">
           <div className="flex gap-3">
             <button onClick={swap} disabled={rerolling}
               className="flex-1 h-14 rounded-xl bg-bg-surface border border-border-default text-text-secondary flex items-center justify-center gap-2 text-[14px] active:scale-95 transition disabled:opacity-50">
@@ -268,7 +269,7 @@ function RecipeCard() {
           <p className="text-center text-[10px] text-text-tertiary leading-snug pt-0.5">
             AI-generated recipe — double-check cooking times, doneness &amp; allergens.
           </p>
-        </div>
+        </KeyboardAwareFooter>
       </div>
     </MobileFrame>
   );

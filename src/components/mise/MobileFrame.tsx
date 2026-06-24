@@ -1,27 +1,50 @@
-import { ReactNode } from "react";
+import { ReactNode, createContext, useContext } from "react";
 import { cn } from "@/lib/utils";
+import { useVisualViewport } from "@/hooks/use-visual-viewport";
+
+type MobileFrameContextValue = { keyboardOpen: boolean };
+
+const MobileFrameContext = createContext<MobileFrameContextValue>({ keyboardOpen: false });
+
+export function useMobileFrame() {
+  return useContext(MobileFrameContext);
+}
 
 export function MobileFrame({ children, className }: { children: ReactNode; className?: string }) {
+  const { height, offsetTop, keyboardOpen } = useVisualViewport();
+
   return (
-    // 100dvh = dynamic viewport height — shrinks/grows with Chrome's URL bar
-    // so the layout never jumps and sticky bottom bars stay in view.
-    // `className` lets a route opt into a theme override (e.g. "theme-terracotta").
-    <div className={cn("w-full bg-bg-base flex justify-center overflow-hidden", className)} style={{ height: "100dvh" }}>
-      <div className="relative w-full h-full flex flex-col overflow-hidden bg-bg-base">
-        {/* Dotted grid texture — isolated background layer pinned at z-0, never on top of UI */}
+    <MobileFrameContext.Provider value={{ keyboardOpen }}>
+      {/* Desktop shell — dark backdrop; phone column capped at 430px */}
+      <div
+        className="app-shell fixed inset-0 flex justify-center overflow-hidden"
+        aria-hidden={false}
+      >
         <div
-          aria-hidden="true"
-          className="absolute inset-0 z-0 pointer-events-none select-none"
+          className={cn(
+            "app-phone relative w-full max-w-[430px] flex flex-col overflow-hidden bg-bg-base",
+            className,
+          )}
           style={{
-            backgroundImage: "radial-gradient(var(--tile-color) 1px, transparent 1px)",
-            backgroundSize: "22px 22px",
+            height: height ?? "100dvh",
+            transform: offsetTop ? `translateY(${offsetTop}px)` : undefined,
           }}
-        />
-        {/* All app content sits in its own stacking layer above the texture */}
-        <div className="relative z-10 flex flex-col h-full min-h-0">
-          {children}
+        >
+          {/* Dotted grid texture — isolated background layer pinned at z-0, never on top of UI */}
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 z-0 pointer-events-none select-none"
+            style={{
+              backgroundImage: "radial-gradient(var(--tile-color) 1px, transparent 1px)",
+              backgroundSize: "22px 22px",
+            }}
+          />
+          {/* All app content sits in its own stacking layer above the texture */}
+          <div className="relative z-10 flex flex-col h-full min-h-0">
+            {children}
+          </div>
         </div>
       </div>
-    </div>
+    </MobileFrameContext.Provider>
   );
 }

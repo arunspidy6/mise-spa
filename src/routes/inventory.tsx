@@ -3,6 +3,8 @@ import { useState, useRef, useEffect } from "react";
 import { ArrowLeft, ArrowRight, Plus, X, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
+import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
+import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { useMise } from "@/store/mise";
 import { API_BASE } from "@/lib/generate-recipe";
@@ -482,6 +484,7 @@ function CustomItemInput({
   const [msg, setMsg] = useState<{ text: string; type: "error" | "info" } | null>(null);
   const [status, setStatus] = useState<"idle" | "checking">("idle");
   const msgTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { ref: inputRef, onFocus: scrollInputIntoView } = useScrollIntoViewOnFocus<HTMLInputElement>();
 
   useEffect(() => {
     return () => { if (msgTimeout.current) clearTimeout(msgTimeout.current); };
@@ -555,8 +558,10 @@ function CustomItemInput({
       <div className="flex gap-2">
         <div className="flex-1 relative">
           <input
+            ref={inputRef}
             value={value}
             onChange={e => handleChange(e.target.value)}
+            onFocus={scrollInputIntoView}
             onKeyDown={e => e.key === "Enter" && !e.repeat && resolveAndAdd(value)}
             placeholder="Not listed? Type to search or add…"
             autoCorrect="on"
@@ -688,7 +693,7 @@ function InventoryFlow() {
           <motion.div key={step}
             initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
             transition={{ duration: 0.2 }}
-            className="flex-1 min-h-0 overflow-y-auto px-4 pb-8">
+            className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-4">
 
             <span className="label-eyebrow text-ember-text">{cur.label}</span>
             <h1 className="font-display text-[28px] font-light text-text-primary mt-2 leading-tight">{cur.title}</h1>
@@ -798,13 +803,13 @@ function InventoryFlow() {
           </motion.div>
         </AnimatePresence>
 
-        {/* Sticky CTA — always visible, never scrolls away */}
-        <div className="flex-shrink-0 px-4 pb-safe pt-3 bg-bg-base border-t border-border-subtle">
+        {/* Sticky CTA — hidden while keyboard is open so content fits the visible area */}
+        <KeyboardAwareFooter>
           <EmberButton size="lg" className="w-full" onClick={next}>
             {isLast ? "Show me recipes" : "Next"}
             <ArrowRight className="w-4 h-4" />
           </EmberButton>
-        </div>
+        </KeyboardAwareFooter>
       </div>
     </MobileFrame>
   );
