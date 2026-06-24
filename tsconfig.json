@@ -17,6 +17,8 @@
     "jsx": "react-jsx",
     "strict": true,
     "ignoreDeprecations": "6.0",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "baseUrl": ".",
     "paths": {
       "@/*": [

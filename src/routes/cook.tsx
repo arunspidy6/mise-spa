@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { ArrowLeft, ArrowRight, X, Play, Pause, Mic, MicOff } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, Play, Pause, Mic, MicOff, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
@@ -51,7 +51,61 @@ const VOICE_UNAVAILABLE_MSG = IS_IOS && !SR
   ? "Voice works in Safari on iOS — Chrome doesn't have mic access here."
   : "Voice isn't available in this browser.";
 
-type TimerState = { remaining: number; total: number; running: boolean; done: boolean };
+type TimerState = { remaining: number; total: number; running: boolean; done: boolean; completedAt?: number; endsAt?: number };
+
+const TIMERS_KEY = "mise_timers_v1";
+
+function saveTimers(timers: Record<number, TimerState>) {
+  try { localStorage.setItem(TIMERS_KEY, JSON.stringify(timers)); } catch {}
+}
+
+function loadTimers(): Record<number, TimerState> {
+  try {
+    const raw = localStorage.getItem(TIMERS_KEY);
+    if (!raw) return {};
+    const stored: Record<number, TimerState> = JSON.parse(raw);
+    const now = Date.now();
+    const result: Record<number, TimerState> = {};
+    for (const [k, t] of Object.entries(stored)) {
+      const idx = parseInt(k);
+      if (t.running && t.endsAt) {
+        const remaining = Math.max(0, Math.round((t.endsAt - now) / 1000));
+        if (remaining === 0) {
+          result[idx] = { ...t, running: false, done: true, remaining: 0, completedAt: t.endsAt };
+        } else {
+          result[idx] = { ...t, remaining };
+        }
+      } else {
+        result[idx] = t;
+      }
+    }
+    return result;
+  } catch { return {}; }
+}
+
+function swSchedule(stepIdx: number, endsAt: number, label: string) {
+  navigator.serviceWorker?.ready.then(reg => {
+    reg.active?.postMessage({ type: "SCHEDULE", stepIdx, endsAt, label });
+  }).catch(() => {});
+}
+
+function swCancel(stepIdx: number) {
+  navigator.serviceWorker?.ready.then(reg => {
+    reg.active?.postMessage({ type: "CANCEL", stepIdx });
+  }).catch(() => {});
+}
+
+async function registerSW() {
+  if (!("serviceWorker" in navigator)) return;
+  try { await navigator.serviceWorker.register("/sw.js"); } catch {}
+}
+
+function fmtElapsed(completedAt: number): string {
+  const mins = Math.floor((Date.now() - completedAt) / 60000);
+  if (mins < 1) return "just now";
+  if (mins === 1) return "1 min ago";
+  return `${mins} min ago`;
+}
 
 // ── Prep derivation ─────────────────────────────────────────────────────────
 // Turns a recipe's own step text into a precise prep note per ingredient —
@@ -473,7 +527,7 @@ function FloatingTimerRow({
               <span className={`relative z-10 font-mono text-[13px] font-semibold tabular-nums leading-none ${
                 t.done ? "text-success" : urgent ? "text-warning" : "text-ember"
               }`}>
-                {t.done ? "Done!" : fmt(t.remaining)}
+                {t.done ? (t.completedAt ? fmtElapsed(t.completedAt) : "Done!") : fmt(t.remaining)}
               </span>
 
               {/* Dot separator */}
@@ -557,15 +611,24 @@ function TimerModal({
               )}
               <div className="relative z-10">
                 <p className="label-eyebrow mb-1">
-                  {t.done ? "✓ Finished" : t.running ? "Running" : "Paused"}
+                  {t.done ? "✓ Timer finished" : t.running ? "Running" : "Paused"}
                 </p>
                 <p className={`font-mono text-[48px] leading-none font-medium ${
                   t.done ? "text-success" : urgent ? "text-warning" : "text-ember"
                 }`}>
-                  {t.done ? "Done!" : fmt(t.remaining)}
+                  {t.done
+                    ? (t.completedAt ? fmtElapsed(t.completedAt) : "Done!")
+                    : fmt(t.remaining)}
                 </p>
               </div>
-              {!t.done && (
+              {t.done ? (
+                <button
+                  onClick={() => onToggle(timerIdx)}
+                  className="relative z-10 h-12 px-5 rounded-xl border border-border-default bg-bg-raised text-text-secondary text-[14px] font-medium active:scale-95 transition flex items-center gap-2"
+                >
+                  <RotateCcw className="w-4 h-4" />Start again
+                </button>
+              ) : (
                 <button
                   onClick={() => onToggle(timerIdx)}
                   className="relative z-10 h-12 px-5 rounded-xl btn-ember text-[14px] font-semibold active:scale-95 transition flex items-center gap-2"
@@ -607,7 +670,7 @@ function CookMode() {
   const addHistory = useMise(s => s.addHistory);
 
   const [step, setStep] = useState(0);
-  const [timers, setTimers] = useState<Record<number, TimerState>>({});
+  const [timers, setTimers] = useState<Record<number, TimerState>>(() => loadTimers());
   const [prepDone, setPrepDone] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showHint, setShowHint] = useState(() => !localStorage.getItem("mise_hint_v4"));
@@ -658,6 +721,17 @@ function CookMode() {
     return () => wl?.release();
   }, []);
 
+  // ── Service worker registration ────────────────────────────────────────
+  useEffect(() => { registerSW(); }, []);
+
+  // ── Persist timers to localStorage on every change ─────────────────────
+  useEffect(() => { saveTimers(timers); }, [timers]);
+
+  // ── Clear persisted timers when cooking is finished ────────────────────
+  useEffect(() => {
+    return () => { try { localStorage.removeItem(TIMERS_KEY); } catch {} };
+  }, []);
+
   // ── Voice promo — show once after nav hint clears ──────────────────────
   // New users: the nav hint is visible first; we wait for it to be dismissed.
   // Returning users who haven't seen the promo: show after 1.5 s on entry.
@@ -697,16 +771,26 @@ function CookMode() {
     };
   }, []);
 
-  // ── Timer tick ─────────────────────────────────────────────────────────
+  // ── Timer tick — clock-based so accuracy survives backgrounding ────────
   useEffect(() => {
     intervalRef.current = setInterval(() => {
       setTimers(prev => {
+        const now = Date.now();
         const next = { ...prev };
         let changed = false;
         for (const [k, t] of Object.entries(next)) {
           const i = parseInt(k);
-          if (t.running && t.remaining > 0) { next[i] = { ...t, remaining: t.remaining - 1 }; changed = true; }
-          else if (t.running && t.remaining === 0) { next[i] = { ...t, running: false, done: true }; playTimerDone(); changed = true; }
+          if (!t.running || t.done) continue;
+          const remaining = t.endsAt ? Math.max(0, Math.round((t.endsAt - now) / 1000)) : Math.max(0, t.remaining - 1);
+          if (remaining !== t.remaining) {
+            if (remaining === 0) {
+              next[i] = { ...t, remaining: 0, running: false, done: true, completedAt: t.endsAt ?? now };
+              playTimerDone();
+            } else {
+              next[i] = { ...t, remaining };
+            }
+            changed = true;
+          }
         }
         return changed ? next : prev;
       });
@@ -765,6 +849,7 @@ function CookMode() {
 
   // ── Timer helpers ──────────────────────────────────────────────────────
   const dismissTimer = useCallback((stepIdx: number) => {
+    swCancel(stepIdx);
     setTimers(prev => { const next = { ...prev }; delete next[stepIdx]; return next; });
     setTimerModalIdx(null);
   }, []);
@@ -775,11 +860,25 @@ function CookMode() {
     hapticTimerStart();
     setTimers(prev => {
       const ex = prev[stepIdx];
-      if (!ex) {
+      const now = Date.now();
+      if (!ex || ex.done) {
+        // Fresh start (or restart after done)
         const secs = s.timerMinutes! * 60;
-        return { ...prev, [stepIdx]: { remaining: secs, total: secs, running: true, done: false } };
+        const endsAt = now + secs * 1000;
+        Notification.requestPermission().catch(() => {});
+        swSchedule(stepIdx, endsAt, s.instruction?.slice(0, 60) ?? "");
+        return { ...prev, [stepIdx]: { remaining: secs, total: secs, running: true, done: false, completedAt: undefined, endsAt } };
       }
-      return { ...prev, [stepIdx]: { ...ex, running: !ex.running } };
+      if (ex.running) {
+        // Pause — freeze remaining, clear endsAt
+        swCancel(stepIdx);
+        return { ...prev, [stepIdx]: { ...ex, running: false, endsAt: undefined } };
+      } else {
+        // Resume — recompute endsAt from current remaining
+        const endsAt = now + ex.remaining * 1000;
+        swSchedule(stepIdx, endsAt, s.instruction?.slice(0, 60) ?? "");
+        return { ...prev, [stepIdx]: { ...ex, running: true, endsAt } };
+      }
     });
   }, []);
 
@@ -1214,15 +1313,22 @@ function CookMode() {
                   )}
                   <div className="relative z-10">
                     <p className="label-eyebrow mb-1">
-                      {curTimer?.done ? "✓ Done" : curTimer?.running ? "Running" : `${cur.timerMinutes} min timer`}
+                      {curTimer?.done ? "✓ Timer finished" : curTimer?.running ? "Running" : `${cur.timerMinutes} min timer`}
                     </p>
                     <p className={`font-mono text-[36px] leading-none font-medium ${
                       curTimer?.done ? "text-success" : "text-ember"
                     }`}>
-                      {curTimer ? fmt(curTimer.remaining) : fmt(cur.timerMinutes * 60)}
+                      {curTimer?.done
+                        ? (curTimer.completedAt ? fmtElapsed(curTimer.completedAt) : "Done!")
+                        : curTimer ? fmt(curTimer.remaining) : fmt(cur.timerMinutes * 60)}
                     </p>
                   </div>
-                  {!curTimer?.done && (
+                  {curTimer?.done ? (
+                    <button onClick={() => toggleTimerByRef(step)}
+                      className="relative z-10 h-11 px-5 rounded-xl border border-border-default bg-bg-raised text-text-secondary text-[13px] font-medium active:scale-95 transition flex items-center gap-2">
+                      <RotateCcw className="w-3.5 h-3.5" />Start again
+                    </button>
+                  ) : (
                     <button onClick={() => toggleTimerByRef(step)}
                       className="relative z-10 h-11 px-5 rounded-xl btn-ember text-[14px] font-semibold active:scale-95 transition flex items-center gap-2">
                       {curTimer?.running

@@ -501,6 +501,12 @@ function CustomItemInput({
     setSuggestions(fuzzyMatchIngredients(val));
   };
 
+  const handleFocus = () => {
+    requestAnimationFrame(() => {
+      inputRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
+
   const resolveAndAdd = async (raw: string) => {
     const clean = sanitiseIngredient(raw);
     if (!clean) { showMsg("Letters only — no numbers or symbols"); return; }
@@ -561,7 +567,7 @@ function CustomItemInput({
             ref={inputRef}
             value={value}
             onChange={e => handleChange(e.target.value)}
-            onFocus={scrollInputIntoView}
+            onFocus={e => { scrollInputIntoView(); handleFocus(e); }}
             onKeyDown={e => e.key === "Enter" && !e.repeat && resolveAndAdd(value)}
             placeholder="Not listed? Type to search or add…"
             autoCorrect="on"
