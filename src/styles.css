@@ -112,6 +112,9 @@
 
   --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Desktop letterbox backdrop (overridden on narrow screens below) */
+  --app-shell-bg: oklch(0.08 0.025 29);
 }
 
 /* ── Monte: Corten flood ─────────────────────────────────────────────────────
@@ -161,9 +164,15 @@
   --shadow-card:   0 6px 20px oklch(0.18 0.040 30 / 0.18), inset 0 1px 0 oklch(1 0 0 / 0.09);
 }
 
+@media (max-width: 430px) {
+  :root { --app-shell-bg: var(--bg-base); }
+}
+
 @layer base {
-  html, body {
-    background-color: var(--bg-base);
+  html, body, #root {
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--app-shell-bg, var(--bg-base));
     color: var(--text-primary);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
@@ -173,6 +182,17 @@
 }
 
 @layer utilities {
+  .app-shell {
+    background-color: var(--app-shell-bg);
+  }
+  @media (min-width: 431px) {
+    .app-phone {
+      box-shadow:
+        0 0 0 1px oklch(0.22 0.04 29 / 0.9),
+        0 24px 80px oklch(0 0 0 / 0.55);
+    }
+  }
+
   .font-display { font-family: var(--font-display); font-feature-settings: "ss01"; }
 
   .label-eyebrow {

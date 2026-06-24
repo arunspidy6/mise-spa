@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { ArrowLeft, ArrowRight, X, Play, Pause, Mic, MicOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
+import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { useMise } from "@/store/mise";
 
 export const Route = createFileRoute("/cook")({ component: CookMode });
@@ -201,7 +202,7 @@ function PrepScreen({ recipe, onStart, onBack }: { recipe: any; onStart: () => v
         </p>
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto px-4 space-y-5 pb-4">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 space-y-5 pb-4">
         {prepItems.length > 0 && (
           <div>
             <p className="label-eyebrow mb-2.5">Needs prep</p>
@@ -256,7 +257,7 @@ function PrepScreen({ recipe, onStart, onBack }: { recipe: any; onStart: () => v
         )}
       </div>
 
-      <div className="flex-shrink-0 px-4 pb-safe pt-3 bg-bg-base border-t border-border-subtle">
+      <KeyboardAwareFooter>
         {prepItems.length > 0 && !allDone && (
           <p className="text-[11px] text-text-tertiary text-center mb-2.5">
             {remaining} item{remaining !== 1 ? "s" : ""} still to prep.
@@ -266,7 +267,7 @@ function PrepScreen({ recipe, onStart, onBack }: { recipe: any; onStart: () => v
           className="w-full h-14 rounded-xl btn-ember text-[15px] font-semibold active:scale-[0.98] transition">
           {allDone ? "All prepped! Start cooking" : "Start cooking"}
         </button>
-      </div>
+      </KeyboardAwareFooter>
 
       {/* ── Unprepped-items confirmation sheet ──────────────────────────── */}
       <AnimatePresence>
@@ -1182,7 +1183,7 @@ function CookMode() {
           <motion.div key={step}
             initial={{ opacity: 0, x: 32 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -32 }}
             transition={{ type: "spring", stiffness: 360, damping: 30 }}
-            className="flex-1 min-h-0 flex flex-col px-6 pt-2 overflow-y-auto pb-4"
+            className="flex-1 min-h-0 flex flex-col px-6 pt-2 overflow-y-auto overscroll-contain pb-4"
           >
             <div className="relative mb-5">
               <span className="absolute right-0 top-0 font-display text-[96px] font-light text-bg-surface leading-none select-none pointer-events-none">
@@ -1252,7 +1253,7 @@ function CookMode() {
         </AnimatePresence>
 
         {/* ── Sticky nav buttons ────────────────────────────────────────── */}
-        <div className="flex-shrink-0 flex gap-3 px-4 pb-safe pt-3 border-t border-border-subtle bg-bg-base">
+        <KeyboardAwareFooter className="flex gap-3">
           <button onClick={() => goTo(step - 1)} disabled={step === 0}
             className="flex-1 h-12 rounded-xl bg-bg-surface border border-border-default text-text-secondary flex items-center justify-center gap-2 text-[14px] active:scale-95 transition disabled:opacity-30 disabled:active:scale-100">
             <ArrowLeft className="w-4 h-4" /> Back
@@ -1261,7 +1262,7 @@ function CookMode() {
             className="flex-1 h-12 rounded-xl btn-ember flex items-center justify-center gap-2 text-[14px] font-semibold active:scale-95 transition">
             {step === total - 1 ? "Finish" : "Next"} <ArrowRight className="w-4 h-4" />
           </button>
-        </div>
+        </KeyboardAwareFooter>
 
         {/* ── Timer detail modal (bottom sheet, no navigation) ─────────── */}
         <AnimatePresence>

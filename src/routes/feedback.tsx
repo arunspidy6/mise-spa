@@ -2,6 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
+import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { useMise } from "@/store/mise";
 
 export const Route = createFileRoute("/feedback")({ component: FeedbackPage });
@@ -58,7 +59,7 @@ function FeedbackPage() {
     <MobileFrame>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Scrollable content */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-16 pb-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pt-16 pb-4">
 
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
           <span className="text-[44px]">🍽️</span>
@@ -102,7 +103,7 @@ function FeedbackPage() {
         </div>{/* end scrollable content */}
 
         {/* Sticky bottom buttons */}
-        <div className="flex-shrink-0 px-6 pb-safe pt-3 bg-bg-base border-t border-border-subtle space-y-3">
+        <KeyboardAwareFooter className="px-6 space-y-3">
           <button
             onClick={submit}
             disabled={!selected}
@@ -115,7 +116,7 @@ function FeedbackPage() {
             className="w-full h-12 text-[13px] text-text-tertiary active:opacity-70">
             Go home
           </button>
-        </div>
+        </KeyboardAwareFooter>
       </div>
     </MobileFrame>
   );

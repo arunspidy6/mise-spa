@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { ArrowLeft, ArrowRight, Minus, Plus, Pencil } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
+import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { useMise } from "@/store/mise";
 import { getRecipeFromAPI } from "@/lib/generate-recipe";
@@ -115,7 +116,7 @@ function SessionSetup() {
 
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* Single linear column — no justify-between so sections stay grouped */}
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 pt-5 pb-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pt-5 pb-4">
           <button onClick={() => navigate({ to: "/" })}
             className="w-10 h-10 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
             <ArrowLeft className="w-5 h-5" />
@@ -178,7 +179,7 @@ function SessionSetup() {
             </div>
           </div>
         </div>{/* end scrollable */}
-        <div className="flex-shrink-0 px-6 pb-safe pt-3 bg-bg-base border-t border-border-subtle">
+        <KeyboardAwareFooter className="px-6">
           {err && (
             <div className="mb-4 rounded-xl bg-bg-surface border border-border-default p-4 space-y-3">
               <p className="text-[13px] font-semibold text-text-primary">
@@ -207,7 +208,7 @@ function SessionSetup() {
           <EmberButton size="lg" className="w-full" onClick={generate} disabled={loading}>
             Find me something <ArrowRight className="w-4 h-4" />
           </EmberButton>
-        </div>{/* end sticky buttons */}
+        </KeyboardAwareFooter>
       </div>
     </MobileFrame>
   );
