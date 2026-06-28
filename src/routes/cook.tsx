@@ -180,7 +180,8 @@ function derivePrepNote(name: string, steps: any[]): string | null {
     // steps — "sliced into 1cm strips", not a vague "sliced" the cook reads as
     // cubes. Look across the whole step, with or without an "into".
     const SHAPES = "chunks?|cubes?|strips?|pieces?|wedges?|rounds?|batons?|florets?|matchsticks?";
-    const shaped = text.match(
+    const shapeScope = `${m[3] || ""} ${noun} ${(after || "").split(/\band\b/i)[0]}`;
+    const shaped = shapeScope.match(
       new RegExp(`(\\d+\\s?cm\\s*(?:thick|thin)?\\s*)?(thin|thick|small|large|bite-?sized)?\\s*\\b(${SHAPES})\\b`, "i")
     );
     if (shaped) {
