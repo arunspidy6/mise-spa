@@ -319,17 +319,24 @@ At lunch and dinner: if the user selected a meat, poultry or fish protein, it MU
     // collapse it to the upper (safer-cooked) bound so the UI never shows
     // "5–6 minutes" beside a single timer. Anchored on a trailing time unit so
     // temperatures like "74°C / 165°F" and "52°C to 63°C" are left untouched.
-    const deRange = (t: unknown) =>
-      typeof t === "string"
-        ? t.replace(
-            /(\d+)\s*(?:[–—-]|to|or)\s*(\d+)(\s*(?:minutes?|mins?|seconds?|secs?|hours?|hrs?))/gi,
-            (_m, _lo, hi, unit) => `${hi}${unit}`,
-          )
-        : t;
-    if (Array.isArray(recipe.steps)) {
-      recipe.steps = recipe.steps.map((s: any) => ({ ...s, instruction: deRange(s.instruction) }));
-    }
+    const TIME_RANGE_RE =
+      /(\d+)\s*(?:[–—-]|to|or)\s*(\d+)(\s*(?:minutes?|mins?))/i;
 
+    const normalizeStepRange = (step: any) => {
+      if (typeof step?.instruction !== "string") return step;
+      const match = step.instruction.match(TIME_RANGE_RE);
+      if (!match) return step;
+
+      const upper = Number(match[2]);
+      return {
+        ...step,
+        instruction: step.instruction.replace(TIME_RANGE_RE, `${upper}${match[3]}`),
+        timerMinutes: Number.isInteger(step.timerMinutes) ? upper : step.timerMinutes,
+      };
+    };
+    if (Array.isArray(recipe.steps)) {
+      recipe.steps = recipe.steps.map(normalizeStepRange);
+    }
     return res.status(200).json(recipe);
   } catch (err: any) {
     if (err?.name === "AbortError") {
