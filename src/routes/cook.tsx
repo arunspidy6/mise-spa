@@ -308,8 +308,8 @@ function PrepScreen({ recipe, onStart, onBack }: { recipe: any; onStart: () => v
             <div className="bg-bg-surface border border-border-subtle rounded-xl overflow-hidden divide-y divide-border-subtle">
               {grabItems.map((ing, i) => (
                 <div key={i} className="flex items-start justify-between gap-3 px-4 py-2.5">
-                  <span className="text-[13px] text-text-secondary flex-shrink-0">{ing.name}</span>
-                  <span className={`text-[11px] font-mono text-right leading-snug whitespace-normal break-words max-w-[55%] ${ing.substituteNote ? "text-ember-text" : "text-text-tertiary"}`}>
+                  <span className="text-[13px] text-text-secondary min-w-0 flex-1 break-words">{ing.name}</span>
+                  <span className={`text-[11px] font-mono text-right leading-snug whitespace-normal break-words flex-shrink-0 max-w-[55%] ${ing.substituteNote ? "text-ember-text" : "text-text-tertiary"}`}>
                     {ing.substituteNote ? `use ${ing.substituteNote}` : ing.quantity}
                   </span>
                 </div>
@@ -1017,6 +1017,11 @@ function CookMode() {
 
   // ── Voice recognition — single-shot, auto-restart ─────────────────────
   const voiceActiveRef = useRef(false);
+  // Bumped on every stop/unmount so an in-flight mic probe can bail instead of
+  // starting recognition after the user has already turned voice off.
+  const voiceStartTokenRef = useRef(0);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; voiceStartTokenRef.current++; }, []);
 
   const startSingleShot = useCallback(() => {
     if (!SR || !voiceActiveRef.current) return;
@@ -1074,6 +1079,7 @@ function CookMode() {
   }, [processTranscript]);
 
   const stopVoice = useCallback(() => {
+    voiceStartTokenRef.current++;
     voiceActiveRef.current = false;
     if (recRef.current) { try { recRef.current.abort(); } catch {} recRef.current = null; }
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -1105,10 +1111,14 @@ function CookMode() {
       // fail silently when permission hasn't been granted — the button just
       // does nothing. Prompting here makes voice reliably turn on, and lets us
       // show a clear message when the browser has blocked the mic.
+      const startToken = ++voiceStartTokenRef.current;
+      const stale = () => !mountedRef.current || startToken !== voiceStartTokenRef.current;
       try {
         const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
         probe.getTracks().forEach(t => t.stop());
+        if (stale()) return; // user turned voice off / left while we awaited
       } catch {
+        if (stale()) return;
         voiceActiveRef.current = false;
         setVoiceActive(false);
         setVoiceStatus("heard");
@@ -1267,7 +1277,7 @@ function CookMode() {
               transition={{ duration: 0.2 }}
               className="flex-shrink-0 px-4 pb-2 overflow-hidden"
             >
-              <div className={`rounded-xl px-4 py-2.5 flex items-center gap-3 transition-colors ${
+              <div role="status" aria-live="polite" className={`rounded-xl px-4 py-2.5 flex items-center gap-3 transition-colors ${
                 voiceStatus === "heard"
                   ? "bg-ember-glow border border-ember-dim"
                   : "bg-bg-raised border border-border-subtle"

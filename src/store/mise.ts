@@ -134,7 +134,7 @@ export const useMise = create<Store>()(
           // recent entry is the same dish within the last 15 min, update it in
           // place instead of adding a duplicate.
           const recent = s.history[0];
-          if (recent && recent.name === e.name && e.ts - recent.ts < 15 * 60 * 1000) {
+          if (recent && recent.name === e.name && Math.abs(e.ts - recent.ts) < 15 * 60 * 1000) {
             const next = [...s.history];
             next[0] = { ...recent, rating: e.rating, ts: e.ts };
             return { history: next };

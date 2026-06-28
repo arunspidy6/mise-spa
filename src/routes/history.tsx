@@ -13,9 +13,12 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function reminderParts(cookAt: number) {
   const d = new Date(cookAt);
-  const isToday = d.toDateString() === new Date().toDateString();
+  const startOfDay = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const dayDiff = Math.round((startOfDay(d) - startOfDay(new Date())) / 86_400_000);
   return {
-    day: isToday ? "Today" : "Tomorrow",
+    day: dayDiff === 0 ? "Today"
+      : dayDiff === 1 ? "Tomorrow"
+      : d.toLocaleDateString([], { month: "short", day: "numeric" }),
     time: d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }),
   };
 }
@@ -35,7 +38,10 @@ function Cookbook() {
   const cuisines = [...new Set(history.map(h => h.cuisine))];
   const COLORS = ["bg-ember", "bg-success", "bg-warning", "bg-blue-500", "bg-purple-500"];
 
-  const q = query.trim().toLowerCase();
+  // Allow searching only once the cookbook is genuinely long; ignore the query
+  // unless search is actually visible so a stale filter can't linger.
+  const searchable = saved.length + history.length > 10;
+  const q = searchable && searchOpen ? query.trim().toLowerCase() : "";
   const savedList = q ? saved.filter(s => s.recipe.name.toLowerCase().includes(q)) : saved;
   const cookedList = q ? history.filter(h => h.name.toLowerCase().includes(q)) : history;
 
@@ -47,9 +53,6 @@ function Cookbook() {
     setRecipe(entry.recipe);
     navigate({ to: "/cook" });
   };
-
-  // Allow searching only once the cookbook is genuinely long.
-  const searchable = saved.length + history.length > 10;
 
   const closeSearch = () => { setQuery(""); setSearchOpen(false); };
 
@@ -228,17 +231,22 @@ function Cookbook() {
       {pendingDelete && (
         <div onClick={() => setPendingDelete(null)}
           className="absolute inset-0 z-[60] flex items-center justify-center px-8 bg-black/60">
-          <div onClick={e => e.stopPropagation()}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-recipe-title"
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => { if (e.key === "Escape") setPendingDelete(null); }}
             className="w-full max-w-[320px] bg-bg-surface border border-border-default rounded-2xl p-5">
             <div className="w-11 h-11 rounded-full bg-red-500/15 flex items-center justify-center mb-3">
               <Trash2 className="w-5 h-5 text-red-400" />
             </div>
-            <h3 className="text-[17px] font-semibold text-text-primary">Remove this recipe?</h3>
+            <h3 id="delete-recipe-title" className="text-[17px] font-semibold text-text-primary">Remove this recipe?</h3>
             <p className="text-[13px] text-text-secondary mt-1.5 leading-relaxed">
               “{pendingDelete}” will be removed from your cookbook and its reminder cancelled.
             </p>
             <div className="flex gap-3 mt-5">
-              <button onClick={() => setPendingDelete(null)}
+              <button autoFocus onClick={() => setPendingDelete(null)}
                 className="flex-1 h-11 rounded-xl bg-bg-elevated border border-border-default text-text-primary text-[14px] font-medium active:scale-[0.98]">
                 Cancel
               </button>

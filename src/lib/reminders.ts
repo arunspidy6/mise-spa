@@ -13,9 +13,10 @@ const DINNER_HOUR = 18;
 
 export type MealSlot = { meal: "lunch" | "dinner"; cookAt: number };
 
-// Build a timestamp for a given hour, today or `dayOffset` days ahead.
-function atHour(hour: number, dayOffset = 0): number {
-  const d = new Date();
+// Build a timestamp for a given hour, today or `dayOffset` days ahead,
+// relative to `base` so a simulated/injected clock stays consistent.
+function atHour(hour: number, dayOffset = 0, base = Date.now()): number {
+  const d = new Date(base);
   d.setDate(d.getDate() + dayOffset);
   d.setHours(hour, 0, 0, 0);
   return d.getTime();
@@ -32,17 +33,17 @@ function preferredMeal(recipe: Recipe): "lunch" | "dinner" {
 // otherwise tomorrow's preferred meal.
 export function pickMealSlot(recipe: Recipe, now = Date.now()): MealSlot {
   const wants = preferredMeal(recipe);
-  const todayLunch = atHour(LUNCH_HOUR);
-  const todayDinner = atHour(DINNER_HOUR);
+  const todayLunch = atHour(LUNCH_HOUR, 0, now);
+  const todayDinner = atHour(DINNER_HOUR, 0, now);
 
   if (wants === "lunch") {
     if (now < todayLunch) return { meal: "lunch", cookAt: todayLunch };
     if (now < todayDinner) return { meal: "dinner", cookAt: todayDinner };
-    return { meal: "lunch", cookAt: atHour(LUNCH_HOUR, 1) };
+    return { meal: "lunch", cookAt: atHour(LUNCH_HOUR, 1, now) };
   }
   // wants dinner
   if (now < todayDinner) return { meal: "dinner", cookAt: todayDinner };
-  return { meal: "dinner", cookAt: atHour(DINNER_HOUR, 1) };
+  return { meal: "dinner", cookAt: atHour(DINNER_HOUR, 1, now) };
 }
 
 // Make sure the timer/reminder service worker is registered before we post to it.
@@ -56,15 +57,30 @@ async function ready(): Promise<ServiceWorkerRegistration | null> {
   }
 }
 
-export async function scheduleRecipeReminder(name: string, meal: "lunch" | "dinner", cookAt: number) {
+export type ScheduleResult = { ok: boolean; reason?: "denied" | "no-sw" };
+
+// Returns whether a reminder was actually scheduled, so callers can avoid
+// promising a reminder that will never fire (permission blocked / no worker).
+export async function scheduleRecipeReminder(
+  name: string,
+  meal: "lunch" | "dinner",
+  cookAt: number,
+): Promise<ScheduleResult> {
   try {
     if ("Notification" in window && Notification.permission === "default") {
       await Notification.requestPermission();
     }
-  } catch { /* permission prompt unavailable — schedule anyway */ }
+  } catch { /* permission prompt unavailable */ }
 
   const reg = await ready();
-  reg?.active?.postMessage({ type: "RECIPE_REMINDER", name, meal, cookAt });
+  if (!reg?.active) return { ok: false, reason: "no-sw" };
+
+  reg.active.postMessage({ type: "RECIPE_REMINDER", name, meal, cookAt });
+
+  if (typeof Notification !== "undefined" && Notification.permission !== "granted") {
+    return { ok: false, reason: "denied" };
+  }
+  return { ok: true };
 }
 
 export async function cancelRecipeReminder(name: string) {

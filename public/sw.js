@@ -92,7 +92,14 @@ self.addEventListener("notificationclick", (event) => {
   const url = event.notification.data?.url ?? "/";
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
-      if (list.length > 0) return list[0].focus();
+      // Route an already-open window to the target before focusing it, so
+      // clicking a reminder always lands on the cookbook — not whatever route
+      // the app happened to be on.
+      const client = list[0];
+      if (client) {
+        const navigated = "navigate" in client ? client.navigate(url) : Promise.resolve(client);
+        return Promise.resolve(navigated).catch(() => client).then(c => (c || client).focus());
+      }
       return clients.openWindow(url);
     })
   );

@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { ArrowLeft, ArrowRight, Clock, RotateCw, ChevronDown, ChevronUp, Bookmark, BookmarkCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
@@ -28,22 +28,32 @@ function RecipeCard() {
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saveToast, setSaveToast] = useState<string | null>(null);
+  const saveToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isSaved = !!recipe && saved.some(s => s.recipe.name === recipe.name);
 
-  const toggleSave = () => {
+  // One live toast at a time — reset the dismiss timer on each call so a
+  // rapid save/unsave can't have an older timer clear the newer message.
+  const showSaveToast = (msg: string) => {
+    setSaveToast(msg);
+    if (saveToastTimer.current) clearTimeout(saveToastTimer.current);
+    saveToastTimer.current = setTimeout(() => setSaveToast(null), 4500);
+  };
+
+  const toggleSave = async () => {
     if (!recipe) return;
     if (isSaved) {
       unsaveRecipe(recipe.name);
       cancelRecipeReminder(recipe.name);
-      setSaveToast("Removed from your cookbook");
-    } else {
-      const slot = pickMealSlot(recipe);
-      saveRecipe({ recipe, savedAt: Date.now(), cookAt: slot.cookAt, meal: slot.meal });
-      scheduleRecipeReminder(recipe.name, slot.meal, slot.cookAt);
-      setSaveToast(`Saved — we'll remind you ${describeSlot(slot)}`);
+      showSaveToast("Removed from your cookbook");
+      return;
     }
-    setTimeout(() => setSaveToast(null), 4500);
+    const slot = pickMealSlot(recipe);
+    saveRecipe({ recipe, savedAt: Date.now(), cookAt: slot.cookAt, meal: slot.meal });
+    // Saved is certain; only promise a reminder if scheduling actually succeeds.
+    showSaveToast("Saved to your cookbook");
+    const res = await scheduleRecipeReminder(recipe.name, slot.meal, slot.cookAt);
+    if (res.ok) showSaveToast(`Saved — we'll remind you ${describeSlot(slot)}`);
   };
 
   if (!recipe) {
