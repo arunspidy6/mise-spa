@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Clock, Users, RotateCw, ChevronDown, ChevronUp } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, Users, RotateCw, ChevronDown, ChevronUp, Bookmark, BookmarkCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
@@ -9,6 +9,7 @@ import { RecipeImage } from "@/components/mise/RecipeImage";
 import { RecipeLoaderContent } from "@/components/mise/RecipeLoader";
 import { useMise } from "@/store/mise";
 import { getRecipeFromAPI } from "@/lib/generate-recipe";
+import { pickMealSlot, describeSlot, scheduleRecipeReminder, cancelRecipeReminder } from "@/lib/reminders";
 
 export const Route = createFileRoute("/recipe")({ component: RecipeCard });
 
@@ -20,9 +21,30 @@ function RecipeCard() {
   const session = useMise(s => s.session);
   const setRecipe = useMise(s => s.setRecipe);
   const history = useMise(s => s.history);
+  const saved = useMise(s => s.saved);
+  const saveRecipe = useMise(s => s.saveRecipe);
+  const unsaveRecipe = useMise(s => s.unsaveRecipe);
   const [rerolling, setRerolling] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [saveToast, setSaveToast] = useState<string | null>(null);
+
+  const isSaved = !!recipe && saved.some(s => s.recipe.name === recipe.name);
+
+  const toggleSave = () => {
+    if (!recipe) return;
+    if (isSaved) {
+      unsaveRecipe(recipe.name);
+      cancelRecipeReminder(recipe.name);
+      setSaveToast("Removed from your cookbook");
+    } else {
+      const slot = pickMealSlot(recipe);
+      saveRecipe({ recipe, savedAt: Date.now(), cookAt: slot.cookAt, meal: slot.meal });
+      scheduleRecipeReminder(recipe.name, slot.meal, slot.cookAt);
+      setSaveToast(`Saved — we'll remind you ${describeSlot(slot)}`);
+    }
+    setTimeout(() => setSaveToast(null), 4500);
+  };
 
   if (!recipe) {
     return (
@@ -90,6 +112,22 @@ function RecipeCard() {
   return (
     <MobileFrame>
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
+        {/* Save confirmation toast — anchored to the bottom, near the thumb */}
+        <AnimatePresence>
+          {saveToast && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 12 }}
+              transition={{ type: "spring", stiffness: 400, damping: 28 }}
+              className="absolute bottom-4 inset-x-4 z-50 rounded-xl bg-bg-elevated border border-border-default px-4 py-3 flex items-center gap-3 shadow-md"
+            >
+              <BookmarkCheck className="w-4 h-4 flex-shrink-0 text-ember-text" />
+              <p className="text-[13px] text-text-primary leading-snug">{saveToast}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <div className="flex-shrink-0 px-4 pt-5 pb-2">
           <button onClick={() => navigate({ to: "/session" })}
             className="w-10 h-10 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
@@ -117,23 +155,36 @@ function RecipeCard() {
 
           {/* Recipe card */}
           <div className="rounded-xl overflow-hidden bg-bg-surface border border-border-subtle">
-            <RecipeImage src={recipe.image} cuisine={recipe.cuisine} alt={recipe.name} height={220}>
-              <div className="p-4 flex flex-col justify-end gap-2">
-                <div className="flex gap-2 flex-wrap">
-                  <span className="bg-ember text-bg-base text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full">
-                    {recipe.cuisine}
-                  </span>
-                  <span className="bg-black/50 backdrop-blur-sm text-white text-[10px] font-mono px-2.5 py-1 rounded-full flex items-center gap-1">
-                    <Clock className="w-3 h-3" />{recipe.time_minutes} min
-                  </span>
-                </div>
-                <h2 className="font-display text-[24px] font-light text-white leading-tight drop-shadow-md">
-                  {recipe.name}
-                </h2>
-              </div>
-            </RecipeImage>
-
             <div className="p-4 space-y-3">
+              {/* Title, match, and description sit above the photo hero */}
+              <div className="flex items-start gap-3">
+                <div className="flex-1 space-y-2 min-w-0">
+                  <div className="flex gap-2 flex-wrap">
+                    <span className="bg-ember-glow text-ember-text text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full">
+                      {recipe.cuisine}
+                    </span>
+                    <span className="bg-bg-elevated text-text-secondary text-[10px] font-mono px-2.5 py-1 rounded-full flex items-center gap-1">
+                      <Clock className="w-3 h-3" />{recipe.time_minutes} min
+                    </span>
+                  </div>
+                  <h2 className="font-display text-[24px] font-light text-text-primary leading-tight">
+                    {recipe.name}
+                  </h2>
+                </div>
+                <button
+                  onClick={toggleSave}
+                  aria-label={isSaved ? "Remove from cookbook" : "Save to cook later"}
+                  aria-pressed={isSaved}
+                  className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center border transition active:scale-90 ${
+                    isSaved
+                      ? "bg-ember-glow border-ember-dim text-ember-text"
+                      : "bg-bg-raised border-border-default text-text-secondary"
+                  }`}
+                >
+                  {isSaved ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+                </button>
+              </div>
+
               {/* Match status */}
               {allGood && (
                 <div className="flex items-center gap-1.5">
@@ -161,14 +212,17 @@ function RecipeCard() {
               )}
 
               <p className="text-[14px] text-text-secondary leading-relaxed">{recipe.description}</p>
+            </div>
 
-              <div className="flex items-center justify-between text-[12px] text-text-tertiary pt-1 border-t border-border-subtle">
-                <span>{diff}</span>
-                <div className="flex items-center gap-1">
+            {/* Photo hero — sits at the bottom; difficulty/serves overlaid on a scrim */}
+            <RecipeImage src={recipe.image} cuisine={recipe.cuisine} alt={recipe.name} height={200}>
+              <div className="p-4 flex items-center justify-between text-white">
+                <span className="text-[12px] font-semibold drop-shadow-md">{diff}</span>
+                <div className="flex items-center gap-1 text-[12px] drop-shadow-md">
                   <Users className="w-3.5 h-3.5" /><span>Serves {recipe.servings}</span>
                 </div>
               </div>
-            </div>
+            </RecipeImage>
           </div>
 
           {/* Recipe preview dropdown */}

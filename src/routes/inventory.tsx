@@ -635,7 +635,7 @@ function InventoryFlow() {
 
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 4500);
   };
 
   const goBack = () => {
@@ -657,11 +657,11 @@ function InventoryFlow() {
       <AnimatePresence>
         {toast && (
           <motion.div
-            initial={{ opacity: 0, y: -12 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
+            exit={{ opacity: 0, y: 12 }}
             transition={{ type: "spring", stiffness: 400, damping: 28 }}
-            className="absolute top-4 inset-x-4 z-50 rounded-xl bg-bg-elevated border border-border-default px-4 py-3 flex items-center gap-3 shadow-md"
+            className="absolute bottom-4 inset-x-4 z-50 rounded-xl bg-bg-elevated border border-border-default px-4 py-3 flex items-center gap-3 shadow-md"
           >
             <span className="text-base flex-shrink-0">✨</span>
             <p className="text-[13px] text-text-primary leading-snug">{toast}</p>

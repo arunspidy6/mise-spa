@@ -64,17 +64,31 @@ type HistoryEntry = {
   ts: number;
 };
 
+// A recipe the user saved to cook later. Holds the full recipe so it can be
+// re-opened straight from the cookbook, plus the meal-time reminder slot.
+export type SavedRecipe = {
+  recipe: Recipe;
+  savedAt: number;
+  cookAt: number;            // when the lunch/dinner reminder fires
+  meal: "lunch" | "dinner";
+};
+
 type Store = {
   inventory: Inventory;
   session: Session;
   recipe: Recipe | null;
   history: HistoryEntry[];
+  saved: SavedRecipe[];
   setInventory: (i: Partial<Inventory>) => void;
   toggleItem: (cat: keyof Omit<Inventory, "lastUpdated" | "customItems" | "customTokenMap">, item: string) => void;
   finalizeInventory: () => void;
   setSession: (s: Partial<Session>) => void;
   setRecipe: (r: Recipe | null) => void;
   addHistory: (e: HistoryEntry) => void;
+  // Save a recipe to cook later (dedupes by name).
+  saveRecipe: (entry: SavedRecipe) => void;
+  // Remove a saved recipe — on manual un-save, or once it's been cooked.
+  unsaveRecipe: (name: string) => void;
   addCustomItem: (item: string) => void;
   clearCustomItems: () => void;
   addCustomTokenMapping: (displayLabel: string, satToken: string) => void;
@@ -99,6 +113,7 @@ export const useMise = create<Store>()(
       session: { timeMinutes: 30, servings: 2, cuisine: null, vibes: [] },
       recipe: null,
       history: [],
+      saved: [],
       setInventory: (i) => set((s) => ({ inventory: { ...s.inventory, ...i } })),
       toggleItem: (cat, item) =>
         set((s) => {
@@ -113,7 +128,25 @@ export const useMise = create<Store>()(
       setSession: (s2) => set((s) => ({ session: { ...s.session, ...s2 } })),
       setRecipe: (r) => set({ recipe: r }),
       addHistory: (e) =>
-        set((s) => ({ history: [e, ...s.history].slice(0, 50) })),
+        set((s) => {
+          // Finishing a cook logs a provisional "good" entry, then the feedback
+          // screen logs the real rating. Collapse those into one: if the most
+          // recent entry is the same dish within the last 15 min, update it in
+          // place instead of adding a duplicate.
+          const recent = s.history[0];
+          if (recent && recent.name === e.name && e.ts - recent.ts < 15 * 60 * 1000) {
+            const next = [...s.history];
+            next[0] = { ...recent, rating: e.rating, ts: e.ts };
+            return { history: next };
+          }
+          return { history: [e, ...s.history].slice(0, 50) };
+        }),
+      saveRecipe: (entry) =>
+        set((s) => ({
+          saved: [entry, ...s.saved.filter((x) => x.recipe.name !== entry.recipe.name)],
+        })),
+      unsaveRecipe: (name) =>
+        set((s) => ({ saved: s.saved.filter((x) => x.recipe.name !== name) })),
       addCustomItem: (item) =>
         set((s) => ({
           inventory: {
@@ -145,6 +178,18 @@ export const useMise = create<Store>()(
         ["mise-store-v1", "mise-store-v2", "mise-v1", "mise-v2"].forEach(k => {
           try { localStorage.removeItem(k); } catch {}
         });
+        // One-time cleanup of the cook→feedback double-log: collapse adjacent
+        // same-dish entries (within 15 min) that earlier versions duplicated,
+        // keeping the newer one (which carries the user's real rating).
+        if (state?.history?.length) {
+          const deduped: HistoryEntry[] = [];
+          for (const h of state.history) {
+            const prev = deduped[deduped.length - 1];
+            if (prev && prev.name === h.name && Math.abs(prev.ts - h.ts) < 15 * 60 * 1000) continue;
+            deduped.push(h);
+          }
+          state.history = deduped;
+        }
         // Kitchen persists across visits — the full inventory (proteins, carbs,
         // vegetables, fridge, staples, appliances, custom items) is remembered,
         // so a refresh no longer wipes what the user selected.

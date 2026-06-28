@@ -167,11 +167,12 @@ export function RecipeImage({
         />
       )}
 
-      {/* Darkening vignette keeps overlaid text legible */}
-      <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 pointer-events-none" />
-
+      {/* Darkening vignette only when text is overlaid on the photo */}
       {children && (
-        <div className="absolute inset-0 flex flex-col justify-end">{children}</div>
+        <>
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60 pointer-events-none" />
+          <div className="absolute inset-0 flex flex-col justify-end">{children}</div>
+        </>
       )}
     </div>
   );

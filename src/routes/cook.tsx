@@ -176,8 +176,18 @@ function derivePrepNote(name: string, steps: any[]): string | null {
       const a = after.match(/^\s*(thinly|finely|roughly|coarsely)\b/);
       if (a) adverb = a[1];
     }
-    const into = after.match(/into\s+([^.,;]*?(chunks|cubes|strips|pieces|wedges|rounds|batons|florets|matchsticks))/);
-    if (into) return `${verb} into ${into[1].trim()}`;
+    // Capture the exact cut shape (and size) so the prep note matches the
+    // steps — "sliced into 1cm strips", not a vague "sliced" the cook reads as
+    // cubes. Look across the whole step, with or without an "into".
+    const SHAPES = "chunks?|cubes?|strips?|pieces?|wedges?|rounds?|batons?|florets?|matchsticks?";
+    const shaped = text.match(
+      new RegExp(`(\\d+\\s?cm\\s*(?:thick|thin)?\\s*)?(thin|thick|small|large|bite-?sized)?\\s*\\b(${SHAPES})\\b`, "i")
+    );
+    if (shaped) {
+      const sizeOrDesc = (shaped[1] || shaped[2] || "").trim();
+      const phrase = `${sizeOrDesc ? sizeOrDesc + " " : ""}${shaped[3]}`.replace(/\s+/g, " ").trim();
+      return `${verb} into ${phrase}`;
+    }
     return adverb ? `${adverb} ${verb}` : verb;
   }
   for (const key of Object.keys(DEFAULT_PREP)) {
@@ -265,11 +275,11 @@ function PrepScreen({ recipe, onStart, onBack }: { recipe: any; onStart: () => v
                 const done = checked.has(i);
                 return (
                   <motion.button key={i} onClick={() => toggle(i)} layout
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border transition-colors active:scale-[0.99]
+                    className={`w-full flex items-start gap-3 px-4 py-3 rounded-xl border transition-colors active:scale-[0.99]
                       ${done ? "bg-success/10 border-success/30" : "bg-bg-surface border-border-subtle"}`}
                   >
                     <motion.div animate={done ? { scale: [1, 1.25, 1] } : {}}
-                      className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors
+                      className={`flex-shrink-0 w-5 h-5 mt-0.5 rounded-full border-2 flex items-center justify-center transition-colors
                         ${done ? "bg-success border-success" : "border-border-default"}`}
                     >
                       {done && <span className="text-bg-base text-[9px] font-bold leading-none">✓</span>}
@@ -284,7 +294,7 @@ function PrepScreen({ recipe, onStart, onBack }: { recipe: any; onStart: () => v
                         {capFirst(ing.prep)}
                       </p>
                     </div>
-                    <span className="text-[11px] text-text-tertiary font-mono flex-shrink-0 self-start mt-0.5">{ing.quantity}</span>
+                    <span className="text-[11px] text-text-tertiary font-mono text-right leading-snug whitespace-normal break-words flex-shrink-0 max-w-[42%] mt-0.5">{ing.quantity}</span>
                   </motion.button>
                 );
               })}
@@ -296,9 +306,9 @@ function PrepScreen({ recipe, onStart, onBack }: { recipe: any; onStart: () => v
             <p className="label-eyebrow mb-2.5">{prepItems.length > 0 ? "Also grab" : "Gather these"}</p>
             <div className="bg-bg-surface border border-border-subtle rounded-xl overflow-hidden divide-y divide-border-subtle">
               {grabItems.map((ing, i) => (
-                <div key={i} className="flex items-center justify-between gap-3 px-4 py-2.5">
-                  <span className="text-[13px] text-text-secondary">{ing.name}</span>
-                  <span className={`text-[11px] font-mono flex-shrink-0 text-right ${ing.substituteNote ? "text-ember-text" : "text-text-tertiary"}`}>
+                <div key={i} className="flex items-start justify-between gap-3 px-4 py-2.5">
+                  <span className="text-[13px] text-text-secondary flex-shrink-0">{ing.name}</span>
+                  <span className={`text-[11px] font-mono text-right leading-snug whitespace-normal break-words max-w-[55%] ${ing.substituteNote ? "text-ember-text" : "text-text-tertiary"}`}>
                     {ing.substituteNote ? `use ${ing.substituteNote}` : ing.quantity}
                   </span>
                 </div>
@@ -1078,7 +1088,7 @@ function CookMode() {
     localStorage.setItem("mise_voice_promo", "1");
   }, []);
 
-  const toggleVoice = useCallback(() => {
+  const toggleVoice = useCallback(async () => {
     dismissVoicePromo(); // tapping mic counts as "seen"
     if (voiceActive) {
       stopVoice();
@@ -1088,6 +1098,21 @@ function CookMode() {
         setVoiceTranscript(VOICE_UNAVAILABLE_MSG);
         setVoiceStatus("heard");
         setTimeout(() => { setVoiceTranscript(""); setVoiceStatus("idle"); }, 4000);
+        return;
+      }
+      // Explicitly ask for the mic up front. SpeechRecognition can otherwise
+      // fail silently when permission hasn't been granted — the button just
+      // does nothing. Prompting here makes voice reliably turn on, and lets us
+      // show a clear message when the browser has blocked the mic.
+      try {
+        const probe = await navigator.mediaDevices.getUserMedia({ audio: true });
+        probe.getTracks().forEach(t => t.stop());
+      } catch {
+        voiceActiveRef.current = false;
+        setVoiceActive(false);
+        setVoiceStatus("heard");
+        setVoiceTranscript("Mic access is blocked. Allow the microphone for this site in your browser, then tap the mic again.");
+        setTimeout(() => { setVoiceTranscript(""); setVoiceStatus("idle"); }, 5000);
         return;
       }
       voiceActiveRef.current = true;
@@ -1233,7 +1258,7 @@ function CookMode() {
 
         {/* ── Voice status bar ────────────────────────────────────────── */}
         <AnimatePresence>
-          {voiceActive && (
+          {(voiceActive || voiceTranscript) && (
             <motion.div
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: "auto" }}
@@ -1246,14 +1271,19 @@ function CookMode() {
                   ? "bg-ember-glow border border-ember-dim"
                   : "bg-bg-raised border border-border-subtle"
               }`}>
-                {/* Real mic amplitude waveform */}
-                <VoiceWaveform levels={audioLevels} />
+                {/* Live mic waveform while listening; a mic-off cue for messages */}
+                {voiceActive
+                  ? <VoiceWaveform levels={audioLevels} />
+                  : <MicOff className="w-4 h-4 text-ember-text flex-shrink-0" />
+                }
 
-                <span className={`text-[13px] flex-1 font-mono truncate ${
+                <span className={`text-[13px] flex-1 font-mono leading-snug break-words ${
+                  voiceActive ? "truncate" : ""
+                } ${
                   voiceStatus === "heard" ? "text-ember-text" : "text-text-secondary"
                 }`}>
                   {voiceTranscript
-                    ? `"${voiceTranscript}"`
+                    ? (voiceActive ? `"${voiceTranscript}"` : voiceTranscript)
                     : "Listening…"
                   }
                 </span>
