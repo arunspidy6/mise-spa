@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, ArrowRight, Clock, Users, RotateCw, ChevronDown, ChevronUp, Bookmark, BookmarkCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, RotateCw, ChevronDown, ChevronUp, Bookmark, BookmarkCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
@@ -63,7 +63,6 @@ function RecipeCard() {
   const swaps = recipe.requiredSwaps ?? [];
   const optional = recipe.optionalMissing ?? [];
   const allGood = swaps.length === 0 && optional.length === 0;
-  const diff = ["", "Easy", "Medium", "Challenging"][recipe.difficulty] ?? "Medium";
 
   const swap = async () => {
     setRerolling(true);
@@ -155,8 +154,10 @@ function RecipeCard() {
 
           {/* Recipe card */}
           <div className="rounded-xl overflow-hidden bg-bg-surface border border-border-subtle">
+            {/* Photo at the top — square frame so the dish shows fully, uncropped */}
+            <RecipeImage src={recipe.image} cuisine={recipe.cuisine} alt={recipe.name} className="aspect-square" />
+
             <div className="p-4 space-y-3">
-              {/* Title, match, and description sit above the photo hero */}
               <div className="flex items-start gap-3">
                 <div className="flex-1 space-y-2 min-w-0">
                   <div className="flex gap-2 flex-wrap">
@@ -167,7 +168,7 @@ function RecipeCard() {
                       <Clock className="w-3 h-3" />{recipe.time_minutes} min
                     </span>
                   </div>
-                  <h2 className="font-display text-[24px] font-light text-text-primary leading-tight">
+                  <h2 className="font-display text-[19px] font-light text-text-primary leading-snug">
                     {recipe.name}
                   </h2>
                 </div>
@@ -213,16 +214,6 @@ function RecipeCard() {
 
               <p className="text-[14px] text-text-secondary leading-relaxed">{recipe.description}</p>
             </div>
-
-            {/* Photo hero — sits at the bottom; difficulty/serves overlaid on a scrim */}
-            <RecipeImage src={recipe.image} cuisine={recipe.cuisine} alt={recipe.name} height={200}>
-              <div className="p-4 flex items-center justify-between text-white">
-                <span className="text-[12px] font-semibold drop-shadow-md">{diff}</span>
-                <div className="flex items-center gap-1 text-[12px] drop-shadow-md">
-                  <Users className="w-3.5 h-3.5" /><span>Serves {recipe.servings}</span>
-                </div>
-              </div>
-            </RecipeImage>
           </div>
 
           {/* Recipe preview dropdown */}

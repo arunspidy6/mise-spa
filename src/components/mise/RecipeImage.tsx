@@ -83,16 +83,20 @@ export function RecipeImage({
   src: _src,   // pollinations URLs are dead (HTTP 402) — intentionally unused
   cuisine,
   alt,
-  height = 220,
+  height,
   children,
   className,
+  fit = "cover",
 }: {
   src?: string;
   cuisine: string;
   alt: string;
+  // Omit height and pass an aspect-ratio class (e.g. "aspect-square") instead
+  // when you want the frame to track the image rather than crop to a fixed bar.
   height?: number;
   children?: React.ReactNode;
   className?: string;
+  fit?: "cover" | "contain";
 }) {
   const fallbackGrad = CUISINE_FALLBACK[cuisine] ?? "from-[#3a2a10] to-[#1a0f04]";
 
@@ -136,7 +140,7 @@ export function RecipeImage({
   return (
     <div
       className={cn("relative w-full overflow-hidden bg-bg-overlay", className)}
-      style={{ height }}
+      style={height != null ? { height } : undefined}
     >
       {/* Warm cuisine gradient — always visible under/before the photo */}
       <div className={cn("absolute inset-0 bg-gradient-to-br", fallbackGrad)} />
@@ -161,7 +165,8 @@ export function RecipeImage({
           onLoad={handleLoad}
           onError={handleError}
           className={cn(
-            "absolute inset-0 w-full h-full object-cover transition-opacity duration-500",
+            "absolute inset-0 w-full h-full transition-opacity duration-500",
+            fit === "contain" ? "object-contain" : "object-cover",
             loaded ? "opacity-100" : "opacity-0"
           )}
         />
