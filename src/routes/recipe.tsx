@@ -164,12 +164,13 @@ function RecipeCard() {
 
           {/* Recipe card */}
           <div className="rounded-xl overflow-hidden bg-bg-surface border border-border-subtle">
-            {/* Photo at the top — square frame so the dish shows fully, uncropped */}
-            <RecipeImage src={recipe.image} cuisine={recipe.cuisine} alt={recipe.name} className="aspect-square" />
+            {/* Photo — compact banner so the recipe preview stays in view */}
+            <RecipeImage src={recipe.image} cuisine={recipe.cuisine} alt={recipe.name} height={180} />
 
-            <div className="p-4 space-y-3">
+            <div className="p-4 space-y-2.5">
+              {/* Title + caption together, with the bookmark alongside */}
               <div className="flex items-start gap-3">
-                <div className="flex-1 space-y-2 min-w-0">
+                <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex gap-2 flex-wrap">
                     <span className="bg-ember-glow text-ember-text text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full">
                       {recipe.cuisine}
@@ -181,6 +182,7 @@ function RecipeCard() {
                   <h2 className="font-display text-[19px] font-light text-text-primary leading-snug">
                     {recipe.name}
                   </h2>
+                  <p className="text-[13px] text-text-secondary leading-snug">{recipe.description}</p>
                 </div>
                 <button
                   onClick={toggleSave}
@@ -192,17 +194,10 @@ function RecipeCard() {
                       : "bg-bg-raised border-border-default text-text-secondary"
                   }`}
                 >
-                  {isSaved ? <BookmarkCheck className="w-5 h-5" /> : <Bookmark className="w-5 h-5" />}
+                  <Bookmark className="w-5 h-5" fill={isSaved ? "currentColor" : "none"} />
                 </button>
               </div>
 
-              {/* Match status */}
-              {allGood && (
-                <div className="flex items-center gap-1.5">
-                  <span className="text-success">✓</span>
-                  <span className="text-[12px] text-success font-medium">You have everything</span>
-                </div>
-              )}
               {swaps.length > 0 && (
                 <div className="rounded-lg border border-ember-dim bg-ember-glow p-3 space-y-2">
                   <p className="text-[12px] font-semibold text-ember-text">
@@ -222,7 +217,13 @@ function RecipeCard() {
                 </p>
               )}
 
-              <p className="text-[14px] text-text-secondary leading-relaxed">{recipe.description}</p>
+              {/* Match status — sits at the bottom of the card */}
+              {allGood && (
+                <div className="flex items-center gap-1.5 pt-0.5">
+                  <span className="text-success">✓</span>
+                  <span className="text-[12px] text-success font-medium">You have everything</span>
+                </div>
+              )}
             </div>
           </div>
 
