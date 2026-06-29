@@ -168,9 +168,11 @@ function RecipeCard() {
             <RecipeImage src={recipe.image} cuisine={recipe.cuisine} alt={recipe.name} height={180} />
 
             <div className="p-4 space-y-2.5">
-              {/* Title + caption together, with the bookmark alongside */}
+              {/* Metadata → title → caption: three distinct tiers via size,
+                  weight, colour and spacing rhythm (not a single paragraph). */}
               <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0 space-y-1">
+                <div className="flex-1 min-w-0">
+                  {/* Tier 1 — category + time metadata (eyebrow) */}
                   <div className="flex gap-2 flex-wrap">
                     <span className="bg-ember-glow text-ember-text text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full">
                       {recipe.cuisine}
@@ -179,10 +181,13 @@ function RecipeCard() {
                       <Clock className="w-3 h-3" />{recipe.time_minutes} min
                     </span>
                   </div>
-                  <h2 className="font-display text-[19px] font-light text-text-primary leading-snug">
+                  {/* Tier 2 — the hero: larger, brighter, tight leading so a
+                      multi-line name reads as one block */}
+                  <h2 className="font-display text-[22px] font-normal text-text-primary leading-[1.12] tracking-tight mt-2.5">
                     {recipe.name}
                   </h2>
-                  <p className="text-[13px] text-text-secondary leading-snug">{recipe.description}</p>
+                  {/* Tier 3 — supporting caption: smaller, muted, looser */}
+                  <p className="text-[13px] text-text-tertiary leading-relaxed mt-2">{recipe.description}</p>
                 </div>
                 <button
                   onClick={toggleSave}
