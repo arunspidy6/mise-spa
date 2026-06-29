@@ -194,6 +194,20 @@ export function RecipeImage({
         </div>
       )}
 
+      {displaySrc && fit === "contain" && (
+        // Blurred, zoomed copy of the photo fills the frame edge-to-edge so the
+        // whole dish can sit contained + centred on top with no dead bars and
+        // nothing cut off — regardless of the source image's aspect ratio.
+        <img
+          aria-hidden="true"
+          src={displaySrc}
+          className={cn(
+            "absolute inset-0 w-full h-full object-cover scale-110 blur-xl transition-opacity duration-500",
+            loaded ? "opacity-60" : "opacity-0"
+          )}
+        />
+      )}
+
       {displaySrc && (
         <img
           key={displaySrc}
