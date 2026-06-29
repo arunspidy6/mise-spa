@@ -164,9 +164,8 @@ function RecipeCard() {
 
           {/* Recipe card */}
           <div className="rounded-xl overflow-hidden bg-bg-surface border border-border-subtle">
-            {/* Photo — compact banner; the whole dish stays centred and
-                contained (no crop) over a blurred fill of the same image. */}
-            <RecipeImage src={recipe.image} cuisine={recipe.cuisine} alt={recipe.name} height={180} fit="contain" />
+            {/* Photo — compact banner so the recipe preview stays in view */}
+            <RecipeImage src={recipe.image} cuisine={recipe.cuisine} alt={recipe.name} height={180} />
 
             <div className="p-4 space-y-2.5">
               {/* Metadata → title → caption: three distinct tiers via size,
