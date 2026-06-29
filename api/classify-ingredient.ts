@@ -7,6 +7,8 @@ const ALLOWED_ORIGIN: RegExp[] = [
   /-aruns-projects-10c588ee\.vercel\.app$/,
   /^http:\/\/localhost(:\d+)?$/,
   /\.loca\.lt$/,
+  /^capacitor:\/\/localhost$/,  // iOS Capacitor WKWebView origin
+  /^ionic:\/\/localhost$/,      // Capacitor (alt) / Ionic origin
 ];
 function setCors(req: VercelRequest, res: VercelResponse) {
   const origin = req.headers.origin as string | undefined;
