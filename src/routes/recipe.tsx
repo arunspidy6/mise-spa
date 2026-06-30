@@ -37,7 +37,7 @@ function RecipeCard() {
   const showSaveToast = (msg: string) => {
     setSaveToast(msg);
     if (saveToastTimer.current) clearTimeout(saveToastTimer.current);
-    saveToastTimer.current = setTimeout(() => setSaveToast(null), 4500);
+    saveToastTimer.current = setTimeout(() => setSaveToast(null), 3375);
   };
 
   const toggleSave = async () => {
@@ -129,9 +129,11 @@ function RecipeCard() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 12 }}
               transition={{ type: "spring", stiffness: 400, damping: 28 }}
-              className="absolute bottom-4 inset-x-4 z-50 rounded-xl bg-bg-elevated border border-border-default px-4 py-3 flex items-center gap-3 shadow-md"
+              className="absolute bottom-32 inset-x-6 z-50 rounded-2xl bg-bg-base/95 backdrop-blur-md border border-ember-dim shadow-lg px-3.5 py-2.5 flex items-center gap-2.5"
             >
-              <BookmarkCheck className="w-4 h-4 flex-shrink-0 text-ember-text" />
+              <span className="flex-shrink-0 w-7 h-7 rounded-full bg-ember-glow flex items-center justify-center">
+                <BookmarkCheck className="w-4 h-4 text-ember-text" />
+              </span>
               <p className="text-[13px] text-text-primary leading-snug">{saveToast}</p>
             </motion.div>
           )}

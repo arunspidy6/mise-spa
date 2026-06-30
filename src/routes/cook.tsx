@@ -6,6 +6,7 @@ import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { useMise } from "@/store/mise";
 import { isNative, ensureNotificationPermission, scheduleNotice, cancelNotice } from "@/lib/native/notify";
+import { nativeVoiceSupported, startNativeSpeech, stopNativeSpeech } from "@/lib/native/speech";
 
 // Cook-timer notification ids live in their own range so they never collide
 // with saved-recipe reminder ids.
@@ -1102,6 +1103,7 @@ function CookMode() {
   const stopVoice = useCallback(() => {
     voiceStartTokenRef.current++;
     voiceActiveRef.current = false;
+    if (nativeVoiceSupported()) stopNativeSpeech();
     if (recRef.current) { try { recRef.current.abort(); } catch {} recRef.current = null; }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     stopAudioAnalyser();
@@ -1121,11 +1123,32 @@ function CookMode() {
     if (voiceActive) {
       stopVoice();
     } else {
-      if (!SR) {
+      if (!SR && !nativeVoiceSupported()) {
         // Show a dismissible message explaining the limitation
         setVoiceTranscript(VOICE_UNAVAILABLE_MSG);
         setVoiceStatus("heard");
         setTimeout(() => { setVoiceTranscript(""); setVoiceStatus("idle"); }, 4000);
+        return;
+      }
+      // Native (iOS): Apple Speech framework via the Capacitor plugin.
+      if (nativeVoiceSupported()) {
+        voiceActiveRef.current = true;
+        setVoiceActive(true);
+        setVoiceStatus("listening");
+        const ok = await startNativeSpeech((text, isFinal) => {
+          setVoiceTranscript(text);
+          processTranscript(text, isFinal);
+        });
+        if (!ok) {
+          voiceActiveRef.current = false;
+          setVoiceActive(false);
+          setVoiceStatus("heard");
+          setVoiceTranscript("Microphone or speech recognition is off. Enable both for Mise in Settings, then tap the mic again.");
+          setTimeout(() => { setVoiceTranscript(""); setVoiceStatus("idle"); }, 5000);
+        } else if (!localStorage.getItem("mise_voice_hint")) {
+          setVoiceHint(true);
+          localStorage.setItem("mise_voice_hint", "1");
+        }
         return;
       }
       // Explicitly ask for the mic up front. SpeechRecognition can otherwise
@@ -1157,7 +1180,7 @@ function CookMode() {
         localStorage.setItem("mise_voice_hint", "1");
       }
     }
-  }, [voiceActive, stopVoice, startSingleShot, startAudioAnalyser]);
+  }, [voiceActive, stopVoice, startSingleShot, startAudioAnalyser, processTranscript]);
 
   useEffect(() => () => stopVoice(), [stopVoice]);
 
@@ -1238,14 +1261,14 @@ function CookMode() {
               )}
               <button
                 onClick={toggleVoice}
-                title={!SR ? VOICE_UNAVAILABLE_MSG : undefined}
+                title={(!SR && !nativeVoiceSupported()) ? VOICE_UNAVAILABLE_MSG : undefined}
                 className={`w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-90 ${
                   voiceActive
                     ? "bg-ember text-bg-base shadow-[0_0_14px_oklch(0.520_0.178_35_/_0.55)]"
                     : voicePromo
                       ? "bg-ember/20 border-2 border-ember text-ember-text"
                       : "bg-bg-raised border border-border-default text-text-secondary"
-                } ${!SR ? "opacity-40 cursor-not-allowed active:scale-100" : ""}`}
+                } ${(!SR && !nativeVoiceSupported()) ? "opacity-40 cursor-not-allowed active:scale-100" : ""}`}
               >
                 {voiceActive ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
               </button>
