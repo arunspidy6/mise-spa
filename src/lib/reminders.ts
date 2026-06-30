@@ -7,6 +7,7 @@
 // that hasn't passed yet.
 
 import type { Recipe } from "@/store/mise";
+import { isNative, ensureNotificationPermission, scheduleNotice, cancelNotice, noticeIdFor } from "@/lib/native/notify";
 
 const LUNCH_HOUR = 12;
 const DINNER_HOUR = 18;
@@ -66,6 +67,22 @@ export async function scheduleRecipeReminder(
   meal: "lunch" | "dinner",
   cookAt: number,
 ): Promise<ScheduleResult> {
+  // Native (iOS): OS-scheduled local notification — fires even when the app is
+  // closed. This is the robust path for a shipped app.
+  if (isNative()) {
+    const granted = await ensureNotificationPermission();
+    if (!granted) return { ok: false, reason: "denied" };
+    await scheduleNotice({
+      id: noticeIdFor(name),
+      title: "Mise — Time to cook?",
+      body: `Time to cook ${name}? You saved it for ${meal}.`,
+      at: cookAt,
+      url: "/history",
+    });
+    return { ok: true };
+  }
+
+  // Web: schedule via the service worker.
   try {
     if ("Notification" in window && Notification.permission === "default") {
       await Notification.requestPermission();
@@ -84,6 +101,7 @@ export async function scheduleRecipeReminder(
 }
 
 export async function cancelRecipeReminder(name: string) {
+  if (isNative()) { await cancelNotice(noticeIdFor(name)); return; }
   const reg = await ready();
   reg?.active?.postMessage({ type: "RECIPE_REMINDER_CANCEL", name });
 }

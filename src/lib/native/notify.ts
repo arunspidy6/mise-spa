@@ -76,6 +76,19 @@ export async function cancelNotice(id: number): Promise<void> {
   if (webTimers.has(id)) { clearTimeout(webTimers.get(id)!); webTimers.delete(id); }
 }
 
+// Register a handler for when the user taps a native notification — used to
+// deep-link to the relevant screen (the notification's `extra.url`).
+export async function onNotificationTap(handler: (url: string) => void): Promise<void> {
+  if (!isNative()) return;
+  try {
+    const { LocalNotifications } = await import("@capacitor/local-notifications");
+    await LocalNotifications.addListener("localNotificationActionPerformed", (event: any) => {
+      const url = event?.notification?.extra?.url;
+      if (typeof url === "string") handler(url);
+    });
+  } catch { /* plugin unavailable */ }
+}
+
 // Stable numeric id from a recipe name (LocalNotifications ids must be ints).
 export function noticeIdFor(key: string): number {
   let h = 0;

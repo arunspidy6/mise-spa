@@ -5,6 +5,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { useMise } from "@/store/mise";
+import { isNative, ensureNotificationPermission, scheduleNotice, cancelNotice } from "@/lib/native/notify";
+
+// Cook-timer notification ids live in their own range so they never collide
+// with saved-recipe reminder ids.
+const TIMER_NOTICE_BASE = 1_000_000;
 
 export const Route = createFileRoute("/cook")({ component: CookMode });
 
@@ -84,12 +89,26 @@ function loadTimers(): Record<number, TimerState> {
 }
 
 function swSchedule(stepIdx: number, endsAt: number, label: string) {
+  // Native (iOS): OS local notification so the timer fires even if the app is
+  // backgrounded or closed.
+  if (isNative()) {
+    ensureNotificationPermission();
+    scheduleNotice({
+      id: TIMER_NOTICE_BASE + stepIdx,
+      title: "Mise — Timer done!",
+      body: label ? `Step timer finished: ${label}` : "Your timer has finished.",
+      at: endsAt,
+      url: "/cook",
+    });
+    return;
+  }
   navigator.serviceWorker?.ready.then(reg => {
     reg.active?.postMessage({ type: "SCHEDULE", stepIdx, endsAt, label });
   }).catch(() => {});
 }
 
 function swCancel(stepIdx: number) {
+  if (isNative()) { cancelNotice(TIMER_NOTICE_BASE + stepIdx); return; }
   navigator.serviceWorker?.ready.then(reg => {
     reg.active?.postMessage({ type: "CANCEL", stepIdx });
   }).catch(() => {});
@@ -876,7 +895,9 @@ function CookMode() {
         // Fresh start (or restart after done)
         const secs = s.timerMinutes! * 60;
         const endsAt = now + secs * 1000;
-        Notification.requestPermission().catch(() => {});
+        // Web permission prompt (guarded — Notification is undefined in the iOS
+        // WebView; native permission is handled inside swSchedule).
+        if (typeof Notification !== "undefined") Notification.requestPermission().catch(() => {});
         swSchedule(stepIdx, endsAt, s.instruction?.slice(0, 60) ?? "");
         return { ...prev, [stepIdx]: { remaining: secs, total: secs, running: true, done: false, completedAt: undefined, endsAt } };
       }

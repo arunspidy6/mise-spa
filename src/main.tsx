@@ -3,6 +3,7 @@ import * as ReactDOM from "react-dom/client";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { routeTree } from "./routeTree.gen";
+import { onNotificationTap } from "./lib/native/notify";
 import "./styles.css";
 
 const queryClient = new QueryClient();
@@ -17,6 +18,9 @@ const router = createRouter({
 declare module "@tanstack/react-router" {
   interface Register { router: typeof router }
 }
+
+// On native, tapping a local notification deep-links to its target screen.
+onNotificationTap((url) => router.navigate({ to: url as string }));
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
