@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { useMise } from "@/store/mise";
+import { cancelRecipeReminder } from "@/lib/reminders";
 
 export const Route = createFileRoute("/feedback")({ component: FeedbackPage });
 
@@ -20,6 +21,7 @@ function FeedbackPage() {
   const recipe = useMise(s => s.recipe);
   const addHistory = useMise(s => s.addHistory);
   const history = useMise(s => s.history);
+  const unsaveRecipe = useMise(s => s.unsaveRecipe);
   const clearProteinsAndVeggies = useMise(s => s.clearProteinsAndVeggies);
   const [selected, setSelected] = useState<RatingId | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -27,6 +29,10 @@ function FeedbackPage() {
   const submit = () => {
     if (!selected || !recipe) return;
     addHistory({ name: recipe.name, cuisine: recipe.cuisine, rating: selected, ts: Date.now() });
+    // Cooking moves the recipe out of "saved to cook" — it now lives in the
+    // journal, and its history entry already excludes it from future generation.
+    unsaveRecipe(recipe.name);
+    cancelRecipeReminder(recipe.name);
     // Proteins and veg run out after cooking — reset them so the user
     // picks fresh ingredients next time. Staples/spices are kept.
     clearProteinsAndVeggies();

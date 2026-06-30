@@ -626,6 +626,8 @@ function InventoryFlow() {
   const addCustomTokenMapping = useMise(s => s.addCustomTokenMapping);
   const [step, setStep] = useState(initStep ?? 0);
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
   const cur = STEPS[step];
   const selected = (inventory[cur.key] as string[] | undefined) ?? [];
@@ -633,9 +635,11 @@ function InventoryFlow() {
   const isLast = step === STEPS.length - 1;
   const selectedCount = selected.filter(i => allItems.includes(i)).length;
 
+  // Reset the dismiss timer each call so rapid adds don't clear the latest toast early.
   const showToast = (msg: string) => {
     setToast(msg);
-    setTimeout(() => setToast(null), 3000);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 4500);
   };
 
   const goBack = () => {
@@ -657,11 +661,11 @@ function InventoryFlow() {
       <AnimatePresence>
         {toast && (
           <motion.div
-            initial={{ opacity: 0, y: -12 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -12 }}
+            exit={{ opacity: 0, y: 12 }}
             transition={{ type: "spring", stiffness: 400, damping: 28 }}
-            className="absolute top-4 inset-x-4 z-50 rounded-xl bg-bg-elevated border border-border-default px-4 py-3 flex items-center gap-3 shadow-md"
+            className="absolute bottom-24 inset-x-4 z-50 rounded-xl bg-bg-elevated border border-border-default px-4 py-3 flex items-center gap-3 shadow-md"
           >
             <span className="text-base flex-shrink-0">✨</span>
             <p className="text-[13px] text-text-primary leading-snug">{toast}</p>

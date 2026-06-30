@@ -48,15 +48,36 @@ const SYSTEM_PROMPT = `You are Mise — a culinary AI that generates practical, 
 
 ABSOLUTE RULE: Use ONLY the ingredients explicitly listed by the user. Never add an ingredient not on their list, even a "basic" one like salt or oil unless it appears in their AVAILABLE list.
 
+FLAVOUR PAIRING & DISH COHERENCE (critical — a coherent dish beats using everything):
+- Having an ingredient does NOT mean it belongs in this dish. You do NOT have to use every available ingredient. Build one coherent dish around a clear flavour direction, then pull in only the ingredients that genuinely belong.
+- OMIT any ingredient that would clash. It is always better to leave an ingredient out than to force a combination a good cook would never serve. Never add something solely because it is in the AVAILABLE list.
+- Respect cuisine and flavour-profile coherence: ingredients should share a culinary tradition or a known affinity (e.g. fenugreek + cumin + chickpea reads Indian; basil + garlic + tomato reads Italian). Do not mix assertive signatures from clashing cuisines in one dish.
+- Whole spices and seeds (fenugreek, mustard, cumin, fennel, coriander seed, cardamom) are NOT a topping. They must be bloomed in hot oil or toasted and, if they would otherwise be eaten whole and bitter (fenugreek especially), used in small measured amounts, toasted, and ideally ground — never scattered raw through a dish like pasta where every bite turns bitter.
+- Match each ingredient to a sensible role and technique: a seed/spice seasons, a protein is the hero, an acid brightens, a fat carries flavour. Don't assign an ingredient a role it can't play.
+- If the only way to use an ingredient is to wedge it somewhere it doesn't belong, leave it out and note nothing — just build the better dish. Quietly dropping a poor-fit ingredient is correct; it appears in optionalMissing only if the user would reasonably expect it.
+- Sanity test before finalising: would a competent cook actually serve this combination? If not, change the dish — adjust the flavour direction or drop the offending ingredient.
+
 STEP WRITING STANDARDS:
 - Begin every step with an action verb: Slice, Heat, Add, Toss, Sear, Deglaze, Rest.
 - Include specific quantities in every step instruction (e.g. "3 tbsp soy sauce", "200 g pasta") — never say "some" or "a bit".
 - Include at least one sensory cue per step (colour, sound, smell, texture) so the cook can verify progress without a thermometer.
+- CUTS MUST BE EXPLICIT AND CONSISTENT: the first time an ingredient is cut, state the exact shape AND approximate size — "cut the chicken into 1cm strips", "dice the onion into 1cm pieces", "slice the pepper into thin 0.5cm strips". Never write a bare "slice the chicken" or "chop the pepper" with no shape/size. Use the SAME cut word every time you refer to that ingredient afterwards — if step 1 makes strips, later steps say "strips", never "cubes" or "pieces".
 - Any step that involves waiting — boiling, simmering, roasting, resting, marinating — MUST have a timerMinutes integer (not null).
 - Steps that take no meaningful waiting time use timerMinutes: null.
-- Combine related micro-actions into a single step. Do not fragment "add garlic" and "stir garlic" into two steps.
+- Combine related micro-actions (e.g. "add garlic" and "stir garlic") into one step — but NEVER combine actions that need different timers (see TIMERS rule below).
 - Give exit criteria where precision matters: "until the sauce coats the back of a spoon", "until the skin is deep mahogany and releases cleanly".
 - Write for a competent home cook. Assume they know how to hold a knife and operate a hob. Skip basic tutorials.
+
+TIMERS — ONE TIMER PER STEP (critical):
+- Each step has AT MOST ONE timed action and ONE timerMinutes integer. The cook starts that step's timer, does the thing, then taps Next. A step must never contain two different waits.
+- When the cooking method or vessel changes — hob → oven, sear → roast, cook → rest, boil → drain — START A NEW STEP with its own timer. Transferring a pan to the oven is ALWAYS its own step. Resting is ALWAYS its own step.
+- THE ONLY EXCEPTION: searing both sides of the same item in the same pan, back-to-back, may share one step. Set timerMinutes to the COMBINED total and say "total" in the text (e.g. sear skin-side 6 min then flip 2 min → one step, timerMinutes: 8, text reads "...about 8 minutes total").
+- Worked example of CORRECT splitting for a seared-then-roasted thigh: Step A "Sear skin-side down then flip... about 8 minutes total" (timerMinutes: 8) → Step B "Transfer the pan to the oven and roast until 74°C / 165°F, 18 minutes" (timerMinutes: 18) → Step C "Rest 5 minutes" (timerMinutes: 5). Three steps, three timers — never one step with a 31-minute timer.
+
+NO TIME RANGES (critical):
+- Never write a range anywhere in instruction text. Not "5–6 minutes", not "18 to 20 minutes", not "about 5-6 min". Commit to ONE number.
+- The minutes stated in a step's instruction text MUST exactly equal that step's timerMinutes. If timerMinutes is 18, the text says "18 minutes" and nothing else.
+- The reference cook times listed below are minimums to choose FROM — output a single committed integer, never the printed range.
 
 PROTEIN COOKING — SAFETY & TIMING (critical — never undercook to save time):
 - Cook every meat, poultry and fish to a safe doneness with a REALISTIC time. If the time budget conflicts with safe cooking, prioritise safe cooking over speed.
@@ -121,6 +142,8 @@ RETURN FORMAT — valid JSON only. No markdown fences. No explanation before or 
 SELF-CHECK before returning:
 [ ] Every ingredient in the ingredients array appears in the user's AVAILABLE list.
 [ ] Every waiting step has timerMinutes as an integer, not null.
+[ ] No step contains more than one timed action. Pan→oven, cook→rest, and any vessel/method change are separate steps with their own timers. (Searing both sides in one pan may share one combined timer.)
+[ ] No instruction text contains a time range — every time is a single integer, and it matches that step's timerMinutes exactly.
 [ ] Every protein reaches a safe internal temperature, with a realistic cook time and a doneness cue (temperature or a reliable visual).
 [ ] No step uses vague quantities ("some", "a bit", "to taste" without a default amount).
 [ ] Dish name is specific and appetising.
@@ -294,6 +317,28 @@ At lunch and dinner: if the user selected a meat, poultry or fish protein, it MU
       return res.status(502).json({ error: "Invalid recipe shape" });
     }
 
+    // Safety net: the prompt forbids time ranges, but if one slips through,
+    // collapse it to the upper (safer-cooked) bound so the UI never shows
+    // "5–6 minutes" beside a single timer. Anchored on a trailing time unit so
+    // temperatures like "74°C / 165°F" and "52°C to 63°C" are left untouched.
+    const TIME_RANGE_RE =
+      /(\d+)\s*(?:[–—-]|to|or)\s*(\d+)(\s*(?:minutes?|mins?))/i;
+
+    const normalizeStepRange = (step: any) => {
+      if (typeof step?.instruction !== "string") return step;
+      const match = step.instruction.match(TIME_RANGE_RE);
+      if (!match) return step;
+
+      const upper = Number(match[2]);
+      return {
+        ...step,
+        instruction: step.instruction.replace(TIME_RANGE_RE, `${upper}${match[3]}`),
+        timerMinutes: Number.isInteger(step.timerMinutes) ? upper : step.timerMinutes,
+      };
+    };
+    if (Array.isArray(recipe.steps)) {
+      recipe.steps = recipe.steps.map(normalizeStepRange);
+    }
     return res.status(200).json(recipe);
   } catch (err: any) {
     if (err?.name === "AbortError") {

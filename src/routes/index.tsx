@@ -29,6 +29,7 @@ function getTimeIcon() {
 function Home() {
   const inventory = useMise(s => s.inventory);
   const history   = useMise(s => s.history);
+  const saved     = useMise(s => s.saved);
 
   const itemCount =
     (inventory.proteins?.length   ?? 0) +
@@ -87,14 +88,14 @@ function Home() {
                 }}
               >
                 <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 text-[26px] leading-none"
+                  className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-[24px] leading-none"
                   style={{ background: "rgba(0,0,0,0.14)", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18)" }}
                 >
                   🍽️
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-display text-[24px] font-light leading-tight">Cook something</p>
-                  <p className="text-[12px] mt-0.5 font-medium" style={{ opacity: 0.92 }}>{mainCTASub}</p>
+                  <p className="font-display text-[22px] font-light leading-tight truncate">Cook something</p>
+                  <p className="text-[12px] mt-1 font-medium leading-snug" style={{ opacity: 0.92 }}>{mainCTASub}</p>
                 </div>
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
@@ -146,7 +147,7 @@ function Home() {
           transition={{ delay: 0.40, duration: 0.45 }}
           className="flex flex-col gap-3 pb-safe"
         >
-          {history.length > 0 && (
+          {(history.length > 0 || saved.length > 0) && (
             <Link to="/history" className="block">
               <motion.div
                 whileTap={{ scale: 0.98 }}
@@ -156,7 +157,7 @@ function Home() {
                   <Clock className="w-4 h-4 text-text-secondary" />
                 </div>
                 <span className="text-[14px] text-text-primary font-medium flex-1">
-                  My cooking journal
+                  My cookbook
                 </span>
                 <span
                   className="text-[12px] font-semibold px-2.5 py-1 rounded-full"
@@ -166,7 +167,9 @@ function Home() {
                     border: "1px solid var(--ember-dim)",
                   }}
                 >
-                  {history.length} {history.length === 1 ? "recipe" : "recipes"}
+                  {saved.length > 0
+                    ? `${saved.length} to cook`
+                    : `${history.length} cooked`}
                 </span>
               </motion.div>
             </Link>
