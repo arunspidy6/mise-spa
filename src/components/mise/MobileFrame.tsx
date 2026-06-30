@@ -27,6 +27,10 @@ export function MobileFrame({ children, className }: { children: ReactNode; clas
           )}
           style={{
             height: height ?? "100dvh",
+            // Clear the iOS status bar / notch so top navigation doesn't collide
+            // with it. 0 on web/desktop, so it's a no-op there. (Bottom is left
+            // to each screen's pb-safe to avoid double-padding the home bar.)
+            paddingTop: "env(safe-area-inset-top)",
             transform: offsetTop ? `translateY(${offsetTop}px)` : undefined,
           }}
         >
