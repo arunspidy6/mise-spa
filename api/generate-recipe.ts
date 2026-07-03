@@ -1,5 +1,17 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { appRequestAllowed } from "./_appguard";
+
+// App gate — reject unauthenticated callers. Inlined (not a shared _-prefixed
+// file, which Vercel omits from the function bundle) so it always ships.
+// Fail-open until APP_ATTEST_SECRET is set, so the live app is never broken.
+function appRequestAllowed(req: VercelRequest): boolean {
+  const secret = process.env.APP_ATTEST_SECRET;
+  if (!secret) return true;
+  const token = (req.headers["x-app-attest"] as string | undefined) ?? "";
+  if (token.length !== secret.length) return false;
+  let diff = 0;
+  for (let i = 0; i < secret.length; i++) diff |= token.charCodeAt(i) ^ secret.charCodeAt(i);
+  return diff === 0;
+}
 
 // ── Cost guards ──────────────────────────────────────────────────────────────
 // IMPORTANT: in-memory guards are best-effort only — each warm serverless

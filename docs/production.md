@@ -44,7 +44,7 @@ The AI endpoints are **public and cost money per call**. Today's protections:
   this now.
 
 ### Layer 1 — shared app token (implemented; enable it)
-`api/_appguard.ts` gates `generate-recipe` and `classify-ingredient`. It's
+The inline app gate in `api/generate-recipe.ts` and `api/classify-ingredient.ts` gates `generate-recipe` and `classify-ingredient`. It's
 **fail-open until configured**, so nothing breaks until you turn it on:
 1. Pick a long random string.
 2. Vercel → project → Settings → Environment Variables: set `APP_ATTEST_SECRET`
@@ -65,7 +65,7 @@ Attest provider**:
   fetch a token and send it as `X-Firebase-AppCheck`. Swap `appHeaders()` in
   `src/lib/appguard.ts` to return that token.
 - Server: verify with the Firebase Admin SDK (`getAppCheck().verifyToken(token)`)
-  inside `verifyAppCheck()` in `api/_appguard.ts`, and require it.
+  inside the inline gate, and require it.
 - Needs your Firebase project + a service account in Vercel env, and on-device
   testing (App Attest only works on real hardware).
 - Never rely on a static bundle secret for real security — App Check is the

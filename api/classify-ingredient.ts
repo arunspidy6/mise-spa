@@ -1,5 +1,16 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { appRequestAllowed } from "./_appguard";
+
+// App gate — inlined (not a shared _-prefixed file, which Vercel omits from the
+// function bundle). Fail-open until APP_ATTEST_SECRET is set.
+function appRequestAllowed(req: VercelRequest): boolean {
+  const secret = process.env.APP_ATTEST_SECRET;
+  if (!secret) return true;
+  const token = (req.headers["x-app-attest"] as string | undefined) ?? "";
+  if (token.length !== secret.length) return false;
+  let diff = 0;
+  for (let i = 0; i < secret.length; i++) diff |= token.charCodeAt(i) ^ secret.charCodeAt(i);
+  return diff === 0;
+}
 
 // Never wildcard a paid, unauthenticated endpoint — reflect only our own origins
 // so a third-party page can't spend the API budget from a user's browser.
