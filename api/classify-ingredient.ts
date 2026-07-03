@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { appRequestAllowed } from "./_appguard";
 
 // Never wildcard a paid, unauthenticated endpoint — reflect only our own origins
 // so a third-party page can't spend the API budget from a user's browser.
@@ -17,13 +18,16 @@ function setCors(req: VercelRequest, res: VercelResponse) {
   }
   res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Device-ID");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Device-ID, X-App-Attest");
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   setCors(req, res);
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  // App gate — reject unauthenticated callers (no-op until APP_ATTEST_SECRET set).
+  if (!appRequestAllowed(req)) return res.status(401).json({ error: "Unauthorized" });
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {

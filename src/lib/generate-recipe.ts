@@ -1,4 +1,5 @@
 import type { Inventory, Recipe, RecipeIngredient, RecipeStep } from "@/store/mise";
+import { appHeaders } from "./appguard";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -1106,7 +1107,7 @@ export async function getRecipeFromAPI(
 ): Promise<Recipe> {
   const res = await fetch(`${API_BASE}/api/generate-recipe`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...appHeaders() },
     body: JSON.stringify({ inventory, session, excludeName, avoidRecipes, mealType: currentMealType() }),
     signal,
   });
