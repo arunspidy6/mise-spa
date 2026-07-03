@@ -1,4 +1,6 @@
 import type { Inventory, Recipe, RecipeIngredient, RecipeStep } from "@/store/mise";
+import { DECISION_TEMPLATES } from "./dish-templates";
+import { appHeaders } from "./appguard";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -9,16 +11,16 @@ type SessionPayload = {
   vibes: string[];
 };
 
-type Criticality = "essential" | "important" | "optional";
+export type Criticality = "essential" | "important" | "optional";
 
-type Req = {
+export type Req = {
   token: string;         // lowercase match key
   label: string;         // display name
   criticality: Criticality;
   substitute?: string;   // plain-english swap
 };
 
-type Template = {
+export type Template = {
   name: string;
   cuisine: string;
   description: string;
@@ -206,7 +208,7 @@ function normaliseToken(s: string): string {
   return lower;
 }
 
-function userHas(token: string, items: string[]): boolean {
+export function userHas(token: string, items: string[]): boolean {
   const options = SAT[token] ?? [token];
 
   return items.some(u => {
@@ -251,7 +253,7 @@ function isProtein(token: string) { return PROTEIN_TOKENS.has(token); }
 
 // ── Recipe library ─────────────────────────────────────────────────────────
 
-const LIBRARY: Template[] = [
+const BASE_LIBRARY: Template[] = [
   {
     name: "Soy-glazed chicken thighs with garlic rice",
     cuisine: "Japanese", time_minutes: 30, difficulty: 2,
@@ -753,6 +755,11 @@ const LIBRARY: Template[] = [
     ],
   },
 ];
+
+// Decision-first templates are considered ahead of the protein-forward base
+// library so the "use up what I have" scenarios have coherent dishes to win
+// with. Scoring/novelty still decide the final order — this only sets the pool.
+const LIBRARY: Template[] = [...DECISION_TEMPLATES, ...BASE_LIBRARY];
 // ── Selection boost — rewards recipes that use the user's picked items ────
 // Staple pantry items (garlic, oil, etc.) are assumed — they don't add signal.
 // But when a user explicitly selects a protein, carb, vegetable, or fridge
@@ -828,7 +835,7 @@ function noveltyMultiplier(template: Template, history: CookHistory): number {
 
 // ── Scoring ─────────────────────────────────────────────────────────────────
 
-type Match = {
+export type Match = {
   template: Template;
   score: number;
   viable: boolean;
@@ -988,7 +995,7 @@ export function findRecipes(inventory: Inventory, history: CookHistory = []): Ma
 
 let rerollIdx = 0;
 
-function buildRecipe(m: Match, session: SessionPayload, sparse: boolean): Recipe {
+export function buildRecipe(m: Match, session: SessionPayload, sparse: boolean): Recipe {
   const t = m.template;
   // All library templates are written for 2 servings. Scale ingredient quantities
   // and the numeric cooking amounts embedded in step text proportionally.
@@ -1106,7 +1113,7 @@ export async function getRecipeFromAPI(
 ): Promise<Recipe> {
   const res = await fetch(`${API_BASE}/api/generate-recipe`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...appHeaders() },
     body: JSON.stringify({ inventory, session, excludeName, avoidRecipes, mealType: currentMealType() }),
     signal,
   });

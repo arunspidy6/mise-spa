@@ -276,11 +276,11 @@ function PrepScreen({ recipe, onStart, onBack }: { recipe: any; onStart: () => v
           onClick={onBack}
           className="text-[12px] text-text-secondary font-mono active:opacity-70 h-10 px-2 flex items-center gap-1 -ml-2"
         >
-          <ArrowLeft className="w-3.5 h-3.5" /> Recipe
+          <ArrowLeft className="w-3.5 h-3.5" /> Back
         </button>
       </div>
       <div className="flex-shrink-0 px-5 pt-2 pb-4">
-        <p className="label-eyebrow mb-1">Before you start</p>
+        <p className="label-eyebrow mb-1">Cooking with what you have</p>
         <h2 className="font-display text-[26px] font-light text-text-primary">Mise en place</h2>
         <p className="text-[13px] text-text-secondary mt-1.5 leading-relaxed">
           Prep these before you start. Interruptions mid-cook will slow you down.
@@ -1639,7 +1639,7 @@ function CookMode() {
             <PrepScreen
               recipe={recipe}
               onStart={() => setPrepDone(true)}
-              onBack={() => navigate({ to: "/recipe" })}
+              onBack={() => navigate({ to: "/decision" })}
             />
           )}
         </AnimatePresence>

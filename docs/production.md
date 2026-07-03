@@ -43,13 +43,33 @@ The AI endpoints are **public and cost money per call**. Today's protections:
   (Settings → Limits). This is the only guaranteed stop on a runaway bill. Do
   this now.
 
-**Required to truly secure the API:** request **attestation** so only genuine
-installs of *your* app can call it.
-- iOS: **App Attest / DeviceCheck** (`DCAppAttestService`). The app attests on
-  first launch, sends the assertion with each request; the backend verifies it
-  against Apple's keys and rejects anything else. Web keeps CORS + rate limit.
-- Implement as a small `api/_guard.ts` checked at the top of each handler.
-- Never embed a static secret in the app bundle — it's trivially extractable.
+### Layer 1 — shared app token (implemented; enable it)
+`api/_appguard.ts` gates `generate-recipe` and `classify-ingredient`. It's
+**fail-open until configured**, so nothing breaks until you turn it on:
+1. Pick a long random string.
+2. Vercel → project → Settings → Environment Variables: set `APP_ATTEST_SECRET`
+   to it (Production). Redeploy.
+3. Set `VITE_APP_ATTEST_SECRET` to the SAME value (Vercel env for the web build,
+   and in the app build), then rebuild the app: `npm run ios:sync`.
+Now unauthenticated callers get 401. This stops casual abuse (random `curl`),
+but a client-embedded token can be extracted — so keep the spend cap + rate
+limits, and add Layer 2 for a hardened launch.
+
+### Layer 2 — App Attest (the strong one)
+Verifies each request comes from a genuine, unmodified install of *your* app.
+The practical path (no hand-rolled crypto) is **Firebase App Check with the App
+Attest provider**:
+- Create a Firebase project; register the iOS app; enable App Check → App Attest
+  (and reCAPTCHA for the web).
+- Client: `@capacitor-firebase/app-check` (native) / Firebase JS SDK (web) —
+  fetch a token and send it as `X-Firebase-AppCheck`. Swap `appHeaders()` in
+  `src/lib/appguard.ts` to return that token.
+- Server: verify with the Firebase Admin SDK (`getAppCheck().verifyToken(token)`)
+  inside `verifyAppCheck()` in `api/_appguard.ts`, and require it.
+- Needs your Firebase project + a service account in Vercel env, and on-device
+  testing (App Attest only works on real hardware).
+- Never rely on a static bundle secret for real security — App Check is the
+  cryptographic replacement.
 
 ## Scale & cost
 - Serverless auto-scales; the real constraint is **Anthropic cost + latency**.

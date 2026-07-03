@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { appRequestAllowed } from "./_appguard";
 
 // ── Cost guards ──────────────────────────────────────────────────────────────
 // IMPORTANT: in-memory guards are best-effort only — each warm serverless
@@ -169,7 +170,7 @@ function setCors(req: VercelRequest, res: VercelResponse) {
   }
   res.setHeader("Vary", "Origin");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Device-ID");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Device-ID, X-App-Attest");
 }
 
 // ── Handler ────────────────────────────────────────────────────────────────
@@ -190,6 +191,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(429).json({
       error: "Too many requests — please wait a moment before trying again.",
     });
+  }
+
+  // ── App gate — reject unauthenticated callers (no-op until configured) ───
+  if (!appRequestAllowed(req)) {
+    return res.status(401).json({ error: "Unauthorized" });
   }
 
   // ── Auth & validation ───────────────────────────────────────────────────

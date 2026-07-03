@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { STAPLES_DEFAULTS } from "@/lib/mise-data";
 
 export type RecipeIngredient = {
   name: string;
@@ -38,6 +37,20 @@ export type Recipe = {
   image?: string;
 };
 
+// ── Decision-first model ─────────────────────────────────────────────────────
+// We capture the handful of things the user wants to use up — never their whole
+// kitchen. Everything else (staples) is assumed by the pantry model.
+export type IngredientRole = "protein" | "starch" | "vegetable" | "dairy" | "other";
+export type UrgentIngredient = { name: string; role: IngredientRole };
+
+export type IntentPriority = "use-up" | "quick" | "comfort" | "healthy" | "different";
+export type CookSize = "1" | "2" | "family" | "meal-prep";
+export type Intent = { priority: IntentPriority; size: CookSize };
+
+// ── Internal engine contract ─────────────────────────────────────────────────
+// NOT a product concept. The user is never asked to fill this in — the pantry
+// model (buildEngineInventory) assembles it from urgent ingredients + assumed
+// staples so the recommendation engine has something to score against.
 export type Inventory = {
   staples: string[];
   proteins: string[];
@@ -48,13 +61,6 @@ export type Inventory = {
   customItems: string[];
   customTokenMap: Record<string, string>;
   lastUpdated: number | null;
-};
-
-type Session = {
-  timeMinutes: number;
-  servings: number;
-  cuisine: string | null;
-  vibes: string[];
 };
 
 type HistoryEntry = {
@@ -74,58 +80,41 @@ export type SavedRecipe = {
 };
 
 type Store = {
-  inventory: Inventory;
-  session: Session;
+  urgent: UrgentIngredient[];
+  intent: Intent;
   recipe: Recipe | null;
   history: HistoryEntry[];
   saved: SavedRecipe[];
-  setInventory: (i: Partial<Inventory>) => void;
-  toggleItem: (cat: keyof Omit<Inventory, "lastUpdated" | "customItems" | "customTokenMap">, item: string) => void;
-  finalizeInventory: () => void;
-  setSession: (s: Partial<Session>) => void;
+  setUrgent: (list: UrgentIngredient[]) => void;
+  addUrgent: (item: UrgentIngredient) => void;
+  removeUrgent: (name: string) => void;
+  clearUrgent: () => void;
+  setIntent: (i: Partial<Intent>) => void;
   setRecipe: (r: Recipe | null) => void;
   addHistory: (e: HistoryEntry) => void;
-  // Save a recipe to cook later (dedupes by name).
   saveRecipe: (entry: SavedRecipe) => void;
-  // Remove a saved recipe — on manual un-save, or once it's been cooked.
   unsaveRecipe: (name: string) => void;
-  addCustomItem: (item: string) => void;
-  clearCustomItems: () => void;
-  addCustomTokenMapping: (displayLabel: string, satToken: string) => void;
-  // After cooking, proteins & veg are "used up". Staples/spices persist.
-  clearProteinsAndVeggies: () => void;
 };
 
 export const useMise = create<Store>()(
   persist(
     (set) => ({
-      inventory: {
-        staples: [...STAPLES_DEFAULTS],
-        proteins: [],
-        carbs: [],
-        vegetables: [],
-        fridge: [],
-        appliances: ["Hob / Stove", "Oven"],
-        customItems: [],
-        customTokenMap: {},
-        lastUpdated: null,
-      },
-      session: { timeMinutes: 30, servings: 2, cuisine: null, vibes: [] },
+      urgent: [],
+      intent: { priority: "use-up", size: "2" },
       recipe: null,
       history: [],
       saved: [],
-      setInventory: (i) => set((s) => ({ inventory: { ...s.inventory, ...i } })),
-      toggleItem: (cat, item) =>
+      setUrgent: (list) => set({ urgent: list }),
+      addUrgent: (item) =>
         set((s) => {
-          const list = (s.inventory[cat] as string[] | undefined) ?? [];
-          const next = list.includes(item)
-            ? list.filter((x) => x !== item)
-            : [...list, item];
-          return { inventory: { ...s.inventory, [cat]: next } };
+          const key = item.name.toLowerCase().trim();
+          if (!key || s.urgent.some((u) => u.name.toLowerCase().trim() === key)) return s;
+          return { urgent: [...s.urgent, item] };
         }),
-      finalizeInventory: () =>
-        set((s) => ({ inventory: { ...s.inventory, lastUpdated: Date.now() } })),
-      setSession: (s2) => set((s) => ({ session: { ...s.session, ...s2 } })),
+      removeUrgent: (name) =>
+        set((s) => ({ urgent: s.urgent.filter((u) => u.name.toLowerCase().trim() !== name.toLowerCase().trim()) })),
+      clearUrgent: () => set({ urgent: [] }),
+      setIntent: (i) => set((s) => ({ intent: { ...s.intent, ...i } })),
       setRecipe: (r) => set({ recipe: r }),
       addHistory: (e) =>
         set((s) => {
@@ -147,40 +136,15 @@ export const useMise = create<Store>()(
         })),
       unsaveRecipe: (name) =>
         set((s) => ({ saved: s.saved.filter((x) => x.recipe.name !== name) })),
-      addCustomItem: (item) =>
-        set((s) => ({
-          inventory: {
-            ...s.inventory,
-            customItems: [...(s.inventory.customItems ?? []), item.toLowerCase().trim()],
-          },
-        })),
-      clearCustomItems: () =>
-        set((s) => ({ inventory: { ...s.inventory, customItems: [] } })),
-      addCustomTokenMapping: (displayLabel, satToken) =>
-        set((s) => ({
-          inventory: {
-            ...s.inventory,
-            customTokenMap: {
-              ...(s.inventory.customTokenMap ?? {}),
-              [displayLabel.toLowerCase().trim()]: satToken,
-            },
-          },
-        })),
-      clearProteinsAndVeggies: () =>
-        set((s) => ({
-          inventory: { ...s.inventory, proteins: [], vegetables: [] },
-        })),
     }),
     {
-      name: "mise-v3",
+      name: "mise-v4",
       onRehydrateStorage: () => (state) => {
-        // Clear all old store versions on first load
-        ["mise-store-v1", "mise-store-v2", "mise-v1", "mise-v2"].forEach(k => {
+        // Clear all older store versions — the decision-first model replaces the
+        // pantry-inventory model entirely.
+        ["mise-store-v1", "mise-store-v2", "mise-v1", "mise-v2", "mise-v3"].forEach((k) => {
           try { localStorage.removeItem(k); } catch {}
         });
-        // One-time cleanup of the cook→feedback double-log: collapse adjacent
-        // same-dish entries (within 15 min) that earlier versions duplicated,
-        // keeping the newer one (which carries the user's real rating).
         if (state?.history?.length) {
           const deduped: HistoryEntry[] = [];
           for (const h of state.history) {
@@ -190,9 +154,6 @@ export const useMise = create<Store>()(
           }
           state.history = deduped;
         }
-        // Kitchen persists across visits — the full inventory (proteins, carbs,
-        // vegetables, fridge, staples, appliances, custom items) is remembered,
-        // so a refresh no longer wipes what the user selected.
       },
     }
   )
