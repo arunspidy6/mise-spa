@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, ArrowRight, Plus, X, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, X, Check, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
@@ -445,6 +445,11 @@ const CATEGORY_LABEL: Record<string, string> = {
   fridge:"fridge", staples:"pantry", appliances:"appliances",
 };
 
+const capLabel = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+// What happened when a custom item was added — drives the inline confirmation.
+type AddResult = { kind: "added" | "moved" | "duplicate"; label: string };
+
 // Fuzzy ingredient search — handles typos like "tumeric" → "turmeric",
 // "chiken" → "chicken". Uses sequential character matching so partial
 // out-of-order characters still score well.
@@ -476,24 +481,55 @@ function CustomItemInput({
   onAdd,
   addMapping,
 }: {
-  onAdd: (item: string) => void;
+  onAdd: (item: string) => AddResult;
   addMapping: (displayLabel: string, satToken: string) => void;
 }) {
   const [value, setValue] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [msg, setMsg] = useState<{ text: string; type: "error" | "info" } | null>(null);
   const [status, setStatus] = useState<"idle" | "checking">("idle");
+  // Inline confirmation shown under the search bar (replaces the old toast),
+  // plus a brief tick on the add button once the add completes.
+  const [confirm, setConfirm] = useState<{ text: string; ok: boolean } | null>(null);
+  const [justAdded, setJustAdded] = useState(false);
   const msgTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const confirmTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tickTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { ref: inputRef, onFocus: scrollInputIntoView } = useScrollIntoViewOnFocus<HTMLInputElement>();
 
   useEffect(() => {
-    return () => { if (msgTimeout.current) clearTimeout(msgTimeout.current); };
+    return () => {
+      if (msgTimeout.current) clearTimeout(msgTimeout.current);
+      if (confirmTimeout.current) clearTimeout(confirmTimeout.current);
+      if (tickTimeout.current) clearTimeout(tickTimeout.current);
+    };
   }, []);
 
   const showMsg = (text: string, type: "error" | "info" = "error", ms = 3000) => {
     setMsg({ text, type });
     if (msgTimeout.current) clearTimeout(msgTimeout.current);
     msgTimeout.current = setTimeout(() => setMsg(null), ms);
+  };
+
+  // Commit the add, show inline confirmation + button tick. `info` overrides the
+  // default "added to X" line (e.g. when we have no recipes for the ingredient).
+  const commitAdd = (clean: string, info?: string) => {
+    const res = onAdd(clean);
+    setValue(""); setSuggestions([]); setMsg(null);
+    const ok = res.kind !== "duplicate";
+    setConfirm({
+      text: info ?? (ok
+        ? `“${clean}” added to ${capLabel(res.label)}`
+        : `“${clean}” is already in your kitchen`),
+      ok,
+    });
+    if (confirmTimeout.current) clearTimeout(confirmTimeout.current);
+    confirmTimeout.current = setTimeout(() => setConfirm(null), 2600);
+    if (ok) {
+      setJustAdded(true);
+      if (tickTimeout.current) clearTimeout(tickTimeout.current);
+      tickTimeout.current = setTimeout(() => setJustAdded(false), 1400);
+    }
   };
 
   const handleChange = (val: string) => {
@@ -516,8 +552,7 @@ function CustomItemInput({
     const masterEntry = MASTER_INGREDIENTS[lower];
     if (masterEntry) {
       addMapping(lower, masterEntry.satToken);
-      onAdd(clean);
-      setValue(""); setSuggestions([]);
+      commitAdd(clean);
       return;
     }
 
@@ -528,15 +563,14 @@ function CustomItemInput({
         const parsed = JSON.parse(cached);
         if (parsed.satToken) addMapping(lower, parsed.satToken);
         // Even if previously marked invalid, add now — user insists
-        onAdd(clean);
-        setValue(""); setSuggestions([]);
-        if (!parsed.isValid) showMsg(`Added "${clean}" — we don't have recipes for this yet`, "info");
+        commitAdd(clean, parsed.isValid ? undefined : `Added “${clean}” — we don't have recipes for this yet`);
         return;
       }
     } catch { /* ignore */ }
 
     // ③ API classification (once per device, then cached)
     setStatus("checking");
+    let info: string | undefined;
     try {
       const res = await fetch(`${API_BASE}/api/classify-ingredient`, {
         method: "POST",
@@ -549,14 +583,13 @@ function CustomItemInput({
         if (result.satToken) addMapping(lower, result.satToken);
         if (result.isValid === false) {
           // Don't block — add it and explain gracefully
-          showMsg(`Added "${clean}" — we don't have recipes for this ingredient yet`, "info");
+          info = `Added “${clean}” — we don't have recipes for this ingredient yet`;
         }
       }
     } catch { /* API unavailable — add without mapping, no message */ }
 
     setStatus("idle");
-    onAdd(clean);
-    setValue(""); setSuggestions([]);
+    commitAdd(clean, info);
   };
 
   return (
@@ -574,22 +607,36 @@ function CustomItemInput({
             autoCapitalize="words"
             maxLength={40}
             disabled={status === "checking"}
-            className="w-full h-11 bg-bg-surface border border-border-subtle rounded-xl px-4 pr-10 text-[14px] text-text-primary placeholder:text-text-tertiary focus:border-ember focus:outline-none disabled:opacity-60 transition-opacity"
+            className="w-full h-11 bg-bg-surface border border-border-subtle rounded-xl px-4 text-[14px] text-text-primary placeholder:text-text-tertiary focus:border-ember focus:outline-none disabled:opacity-60 transition-opacity"
           />
-          {status === "checking" && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-              <div className="w-4 h-4 border-2 border-ember border-t-transparent rounded-full animate-spin" />
-            </div>
-          )}
         </div>
         <button
           onClick={() => resolveAndAdd(value)}
           disabled={status === "checking"}
-          className="w-11 h-11 rounded-xl bg-bg-raised border border-border-default flex items-center justify-center text-text-secondary active:scale-95 disabled:opacity-60"
+          aria-label="Add ingredient"
+          className={`w-11 h-11 rounded-xl border flex items-center justify-center active:scale-95 disabled:opacity-60 transition-colors ${
+            justAdded
+              ? "bg-success/15 border-success text-success"
+              : "bg-bg-raised border-border-default text-text-secondary"
+          }`}
         >
-          <Plus className="w-4 h-4" />
+          {status === "checking" ? (
+            <div className="w-4 h-4 border-2 border-ember border-t-transparent rounded-full animate-spin" />
+          ) : justAdded ? (
+            <Check className="w-4 h-4" />
+          ) : (
+            <Plus className="w-4 h-4" />
+          )}
         </button>
       </div>
+
+      {/* Inline confirmation — replaces the toast: "<name> added to <Category>" */}
+      {confirm && (
+        <p className={`text-[12px] mt-1.5 px-1 flex items-center gap-1.5 ${confirm.ok ? "text-ember-text" : "text-text-secondary"}`}>
+          {confirm.ok && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+          {confirm.text}
+        </p>
+      )}
 
       {msg && (
         <p className={`text-[12px] mt-1.5 px-1 ${msg.type === "error" ? "text-red-400" : "text-text-secondary"}`}>
@@ -625,22 +672,12 @@ function InventoryFlow() {
   const addCustomItem = useMise(s => s.addCustomItem);
   const addCustomTokenMapping = useMise(s => s.addCustomTokenMapping);
   const [step, setStep] = useState(initStep ?? 0);
-  const [toast, setToast] = useState<string | null>(null);
-  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
 
   const cur = STEPS[step];
   const selected = (inventory[cur.key] as string[] | undefined) ?? [];
   const allItems = cur.sections.flatMap(s => s.items);
   const isLast = step === STEPS.length - 1;
   const selectedCount = selected.filter(i => allItems.includes(i)).length;
-
-  // Reset the dismiss timer each call so rapid adds don't clear the latest toast early.
-  const showToast = (msg: string) => {
-    setToast(msg);
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 3375);
-  };
 
   const goBack = () => {
     if (from === "session") navigate({ to: "/session" });
@@ -657,22 +694,6 @@ function InventoryFlow() {
 
   return (
     <MobileFrame>
-      {/* Toast notification */}
-      <AnimatePresence>
-        {toast && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 12 }}
-            transition={{ type: "spring", stiffness: 400, damping: 28 }}
-            className="absolute bottom-28 inset-x-6 z-50 rounded-2xl bg-bg-base/95 backdrop-blur-md border border-ember-dim shadow-lg px-3.5 py-2.5 flex items-center gap-2.5"
-          >
-            <span className="flex-shrink-0 w-7 h-7 rounded-full bg-ember-glow flex items-center justify-center text-[14px]">✨</span>
-            <p className="text-[13px] text-text-primary leading-snug">{toast}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-5 pb-3">
@@ -742,7 +763,7 @@ function InventoryFlow() {
             {cur.key !== "appliances" && (
               <CustomItemInput
                 addMapping={addCustomTokenMapping}
-                onAdd={(item) => {
+                onAdd={(item): AddResult => {
                   const targetCat = MISPLACED[item.toLowerCase()];
                   if (targetCat && targetCat !== cur.key) {
                     const targetList = (inventory[targetCat] as string[]) ?? [];
@@ -750,17 +771,15 @@ function InventoryFlow() {
                       setInventory({ [targetCat]: [...targetList, item] } as never);
                       addCustomItem(item);
                     }
-                    showToast(`"${item}" moved to ${CATEGORY_LABEL[targetCat]} ✓`);
-                    return;
+                    return { kind: "moved", label: CATEGORY_LABEL[targetCat] };
                   }
                   const list = (inventory[cur.key] as string[]) ?? [];
                   if (!list.map(s => s.toLowerCase()).includes(item.toLowerCase())) {
                     setInventory({ [cur.key]: [...list, item] } as never);
                     addCustomItem(item);
-                    showToast(`"${item}" added ✓`);
-                  } else {
-                    showToast(`"${item}" is already in your kitchen`);
+                    return { kind: "added", label: CATEGORY_LABEL[cur.key] };
                   }
+                  return { kind: "duplicate", label: CATEGORY_LABEL[cur.key] };
                 }}
               />
             )}
