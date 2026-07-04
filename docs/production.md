@@ -91,6 +91,26 @@ Attest provider**:
 - No accounts today (all local). If accounts are added, App Store rules require
   in-app **account deletion**.
 
+## Analytics & usage attribution
+There are no accounts, so credit usage is attributed to a **device id** (stable
+UUID in `localStorage`, sent as `X-Device-ID`). Every paid call logs one line:
+
+```
+MISE_USAGE {"evt":"generate","deviceId":"…","ip":"…","model":"claude-sonnet-4-6",
+            "inTok":…, "outTok":…, "cacheRead":…, "cacheWrite":…, "costUsd":0.03,"ts":"…"}
+```
+
+- **Who's spending / cost per call:** grep `MISE_USAGE` in Vercel logs.
+- **Retention:** Vercel logs are short-lived, so pipe events to a store:
+  set `USAGE_SINK_URL` to a collector endpoint (each event POSTs there,
+  fire-and-forget), or add a Vercel Log Drain. **PostHog** is the easiest for
+  retention — use `deviceId` as the `distinct_id`; its retention/cohort charts
+  then work out of the box. A Vercel Postgres table (`insert … from the sink`)
+  is the alternative if you want SQL.
+- The gate is now two-key: it only arms when **both** `APP_GATE_ENABLED=true`
+  and `APP_ATTEST_SECRET` are set — setting the secret alone can no longer 401
+  all traffic.
+
 ## Monitoring
 - Error/crash reporting: Sentry (web + native) or TelemetryDeck.
 - Vercel function logs + Anthropic usage dashboard.

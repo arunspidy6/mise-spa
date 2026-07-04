@@ -3,6 +3,8 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 // App gate — inlined (not a shared _-prefixed file, which Vercel omits from the
 // function bundle). Fail-open until APP_ATTEST_SECRET is set.
 function appRequestAllowed(req: VercelRequest): boolean {
+  // Two-key safety: arms only when explicitly enabled AND the secret is set.
+  if (process.env.APP_GATE_ENABLED !== "true") return true;
   const secret = process.env.APP_ATTEST_SECRET;
   if (!secret) return true;
   const token = (req.headers["x-app-attest"] as string | undefined) ?? "";
@@ -10,6 +12,27 @@ function appRequestAllowed(req: VercelRequest): boolean {
   let diff = 0;
   for (let i = 0; i < secret.length; i++) diff |= token.charCodeAt(i) ^ secret.charCodeAt(i);
   return diff === 0;
+}
+
+// Per-request usage/cost attribution — one structured "MISE_USAGE" line per call.
+const HAIKU_PRICE = { in: 1, out: 5, cr: 0.1, cw: 1.25 }; // USD per 1M tokens
+function logUsage(req: VercelRequest, usage: any): void {
+  try {
+    const u = usage ?? {};
+    const inTok = u.input_tokens ?? 0, outTok = u.output_tokens ?? 0;
+    const cr = u.cache_read_input_tokens ?? 0, cw = u.cache_creation_input_tokens ?? 0;
+    const costUsd = +(((inTok * HAIKU_PRICE.in) + (outTok * HAIKU_PRICE.out) + (cr * HAIKU_PRICE.cr) + (cw * HAIKU_PRICE.cw)) / 1e6).toFixed(6);
+    const rec = {
+      evt: "classify",
+      deviceId: (req.headers["x-device-id"] as string | undefined) || "anon",
+      ip: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0].trim() || "",
+      model: "claude-haiku-4-5-20251001", inTok, outTok, cacheRead: cr, cacheWrite: cw, costUsd,
+      ts: new Date().toISOString(),
+    };
+    console.log("MISE_USAGE " + JSON.stringify(rec));
+    const sink = process.env.USAGE_SINK_URL;
+    if (sink) fetch(sink, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rec) }).catch(() => {});
+  } catch { /* never break a request over logging */ }
 }
 
 // Never wildcard a paid, unauthenticated endpoint — reflect only our own origins
@@ -99,6 +122,7 @@ If not a real food ingredient set isValid:false. No explanation.`;
     }
 
     const data = await response.json();
+    logUsage(req, data.usage);
     const raw = data.content?.[0]?.text?.replace(/```json|```/g, "").trim();
 
     let result;

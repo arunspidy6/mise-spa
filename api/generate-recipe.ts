@@ -4,6 +4,10 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 // file, which Vercel omits from the function bundle) so it always ships.
 // Fail-open until APP_ATTEST_SECRET is set, so the live app is never broken.
 function appRequestAllowed(req: VercelRequest): boolean {
+  // Two-key safety: the gate only arms when BOTH the secret exists AND it's
+  // explicitly enabled — so a stray APP_ATTEST_SECRET can't silently 401 all
+  // traffic (that footgun already bit us once).
+  if (process.env.APP_GATE_ENABLED !== "true") return true;
   const secret = process.env.APP_ATTEST_SECRET;
   if (!secret) return true;
   const token = (req.headers["x-app-attest"] as string | undefined) ?? "";
@@ -11,6 +15,40 @@ function appRequestAllowed(req: VercelRequest): boolean {
   let diff = 0;
   for (let i = 0; i < secret.length; i++) diff |= token.charCodeAt(i) ^ secret.charCodeAt(i);
   return diff === 0;
+}
+
+// ── Usage attribution ─────────────────────────────────────────────────────────
+// Per-1M-token USD rates (input / output / cache-read / cache-write).
+const PRICING: Record<string, { in: number; out: number; cr: number; cw: number }> = {
+  "claude-sonnet-4-6": { in: 3, out: 15, cr: 0.3, cw: 3.75 },
+  "claude-haiku-4-5-20251001": { in: 1, out: 5, cr: 0.1, cw: 1.25 },
+};
+
+// Emit one structured line per paid call so usage/cost can be attributed to a
+// device (there are no accounts). Grep "MISE_USAGE" in Vercel logs, drain the
+// logs to analytics, or set USAGE_SINK_URL to POST each event to a collector
+// (e.g. PostHog) for retention analysis keyed on deviceId.
+function logUsage(req: VercelRequest, evt: string, model: string, usage: any): void {
+  try {
+    const u = usage ?? {};
+    const inTok = u.input_tokens ?? 0, outTok = u.output_tokens ?? 0;
+    const cr = u.cache_read_input_tokens ?? 0, cw = u.cache_creation_input_tokens ?? 0;
+    const p = PRICING[model] ?? { in: 0, out: 0, cr: 0, cw: 0 };
+    const costUsd = +(((inTok * p.in) + (outTok * p.out) + (cr * p.cr) + (cw * p.cw)) / 1e6).toFixed(6);
+    const rec = {
+      evt,
+      deviceId: (req.headers["x-device-id"] as string | undefined) || "anon",
+      ip: (req.headers["x-forwarded-for"] as string | undefined)?.split(",")[0].trim() || "",
+      model, inTok, outTok, cacheRead: cr, cacheWrite: cw, costUsd,
+      ts: new Date().toISOString(),
+    };
+    console.log("MISE_USAGE " + JSON.stringify(rec));
+    const sink = process.env.USAGE_SINK_URL;
+    if (sink) {
+      // Fire-and-forget — never let analytics delivery affect the response.
+      fetch(sink, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rec) }).catch(() => {});
+    }
+  } catch { /* logging must never break a request */ }
 }
 
 // ── Cost guards ──────────────────────────────────────────────────────────────
@@ -309,16 +347,9 @@ At lunch and dinner: if the user selected a meat, poultry or fish protein, it MU
 
     const data = await response.json();
 
-    // Log cache usage in dev so you can verify caching is working
-    if (process.env.NODE_ENV !== "production") {
-      const usage = data.usage ?? {};
-      console.log("Token usage:", {
-        input:        usage.input_tokens,
-        output:       usage.output_tokens,
-        cacheWrite:   usage.cache_creation_input_tokens,
-        cacheRead:    usage.cache_read_input_tokens,
-      });
-    }
+    // Per-request usage + cost, attributed to the device. One structured line
+    // per call (grep "MISE_USAGE" in Vercel logs, or drain to analytics).
+    logUsage(req, "generate", "claude-sonnet-4-6", data.usage);
 
     const raw = data.content?.[0]?.text?.replace(/```json|```/g, "").trim();
 

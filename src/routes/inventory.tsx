@@ -8,6 +8,8 @@ import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus"
 import { EmberButton } from "@/components/mise/EmberButton";
 import { useMise } from "@/store/mise";
 import { API_BASE } from "@/lib/generate-recipe";
+import { appHeaders } from "@/lib/appguard";
+import { getDeviceId } from "@/lib/device";
 import {
   STAPLE_SECTIONS, PROTEIN_SECTIONS, CARB_SECTIONS,
   VEG_SECTIONS, FRIDGE_SECTIONS, APPLIANCE_SECTIONS,
@@ -574,7 +576,7 @@ function CustomItemInput({
     try {
       const res = await fetch(`${API_BASE}/api/classify-ingredient`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Device-ID": getDeviceId(), ...appHeaders() },
         body: JSON.stringify({ ingredient: lower }),
       });
       if (res.ok) {
