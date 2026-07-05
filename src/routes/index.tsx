@@ -85,7 +85,7 @@ function Capture() {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.06 }}
-            className="mt-6 rounded-2xl bg-bg-surface border border-border-default focus-within:border-ember-dim transition-colors p-3"
+            className="mt-6 rounded-2xl bg-bg-elevated border border-border-strong focus-within:border-ember-dim transition-colors p-3 shadow-[0_6px_22px_oklch(0_0_0/0.45)]"
           >
             {urgent.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-2.5">
@@ -158,7 +158,7 @@ function Capture() {
                     className={`inline-flex items-center gap-1 h-9 px-3.5 rounded-full border text-[13px] transition-all active:scale-95 ${
                       active
                         ? "bg-ember-glow border-ember-dim text-ember-text font-medium"
-                        : "bg-bg-surface border-border-default text-text-secondary"
+                        : "bg-bg-elevated border-border-strong text-text-primary"
                     }`}
                   >
                     {!active && <Plus className="w-3.5 h-3.5 opacity-60" />}
