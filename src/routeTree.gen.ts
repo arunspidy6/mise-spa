@@ -9,37 +9,25 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SessionRouteImport } from './routes/session'
-import { Route as RecipeRouteImport } from './routes/recipe'
-import { Route as InventoryRouteImport } from './routes/inventory'
-import { Route as HistoryRouteImport } from './routes/history'
+import { Route as IntentRouteImport } from './routes/intent'
 import { Route as FeedbackRouteImport } from './routes/feedback'
+import { Route as DecisionRouteImport } from './routes/decision'
 import { Route as CookRouteImport } from './routes/cook'
 import { Route as IndexRouteImport } from './routes/index'
 
-const SessionRoute = SessionRouteImport.update({
-  id: '/session',
-  path: '/session',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const RecipeRoute = RecipeRouteImport.update({
-  id: '/recipe',
-  path: '/recipe',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const InventoryRoute = InventoryRouteImport.update({
-  id: '/inventory',
-  path: '/inventory',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const HistoryRoute = HistoryRouteImport.update({
-  id: '/history',
-  path: '/history',
+const IntentRoute = IntentRouteImport.update({
+  id: '/intent',
+  path: '/intent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeedbackRoute = FeedbackRouteImport.update({
   id: '/feedback',
   path: '/feedback',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DecisionRoute = DecisionRouteImport.update({
+  id: '/decision',
+  path: '/decision',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CookRoute = CookRouteImport.update({
@@ -56,99 +44,48 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cook': typeof CookRoute
+  '/decision': typeof DecisionRoute
   '/feedback': typeof FeedbackRoute
-  '/history': typeof HistoryRoute
-  '/inventory': typeof InventoryRoute
-  '/recipe': typeof RecipeRoute
-  '/session': typeof SessionRoute
+  '/intent': typeof IntentRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cook': typeof CookRoute
+  '/decision': typeof DecisionRoute
   '/feedback': typeof FeedbackRoute
-  '/history': typeof HistoryRoute
-  '/inventory': typeof InventoryRoute
-  '/recipe': typeof RecipeRoute
-  '/session': typeof SessionRoute
+  '/intent': typeof IntentRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cook': typeof CookRoute
+  '/decision': typeof DecisionRoute
   '/feedback': typeof FeedbackRoute
-  '/history': typeof HistoryRoute
-  '/inventory': typeof InventoryRoute
-  '/recipe': typeof RecipeRoute
-  '/session': typeof SessionRoute
+  '/intent': typeof IntentRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | '/cook'
-    | '/feedback'
-    | '/history'
-    | '/inventory'
-    | '/recipe'
-    | '/session'
+  fullPaths: '/' | '/cook' | '/decision' | '/feedback' | '/intent'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/cook'
-    | '/feedback'
-    | '/history'
-    | '/inventory'
-    | '/recipe'
-    | '/session'
-  id:
-    | '__root__'
-    | '/'
-    | '/cook'
-    | '/feedback'
-    | '/history'
-    | '/inventory'
-    | '/recipe'
-    | '/session'
+  to: '/' | '/cook' | '/decision' | '/feedback' | '/intent'
+  id: '__root__' | '/' | '/cook' | '/decision' | '/feedback' | '/intent'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CookRoute: typeof CookRoute
+  DecisionRoute: typeof DecisionRoute
   FeedbackRoute: typeof FeedbackRoute
-  HistoryRoute: typeof HistoryRoute
-  InventoryRoute: typeof InventoryRoute
-  RecipeRoute: typeof RecipeRoute
-  SessionRoute: typeof SessionRoute
+  IntentRoute: typeof IntentRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/session': {
-      id: '/session'
-      path: '/session'
-      fullPath: '/session'
-      preLoaderRoute: typeof SessionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/recipe': {
-      id: '/recipe'
-      path: '/recipe'
-      fullPath: '/recipe'
-      preLoaderRoute: typeof RecipeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/inventory': {
-      id: '/inventory'
-      path: '/inventory'
-      fullPath: '/inventory'
-      preLoaderRoute: typeof InventoryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/history': {
-      id: '/history'
-      path: '/history'
-      fullPath: '/history'
-      preLoaderRoute: typeof HistoryRouteImport
+    '/intent': {
+      id: '/intent'
+      path: '/intent'
+      fullPath: '/intent'
+      preLoaderRoute: typeof IntentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/feedback': {
@@ -156,6 +93,13 @@ declare module '@tanstack/react-router' {
       path: '/feedback'
       fullPath: '/feedback'
       preLoaderRoute: typeof FeedbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/decision': {
+      id: '/decision'
+      path: '/decision'
+      fullPath: '/decision'
+      preLoaderRoute: typeof DecisionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cook': {
@@ -178,11 +122,9 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CookRoute: CookRoute,
+  DecisionRoute: DecisionRoute,
   FeedbackRoute: FeedbackRoute,
-  HistoryRoute: HistoryRoute,
-  InventoryRoute: InventoryRoute,
-  RecipeRoute: RecipeRoute,
-  SessionRoute: SessionRoute,
+  IntentRoute: IntentRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
