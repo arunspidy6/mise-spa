@@ -22,7 +22,7 @@ function FeedbackPage() {
   const addHistory = useMise(s => s.addHistory);
   const history = useMise(s => s.history);
   const unsaveRecipe = useMise(s => s.unsaveRecipe);
-  const clearProteinsAndVeggies = useMise(s => s.clearProteinsAndVeggies);
+  const clearUrgent = useMise(s => s.clearUrgent);
   const [selected, setSelected] = useState<RatingId | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
@@ -33,9 +33,9 @@ function FeedbackPage() {
     // journal, and its history entry already excludes it from future generation.
     unsaveRecipe(recipe.name);
     cancelRecipeReminder(recipe.name);
-    // Proteins and veg run out after cooking — reset them so the user
-    // picks fresh ingredients next time. Staples/spices are kept.
-    clearProteinsAndVeggies();
+    // The urgent ingredients have been used up — clear them so the next visit
+    // starts fresh with whatever needs using up then.
+    clearUrgent();
     setSubmitted(true);
     setTimeout(() => navigate({ to: "/" }), 1800);
   };
