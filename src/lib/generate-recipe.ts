@@ -1,6 +1,7 @@
 import type { Inventory, Recipe, RecipeIngredient, RecipeStep } from "@/store/mise";
 import { appHeaders } from "./appguard";
 import { getDeviceId } from "./device";
+import { track } from "./analytics";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -1116,6 +1117,12 @@ export async function getRecipeFromAPI(
   const data = await res.json();
   if (data?.error === "no_recipe") throw new Error("no_recipe");
   if (data.error || !data.name || !data.steps) throw new Error("api_failed");
+  track("recipe_generated", {
+    name: data.name,
+    cuisine: data.cuisine,
+    time_minutes: data.time_minutes,
+    difficulty: data.difficulty,
+  });
   return data as Recipe;
 }
 
