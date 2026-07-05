@@ -10,6 +10,7 @@ import { RecipeLoaderContent } from "@/components/mise/RecipeLoader";
 import { WhyThisDish } from "@/components/mise/WhyThisDish";
 import { useMise } from "@/store/mise";
 import { getRecipeFromAPI } from "@/lib/generate-recipe";
+import { track } from "@/lib/analytics";
 import { pickMealSlot, describeSlot, scheduleRecipeReminder, cancelRecipeReminder } from "@/lib/reminders";
 
 export const Route = createFileRoute("/recipe")({ component: RecipeCard });
@@ -51,6 +52,7 @@ function RecipeCard() {
     }
     const slot = pickMealSlot(recipe);
     saveRecipe({ recipe, savedAt: Date.now(), cookAt: slot.cookAt, meal: slot.meal });
+    track("recipe_saved", { name: recipe.name, cuisine: recipe.cuisine });
     // Saved is certain; only promise a reminder if scheduling actually succeeds.
     showSaveToast("Saved to your cookbook");
     const res = await scheduleRecipeReminder(recipe.name, slot.meal, slot.cookAt);

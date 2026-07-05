@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { useMise } from "@/store/mise";
+import { track } from "@/lib/analytics";
 import { isNative, ensureNotificationPermission, scheduleNotice, cancelNotice } from "@/lib/native/notify";
 import { nativeVoiceSupported, startNativeSpeech, stopNativeSpeech } from "@/lib/native/speech";
 
@@ -1186,7 +1187,15 @@ function CookMode() {
 
   const finish = () => {
     stopVoice();
-    if (recipe) addHistory({ name: recipe.name, cuisine: recipe.cuisine, rating: "good", ts: Date.now() });
+    if (recipe) {
+      addHistory({ name: recipe.name, cuisine: recipe.cuisine, rating: "good", ts: Date.now() });
+      // Funnel endpoint — carry the vibe so "cooked" can be segmented by it.
+      track("recipe_cooked", {
+        name: recipe.name,
+        cuisine: recipe.cuisine,
+        vibe: useMise.getState().session.vibes?.[0] ?? "none",
+      });
+    }
     navigate({ to: "/feedback" });
   };
 
