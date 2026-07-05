@@ -96,3 +96,16 @@ export const TIME_OPTIONS = [
   { label: "1 hr",   value: 60, icon: "🌙" },
   { label: "1.5 hr+",value: 90, icon: "🌛" },
 ];
+
+// Vibe / "what matters tonight" filter. Single-select on the session screen,
+// stored as session.vibes ([] = no preference). The `value` is what the API
+// prompt maps to guidance (see api/generate-recipe.ts), so keep them in sync.
+export const VIBES = [
+  { value: "use-up",    label: "Use up ingredients",     detail: "Cook down what's about to turn",  emoji: "🥬" },
+  { value: "quick",     label: "Quick meal",             detail: "On the table fast, low fuss",     emoji: "⚡" },
+  { value: "comfort",   label: "Comfort food",           detail: "Warm, hearty, satisfying",        emoji: "🍲" },
+  { value: "healthy",   label: "Healthy",                detail: "Light and nourishing",            emoji: "🥗" },
+  { value: "different", label: "Try something different", detail: "Break the weeknight routine",     emoji: "✨" },
+] as const;
+
+export type VibeValue = (typeof VIBES)[number]["value"];

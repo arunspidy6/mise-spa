@@ -1,12 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useRef } from "react";
-import { ArrowLeft, ArrowRight, Clock, RotateCw, ChevronDown, ChevronUp, Bookmark, BookmarkCheck } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, RotateCw, ChevronDown, ChevronUp, Bookmark, BookmarkCheck, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { RecipeImage } from "@/components/mise/RecipeImage";
 import { RecipeLoaderContent } from "@/components/mise/RecipeLoader";
+import { WhyThisDish } from "@/components/mise/WhyThisDish";
 import { useMise } from "@/store/mise";
 import { getRecipeFromAPI } from "@/lib/generate-recipe";
 import { pickMealSlot, describeSlot, scheduleRecipeReminder, cancelRecipeReminder } from "@/lib/reminders";
@@ -191,17 +192,20 @@ function RecipeCard() {
                   {/* Tier 3 — supporting caption: smaller, muted, looser */}
                   <p className="text-[13px] text-text-tertiary leading-relaxed mt-2">{recipe.description}</p>
                 </div>
+                {/* Frameless save action — top-right, flips to a ticked
+                    "Recipe saved" once it's in the cookbook. */}
                 <button
                   onClick={toggleSave}
-                  aria-label={isSaved ? "Remove from cookbook" : "Save to cook later"}
                   aria-pressed={isSaved}
-                  className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center border transition active:scale-90 ${
-                    isSaved
-                      ? "bg-ember-glow border-ember-dim text-ember-text"
-                      : "bg-bg-raised border-border-default text-text-secondary"
+                  className={`flex-shrink-0 flex items-center gap-1.5 text-[13px] font-medium active:opacity-60 transition ${
+                    isSaved ? "text-ember-text" : "text-text-secondary"
                   }`}
                 >
-                  <Bookmark className="w-5 h-5" fill={isSaved ? "currentColor" : "none"} />
+                  {isSaved ? (
+                    <><Check className="w-4 h-4" /> Recipe saved</>
+                  ) : (
+                    <><Bookmark className="w-4 h-4" /> Save for later</>
+                  )}
                 </button>
               </div>
 
@@ -333,6 +337,9 @@ function RecipeCard() {
             AI-generated recipe — double-check cooking times, doneness &amp; allergens.
           </p>
         </KeyboardAwareFooter>
+
+        {/* Floating "Why this dish?" — explains the match before you commit */}
+        <WhyThisDish recipe={recipe} inventory={inventory} />
       </div>
     </MobileFrame>
   );

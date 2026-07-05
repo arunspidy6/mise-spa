@@ -167,6 +167,21 @@ IMAGE URL:
 - Use the pollinations.ai format. URL-encode the dish name for the prompt segment.
 - Always append: ?width=800&height=500&nologo=true&seed=<random 2-digit number>
 
+WHY THIS DISH — the confidence panel shown before the user commits:
+- "reasons": 3–4 short, concrete points (max 8 words each) on why THIS dish is a
+  great pick for THIS user right now. Ground them in their AVAILABLE ingredients,
+  the vibe, and how forgiving the cook is. Speak to the user ("Uses your salmon",
+  "Ready in 20 minutes", "Hard to overcook"). No generic filler.
+- "completion": "High" if the user has everything (no requiredSwaps), "Medium" if
+  only easy swaps/optional items are missing, "Low" if several swaps are needed.
+  MUST agree with your own requiredSwaps/optionalMissing above.
+- "effort": "Low" for a forgiving few-step dish, "Medium" for moderate technique,
+  "High" for demanding timing/technique. Should track difficulty.
+- "tasteNote": one short sentence (max 12 words) describing how the finished dish
+  actually TASTES — the flavour, texture and what makes it good. Be specific and
+  appetising, e.g. "Rich and garlicky with a bright chilli kick and silky sauce."
+  Never a rating word like "Medium" — describe the flavour, don't score it.
+
 RETURN FORMAT — valid JSON only. No markdown fences. No explanation before or after.
 {
   "name": "Specific dish name referencing main ingredient",
@@ -181,6 +196,12 @@ RETURN FORMAT — valid JSON only. No markdown fences. No explanation before or 
   "requiredSwaps": [],
   "optionalMissing": [],
   "sparseFallback": false,
+  "why": {
+    "reasons": ["Uses your <ingredient>", "Ready in <n> minutes", "Hard to get wrong"],
+    "completion": "High | Medium | Low",
+    "effort": "High | Medium | Low",
+    "tasteNote": "One short sentence on how the finished dish tastes"
+  },
   "ingredients": [
     { "name": "<ingredient>", "quantity": "<specific amount + unit>", "inInventory": true }
   ],
@@ -198,6 +219,7 @@ SELF-CHECK before returning:
 [ ] Every protein reaches a safe internal temperature, with a realistic cook time and a doneness cue (temperature or a reliable visual).
 [ ] No step uses vague quantities ("some", "a bit", "to taste" without a default amount).
 [ ] Dish name is specific and appetising.
+[ ] "why" has 3–4 grounded reasons, completion + effort each set to High/Medium/Low (completion agrees with requiredSwaps), and a tasteNote that describes the flavour (not a rating word).
 [ ] Description is ≤ 15 words and names the hero ingredient.
 [ ] JSON is valid and complete — no trailing commas, no missing closing brackets.`;
 
@@ -276,6 +298,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? avoidRecipes.filter((n: unknown) => typeof n === "string" && n.trim()).slice(0, 10)
     : [];
 
+  // Vibe / "what matters tonight" — maps the client's selected value to a
+  // concrete steer for the model. Keep keys in sync with VIBES in
+  // src/lib/mise-data.ts. Unknown/empty → no steer (best all-round match).
+  const VIBE_GUIDANCE: Record<string, string> = {
+    "use-up": "Prioritise using up the most perishable ingredients (fresh veg, herbs, dairy, opened items) before they spoil — build the dish around what needs eating first.",
+    quick: "Favour a genuinely fast, low-fuss dish: minimal steps, few pans, quick cleanup.",
+    comfort: "Lean into warm, hearty, satisfying comfort food.",
+    healthy: "Favour a lighter, nourishing, vegetable-forward dish; go easy on heavy fats and frying.",
+    different: "Pick something outside the usual weeknight routine — a less obvious cuisine, flavour or technique the user probably hasn't tried.",
+  };
+  const vibeKey: unknown = Array.isArray(session?.vibes) ? session.vibes[0] : undefined;
+  const vibeSteer = typeof vibeKey === "string" && VIBE_GUIDANCE[vibeKey] ? VIBE_GUIDANCE[vibeKey] : "";
+
   // ── Dynamic user message (changes per request — not cached) ────────────
   const userMessage =
     `Generate a recipe using the ingredients below.
@@ -285,6 +320,7 @@ APPLIANCES: ${(inventory.appliances || ["Hob/Stove"]).join(", ")}
 TIME: max ${session?.timeMinutes ?? 30} minutes
 SERVINGS: ${session?.servings ?? 2}
 ${session?.cuisine ? `CUISINE: ${session.cuisine}` : "CUISINE: your choice — be creative, avoid repeating the same cuisine twice"}
+${vibeSteer ? `VIBE: ${vibeSteer}` : ""}
 ${meal === "breakfast"
   ? `MEAL: It is currently BREAKFAST time. Generate a genuine breakfast dish.
 - PRIORITISE breakfast ingredients from the AVAILABLE list: bacon, sausages, eggs, oats, bread/toast, tortillas, potatoes (hash), milk, yoghurt, cheese, tomatoes, mushrooms, spinach.
@@ -388,6 +424,30 @@ At lunch and dinner: if the user selected a meat, poultry or fish protein, it MU
     if (Array.isArray(recipe.steps)) {
       recipe.steps = recipe.steps.map(normalizeStepRange);
     }
+
+    // Sanitise the model's "why" panel so a malformed field can never break the
+    // client. Meters are clamped to the three allowed levels; reasons are capped
+    // to 4 short strings. If it's unusable we drop it — the client then derives
+    // its own fallback from the recipe + kitchen.
+    const asMeter = (v: unknown): "Low" | "Medium" | "High" | null => {
+      const s = String(v ?? "").trim().toLowerCase();
+      return s === "high" ? "High" : s === "medium" ? "Medium" : s === "low" ? "Low" : null;
+    };
+    const w = recipe.why;
+    if (w && typeof w === "object") {
+      const reasons = Array.isArray(w.reasons)
+        ? w.reasons.filter((r: unknown) => typeof r === "string" && r.trim()).map((r: string) => r.trim()).slice(0, 4)
+        : [];
+      const completion = asMeter(w.completion);
+      const effort = asMeter(w.effort);
+      const tasteNote = typeof w.tasteNote === "string" ? w.tasteNote.trim().slice(0, 140) : "";
+      recipe.why = reasons.length && completion && effort && tasteNote
+        ? { reasons, completion, effort, tasteNote }
+        : undefined;
+    } else {
+      recipe.why = undefined;
+    }
+
     return res.status(200).json(recipe);
   } catch (err: any) {
     if (err?.name === "AbortError") {

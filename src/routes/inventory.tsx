@@ -706,10 +706,19 @@ function InventoryFlow() {
           <span className="font-mono text-[10px] text-text-tertiary uppercase tracking-widest">
             Step {step + 1} of {STEPS.length}
           </span>
-          <button onClick={() => { finalize(); goBack(); }}
-            className="w-11 h-11 -mr-2 flex items-center justify-center text-text-tertiary active:scale-90">
-            <X className="w-4 h-4" />
-          </button>
+          {/* Returning users (kitchen set up before) get a direct "Find recipes"
+              shortcut to Tonight's cook; first-timers still get a plain close. */}
+          {inventory.lastUpdated != null ? (
+            <button onClick={() => { finalize(); navigate({ to: "/session" }); }}
+              className="h-11 -mr-2 pl-2 flex items-center gap-1 text-[13px] font-medium text-ember-text active:opacity-60 transition">
+              Find recipes <ArrowRight className="w-4 h-4" />
+            </button>
+          ) : (
+            <button onClick={() => { finalize(); goBack(); }}
+              className="w-11 h-11 -mr-2 flex items-center justify-center text-text-tertiary active:scale-90">
+              <X className="w-4 h-4" />
+            </button>
+          )}
         </div>
 
         {/* Progress */}

@@ -1081,12 +1081,12 @@ export function getRecipe(
 }
 
 // Meal type based on the local time the recipe is requested.
-// Before 11am → breakfast, 11am–5pm → lunch, after 5pm → dinner.
+// 5–11am → breakfast, 11am–5pm → lunch, otherwise (incl. late night) → dinner.
 export type MealType = "breakfast" | "lunch" | "dinner";
 export function currentMealType(d: Date = new Date()): MealType {
   const h = d.getHours();
-  if (h < 11) return "breakfast";
-  if (h < 17) return "lunch";
+  if (h >= 5 && h < 11) return "breakfast";
+  if (h >= 11 && h < 17) return "lunch";
   return "dinner";
 }
 
@@ -1122,6 +1122,8 @@ export async function getRecipeFromAPI(
     cuisine: data.cuisine,
     time_minutes: data.time_minutes,
     difficulty: data.difficulty,
+    vibe: session.vibes?.[0] ?? "none",
+    why_source: data.why ? "model" : "derived",
   });
   return data as Recipe;
 }

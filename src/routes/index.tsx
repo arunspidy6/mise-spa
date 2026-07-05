@@ -1,10 +1,17 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { Package, Clock, ArrowRight } from "lucide-react";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { useMise } from "@/store/mise";
+import { hasOnboarded } from "@/lib/onboarding";
 
-export const Route = createFileRoute("/")({ component: Home });
+export const Route = createFileRoute("/")({
+  // First launch → show the intro before the home screen paints.
+  beforeLoad: () => {
+    if (!hasOnboarded()) throw redirect({ to: "/onboarding" });
+  },
+  component: Home,
+});
 
 const SPRING = { type: "spring" as const, stiffness: 320, damping: 24, mass: 0.9 };
 

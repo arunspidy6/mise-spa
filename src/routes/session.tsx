@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, ArrowRight, Minus, Plus, Pencil } from "lucide-react";
+import { ArrowLeft, ArrowRight, Minus, Plus, Pencil, ChevronDown, Check } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
@@ -8,7 +8,8 @@ import { EmberButton } from "@/components/mise/EmberButton";
 import { useMise } from "@/store/mise";
 import { getRecipeFromAPI } from "@/lib/generate-recipe";
 import type { CookHistory } from "@/lib/generate-recipe";
-import { TIME_OPTIONS } from "@/lib/mise-data";
+import { TIME_OPTIONS, VIBES } from "@/lib/mise-data";
+import { track } from "@/lib/analytics";
 import { RecipeLoaderContent } from "@/components/mise/RecipeLoader";
 
 export const Route = createFileRoute("/session")({ component: SessionSetup });
@@ -24,6 +25,16 @@ function SessionSetup() {
   const history = useMise(s => s.history);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<ErrState | null>(null);
+  const [vibeOpen, setVibeOpen] = useState(false);
+
+  // Single-select vibe stored as session.vibes ([] = no preference / surprise me).
+  const selectedVibe = VIBES.find(v => v.value === session.vibes[0]) ?? null;
+  const pickVibe = (value: string | null) => {
+    setSession({ vibes: value ? [value] : [] });
+    setVibeOpen(false);
+    // Only log an actual pick (not a clear/deselect) so PostHog shows real usage.
+    if (value) track("vibe_selected", { vibe: value });
+  };
 
   const itemCount = inventory.proteins.length + inventory.carbs.length +
     inventory.vegetables.length + inventory.fridge.length;
@@ -143,6 +154,61 @@ function SessionSetup() {
               <Pencil className="w-3.5 h-3.5" />Edit
             </span>
           </button>
+
+          {/* What matters tonight — vibe filter (single-select dropdown) */}
+          <div className="mt-6">
+            <p className="label-eyebrow mb-3">What matters tonight?</p>
+            <button
+              onClick={() => setVibeOpen(o => !o)}
+              aria-expanded={vibeOpen}
+              className="w-full rounded-xl bg-bg-surface border border-border-default flex items-center justify-between gap-3 px-4 h-14 active:scale-[0.99] transition text-left"
+            >
+              <span className="flex items-center gap-3 min-w-0">
+                <span className="text-lg flex-shrink-0">{selectedVibe?.emoji ?? "🍽️"}</span>
+                <span className="flex flex-col min-w-0">
+                  <span className="text-[14px] text-text-primary leading-tight truncate">
+                    {selectedVibe?.label ?? "Surprise me"}
+                  </span>
+                  <span className="text-[12px] text-text-tertiary leading-tight truncate">
+                    {selectedVibe?.detail ?? "No preference — best match for your kitchen"}
+                  </span>
+                </span>
+              </span>
+              <ChevronDown className={`w-4 h-4 text-text-tertiary flex-shrink-0 transition-transform ${vibeOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            <AnimatePresence>
+              {vibeOpen && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.22 }}
+                  className="overflow-hidden"
+                >
+                  <div className="mt-2 rounded-xl bg-bg-surface border border-border-default divide-y divide-border-subtle overflow-hidden">
+                    {VIBES.map(v => {
+                      const active = selectedVibe?.value === v.value;
+                      return (
+                        <button
+                          key={v.value}
+                          onClick={() => pickVibe(active ? null : v.value)}
+                          className={`w-full flex items-center gap-3 px-4 py-3 text-left active:opacity-70 transition ${active ? "bg-ember-glow" : ""}`}
+                        >
+                          <span className="text-lg flex-shrink-0">{v.emoji}</span>
+                          <span className="flex flex-col min-w-0 flex-1">
+                            <span className={`text-[14px] leading-tight ${active ? "text-ember-text font-medium" : "text-text-primary"}`}>{v.label}</span>
+                            <span className="text-[12px] text-text-tertiary leading-tight truncate">{v.detail}</span>
+                          </span>
+                          {active && <Check className="w-4 h-4 text-ember-text flex-shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           <div className="mt-6">
             <p className="label-eyebrow mb-3">How long do you have?</p>

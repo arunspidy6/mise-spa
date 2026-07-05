@@ -36,6 +36,14 @@ export type Recipe = {
   optionalMissing?: string[];
   sparseFallback?: boolean;
   image?: string;
+  // Model-authored "why this dish" confidence panel. Optional — older/cached
+  // recipes won't have it, so the recipe screen derives a fallback when absent.
+  why?: {
+    reasons: string[];
+    completion: "Low" | "Medium" | "High";
+    effort: "Low" | "Medium" | "High";
+    tasteNote: string;
+  };
 };
 
 export type Inventory = {

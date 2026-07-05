@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SessionRouteImport } from './routes/session'
 import { Route as RecipeRouteImport } from './routes/recipe'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as FeedbackRouteImport } from './routes/feedback'
@@ -25,6 +26,11 @@ const SessionRoute = SessionRouteImport.update({
 const RecipeRoute = RecipeRouteImport.update({
   id: '/recipe',
   path: '/recipe',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InventoryRoute = InventoryRouteImport.update({
@@ -59,6 +65,7 @@ export interface FileRoutesByFullPath {
   '/feedback': typeof FeedbackRoute
   '/history': typeof HistoryRoute
   '/inventory': typeof InventoryRoute
+  '/onboarding': typeof OnboardingRoute
   '/recipe': typeof RecipeRoute
   '/session': typeof SessionRoute
 }
@@ -68,6 +75,7 @@ export interface FileRoutesByTo {
   '/feedback': typeof FeedbackRoute
   '/history': typeof HistoryRoute
   '/inventory': typeof InventoryRoute
+  '/onboarding': typeof OnboardingRoute
   '/recipe': typeof RecipeRoute
   '/session': typeof SessionRoute
 }
@@ -78,6 +86,7 @@ export interface FileRoutesById {
   '/feedback': typeof FeedbackRoute
   '/history': typeof HistoryRoute
   '/inventory': typeof InventoryRoute
+  '/onboarding': typeof OnboardingRoute
   '/recipe': typeof RecipeRoute
   '/session': typeof SessionRoute
 }
@@ -89,6 +98,7 @@ export interface FileRouteTypes {
     | '/feedback'
     | '/history'
     | '/inventory'
+    | '/onboarding'
     | '/recipe'
     | '/session'
   fileRoutesByTo: FileRoutesByTo
@@ -98,6 +108,7 @@ export interface FileRouteTypes {
     | '/feedback'
     | '/history'
     | '/inventory'
+    | '/onboarding'
     | '/recipe'
     | '/session'
   id:
@@ -107,6 +118,7 @@ export interface FileRouteTypes {
     | '/feedback'
     | '/history'
     | '/inventory'
+    | '/onboarding'
     | '/recipe'
     | '/session'
   fileRoutesById: FileRoutesById
@@ -117,6 +129,7 @@ export interface RootRouteChildren {
   FeedbackRoute: typeof FeedbackRoute
   HistoryRoute: typeof HistoryRoute
   InventoryRoute: typeof InventoryRoute
+  OnboardingRoute: typeof OnboardingRoute
   RecipeRoute: typeof RecipeRoute
   SessionRoute: typeof SessionRoute
 }
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/recipe'
       fullPath: '/recipe'
       preLoaderRoute: typeof RecipeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/inventory': {
@@ -181,6 +201,7 @@ const rootRouteChildren: RootRouteChildren = {
   FeedbackRoute: FeedbackRoute,
   HistoryRoute: HistoryRoute,
   InventoryRoute: InventoryRoute,
+  OnboardingRoute: OnboardingRoute,
   RecipeRoute: RecipeRoute,
   SessionRoute: SessionRoute,
 }
