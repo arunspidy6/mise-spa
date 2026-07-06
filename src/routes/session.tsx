@@ -47,16 +47,16 @@ function SessionSetup() {
     setLoading(true);
     setErr(null);
 
-    // Staples (salt, oil, spices) are always preselected, so they don't prove
-    // the user actually added anything. Require at least one real, non-staple
-    // ingredient before calling the API.
-    const nonStaples = [
-      ...inventory.proteins, ...inventory.carbs,
-      ...inventory.vegetables, ...inventory.fridge,
-    ];
-    if (nonStaples.length < 1) {
+    // A real dish needs a hero. Staples (salt, oil, spices) are always
+    // preselected, and carbs/fridge extras alone don't make a meal — require at
+    // least one protein OR vegetable so we have something to build around.
+    const mains = inventory.proteins.length + inventory.vegetables.length;
+    if (mains < 1) {
       setLoading(false);
-      setErr({ reason: "no_ingredients", detail: "Add some ingredients to your kitchen first." });
+      setErr({
+        reason: "no_main",
+        detail: "Pick at least one protein or vegetable — that's the star of the dish, and we'll build the rest around what else you have.",
+      });
       return;
     }
 
@@ -249,24 +249,41 @@ function SessionSetup() {
           {err && (
             <div className="mb-4 rounded-xl bg-bg-surface border border-border-default p-4 space-y-3">
               <p className="text-[13px] font-semibold text-text-primary">
-                {isProteinErr
-                  ? `No recipes found for ${inventory.proteins.join(", ")}`
-                  : err.reason === "api_unreachable"
-                    ? "Couldn't reach the kitchen"
-                    : "Couldn't find a recipe"}
+                {err.reason === "no_main"
+                  ? "Add a main ingredient"
+                  : isProteinErr
+                    ? `No recipes found for ${inventory.proteins.join(", ")}`
+                    : err.reason === "api_unreachable"
+                      ? "Couldn't reach the kitchen"
+                      : "Couldn't find a recipe"}
               </p>
               <p className="text-[12px] text-text-secondary leading-relaxed">{err.detail}</p>
               <div className="space-y-2 pt-1">
-                {isProteinErr && (
-                  <button onClick={() => navigate({ to: "/inventory", search: { from: "session", step: 1 } })}
-                    className="w-full h-10 px-3 rounded-lg bg-ember/10 border border-ember-dim text-[13px] text-ember-text flex items-center justify-between active:opacity-70">
-                    <span>Select a different protein</span><span>→</span>
-                  </button>
+                {err.reason === "no_main" ? (
+                  <>
+                    <button onClick={() => navigate({ to: "/inventory", search: { from: "session", step: 1 } })}
+                      className="w-full h-10 px-3 rounded-lg bg-ember/10 border border-ember-dim text-[13px] text-ember-text flex items-center justify-between active:opacity-70">
+                      <span>🥩 Add a protein</span><span>→</span>
+                    </button>
+                    <button onClick={() => navigate({ to: "/inventory", search: { from: "session", step: 3 } })}
+                      className="w-full h-10 px-3 rounded-lg bg-ember/10 border border-ember-dim text-[13px] text-ember-text flex items-center justify-between active:opacity-70">
+                      <span>🥦 Add vegetables</span><span>→</span>
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {isProteinErr && (
+                      <button onClick={() => navigate({ to: "/inventory", search: { from: "session", step: 1 } })}
+                        className="w-full h-10 px-3 rounded-lg bg-ember/10 border border-ember-dim text-[13px] text-ember-text flex items-center justify-between active:opacity-70">
+                        <span>Select a different protein</span><span>→</span>
+                      </button>
+                    )}
+                    <button onClick={() => navigate({ to: "/inventory", search: { from: "session" } })}
+                      className="w-full h-10 px-3 rounded-lg bg-bg-raised border border-border-subtle text-[13px] text-text-secondary flex items-center justify-between active:opacity-70">
+                      <span>Update my kitchen</span><span>→</span>
+                    </button>
+                  </>
                 )}
-                <button onClick={() => navigate({ to: "/inventory", search: { from: "session" } })}
-                  className="w-full h-10 px-3 rounded-lg bg-bg-raised border border-border-subtle text-[13px] text-text-secondary flex items-center justify-between active:opacity-70">
-                  <span>Update my kitchen</span><span>→</span>
-                </button>
               </div>
             </div>
           )}

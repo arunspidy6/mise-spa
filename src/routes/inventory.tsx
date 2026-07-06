@@ -7,6 +7,7 @@ import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { useMise } from "@/store/mise";
+import type { Inventory } from "@/store/mise";
 import { API_BASE } from "@/lib/generate-recipe";
 import { appHeaders } from "@/lib/appguard";
 import { getDeviceId } from "@/lib/device";
@@ -483,7 +484,7 @@ function CustomItemInput({
   onAdd,
   addMapping,
 }: {
-  onAdd: (item: string) => AddResult;
+  onAdd: (item: string, category?: string) => AddResult;
   addMapping: (displayLabel: string, satToken: string) => void;
 }) {
   const [value, setValue] = useState("");
@@ -515,8 +516,8 @@ function CustomItemInput({
 
   // Commit the add, show inline confirmation + button tick. `info` overrides the
   // default "added to X" line (e.g. when we have no recipes for the ingredient).
-  const commitAdd = (clean: string, info?: string) => {
-    const res = onAdd(clean);
+  const commitAdd = (clean: string, info?: string, category?: string) => {
+    const res = onAdd(clean, category);
     setValue(""); setSuggestions([]); setMsg(null);
     const ok = res.kind !== "duplicate";
     setConfirm({
@@ -554,7 +555,7 @@ function CustomItemInput({
     const masterEntry = MASTER_INGREDIENTS[lower];
     if (masterEntry) {
       addMapping(lower, masterEntry.satToken);
-      commitAdd(clean);
+      commitAdd(clean, undefined, masterEntry.category);
       return;
     }
 
@@ -565,7 +566,7 @@ function CustomItemInput({
         const parsed = JSON.parse(cached);
         if (parsed.satToken) addMapping(lower, parsed.satToken);
         // Even if previously marked invalid, add now — user insists
-        commitAdd(clean, parsed.isValid ? undefined : `Added “${clean}” — we don't have recipes for this yet`);
+        commitAdd(clean, parsed.isValid ? undefined : `Added “${clean}” — we don't have recipes for this yet`, parsed.category);
         return;
       }
     } catch { /* ignore */ }
@@ -573,6 +574,7 @@ function CustomItemInput({
     // ③ API classification (once per device, then cached)
     setStatus("checking");
     let info: string | undefined;
+    let category: string | undefined;
     try {
       const res = await fetch(`${API_BASE}/api/classify-ingredient`, {
         method: "POST",
@@ -583,6 +585,7 @@ function CustomItemInput({
         const result = await res.json();
         try { localStorage.setItem(`mise-cls-${lower}`, JSON.stringify(result)); } catch {}
         if (result.satToken) addMapping(lower, result.satToken);
+        category = result.category;
         if (result.isValid === false) {
           // Don't block — add it and explain gracefully
           info = `Added “${clean}” — we don't have recipes for this ingredient yet`;
@@ -591,7 +594,7 @@ function CustomItemInput({
     } catch { /* API unavailable — add without mapping, no message */ }
 
     setStatus("idle");
-    commitAdd(clean, info);
+    commitAdd(clean, info, category);
   };
 
   return (
@@ -774,18 +777,27 @@ function InventoryFlow() {
             {cur.key !== "appliances" && (
               <CustomItemInput
                 addMapping={addCustomTokenMapping}
-                onAdd={(item): AddResult => {
-                  const targetCat = MISPLACED[item.toLowerCase()];
-                  if (targetCat && targetCat !== cur.key) {
+                onAdd={(item, category): AddResult => {
+                  const lower = item.toLowerCase();
+                  // Route to the ingredient's TRUE category, not whichever screen
+                  // it was typed on: classifier/master category first, then the
+                  // misplaced-redirect map, else the current step.
+                  const VALID_CATS = ["proteins", "carbs", "vegetables", "fridge", "staples"];
+                  const resolved =
+                    (category && VALID_CATS.includes(category) ? category : MASTER_INGREDIENTS[lower]?.category) as
+                      | keyof Inventory
+                      | undefined;
+                  const targetCat = (resolved ?? MISPLACED[lower] ?? cur.key) as keyof Inventory;
+                  if (targetCat !== cur.key) {
                     const targetList = (inventory[targetCat] as string[]) ?? [];
-                    if (!targetList.map(s => s.toLowerCase()).includes(item.toLowerCase())) {
+                    if (!targetList.map(s => s.toLowerCase()).includes(lower)) {
                       setInventory({ [targetCat]: [...targetList, item] } as never);
                       addCustomItem(item);
                     }
                     return { kind: "moved", label: CATEGORY_LABEL[targetCat] };
                   }
                   const list = (inventory[cur.key] as string[]) ?? [];
-                  if (!list.map(s => s.toLowerCase()).includes(item.toLowerCase())) {
+                  if (!list.map(s => s.toLowerCase()).includes(lower)) {
                     setInventory({ [cur.key]: [...list, item] } as never);
                     addCustomItem(item);
                     return { kind: "added", label: CATEGORY_LABEL[cur.key] };
