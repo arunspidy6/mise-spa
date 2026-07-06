@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useRef } from "react";
-import { ArrowLeft, ArrowRight, Clock, RotateCw, ChevronDown, ChevronUp, Bookmark, BookmarkCheck, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, RotateCw, ChevronDown, ChevronUp, Bookmark, BookmarkCheck, Check, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
@@ -29,10 +29,21 @@ function RecipeCard() {
   const [rerolling, setRerolling] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [whyOpen, setWhyOpen] = useState(false);
   const [saveToast, setSaveToast] = useState<string | null>(null);
   const saveToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isSaved = !!recipe && saved.some(s => s.recipe.name === recipe.name);
+
+  const openWhy = () => {
+    if (!recipe) return;
+    setWhyOpen(true);
+    track("why_this_dish_opened", {
+      recipe: recipe.name,
+      cuisine: recipe.cuisine,
+      source: recipe.why?.reasons?.length ? "model" : "derived",
+    });
+  };
 
   // One live toast at a time — reset the dismiss timer on each call so a
   // rapid save/unsave can't have an older timer clear the newer message.
@@ -240,6 +251,19 @@ function RecipeCard() {
             </div>
           </div>
 
+          {/* Why this dish — inline trigger, styled like the preview row so it
+              never overlaps the CTAs or the dropdown below it. */}
+          <button
+            onClick={openWhy}
+            className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl bg-bg-surface border border-border-subtle active:opacity-70 transition-opacity"
+          >
+            <span className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-ember-text" />
+              <span className="text-[13px] font-medium text-text-primary">Why this dish?</span>
+            </span>
+            <span className="text-[11px] text-text-tertiary">See the match →</span>
+          </button>
+
           {/* Recipe preview dropdown */}
           <div className="rounded-xl bg-bg-surface border border-border-subtle overflow-hidden">
             <button
@@ -340,8 +364,8 @@ function RecipeCard() {
           </p>
         </KeyboardAwareFooter>
 
-        {/* Floating "Why this dish?" — explains the match before you commit */}
-        <WhyThisDish recipe={recipe} inventory={inventory} />
+        {/* "Why this dish?" sheet — opened by the inline trigger above */}
+        <WhyThisDish recipe={recipe} inventory={inventory} open={whyOpen} onClose={() => setWhyOpen(false)} />
       </div>
     </MobileFrame>
   );

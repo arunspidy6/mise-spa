@@ -1,9 +1,7 @@
-import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, X, Check, BarChart3, UtensilsCrossed } from "lucide-react";
 import type { Recipe, Inventory } from "@/store/mise";
 import { whyThisDish, type Meter } from "@/lib/why-this-dish";
-import { track } from "@/lib/analytics";
 
 // A three-bar meter (Low / Medium / High) matching the ember + success palette.
 function MeterBars({ level }: { level: Meter }) {
@@ -33,44 +31,26 @@ function MeterCard({ label, level }: { label: string; level: Meter }) {
   );
 }
 
-// Floating "Why this dish?" pill + a bottom sheet that explains the match.
-// Self-contained: owns its own open state so the recipe screen stays lean.
-export function WhyThisDish({ recipe, inventory }: { recipe: Recipe; inventory: Inventory }) {
-  const [open, setOpen] = useState(false);
+// A bottom sheet explaining the match. Controlled by the recipe screen so its
+// trigger can live inline in the content (no floating overlay over the CTAs).
+export function WhyThisDish({
+  recipe,
+  inventory,
+  open,
+  onClose,
+}: {
+  recipe: Recipe;
+  inventory: Inventory;
+  open: boolean;
+  onClose: () => void;
+}) {
   // Prefer the model's own reasoning; derive a fallback for older/cached recipes
   // (or any where generation didn't return a usable "why").
   const aiWhy = recipe.why;
   const why = aiWhy?.reasons?.length ? aiWhy : whyThisDish(recipe, inventory);
 
-  const openSheet = () => {
-    setOpen(true);
-    track("why_this_dish_opened", {
-      recipe: recipe.name,
-      cuisine: recipe.cuisine,
-      source: aiWhy?.reasons?.length ? "model" : "derived",
-    });
-  };
-
   return (
     <>
-      {/* Floating trigger — sits just above the sticky footer CTAs */}
-      <AnimatePresence>
-        {!open && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ type: "spring", stiffness: 400, damping: 26 }}
-            onClick={openSheet}
-            aria-label="Why this dish?"
-            className="absolute bottom-36 right-4 z-40 h-11 pl-3.5 pr-4 rounded-full bg-bg-elevated/95 backdrop-blur-md border border-ember-dim shadow-lg flex items-center gap-2 active:scale-95 transition"
-          >
-            <Sparkles className="w-4 h-4 text-ember-text" />
-            <span className="text-[13px] font-semibold text-text-primary">Why this dish?</span>
-          </motion.button>
-        )}
-      </AnimatePresence>
-
       {/* Bottom sheet */}
       <AnimatePresence>
         {open && (
@@ -79,7 +59,7 @@ export function WhyThisDish({ recipe, inventory }: { recipe: Recipe; inventory: 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setOpen(false)}
+              onClick={onClose}
               className="absolute inset-0 z-40 bg-bg-base/70 backdrop-blur-sm"
             />
             <motion.div
@@ -106,7 +86,7 @@ export function WhyThisDish({ recipe, inventory }: { recipe: Recipe; inventory: 
                     </div>
                   </div>
                   <button
-                    onClick={() => setOpen(false)}
+                    onClick={onClose}
                     aria-label="Close"
                     className="w-9 h-9 -mr-1 rounded-full flex items-center justify-center text-text-secondary active:scale-90"
                   >
