@@ -228,10 +228,14 @@ RETURN FORMAT — valid JSON only. No markdown fences. No explanation before or 
     { "name": "<ingredient>", "quantity": "<specific amount + unit>", "inInventory": true }
   ],
   "steps": [
-    { "number": 1, "instruction": "<Action verb> + <quantities> + <sensory cue>.", "timerMinutes": null },
-    { "number": 2, "instruction": "<Action verb> + <quantities> + <sensory cue>.", "timerMinutes": 5 }
+    { "number": 1, "summary": "<≤8-word gist of what this step does>", "instruction": "<Action verb> + <quantities> + <sensory cue>.", "timerMinutes": null },
+    { "number": 2, "summary": "<≤8-word gist>", "instruction": "<Action verb> + <quantities> + <sensory cue>.", "timerMinutes": 5 }
   ]
 }
+
+STEP SUMMARY (the "summary" field):
+- A plain-language gist of what the step accomplishes, so a cook can read ahead at a glance: "Soften the onions", "Sear the chicken", "Simmer the sauce", "Rest and serve".
+- Max 8 words. No quantities, no temperatures, no timers — those live in the full instruction. Start with a verb. It complements the instruction; it does not repeat it.
 
 SELF-CHECK before returning:
 [ ] Every ingredient in the ingredients array appears in the user's AVAILABLE list.
@@ -240,6 +244,7 @@ SELF-CHECK before returning:
 [ ] No instruction text contains a time range — every time is a single integer, and it matches that step's timerMinutes exactly.
 [ ] Every protein reaches a safe internal temperature, with a realistic cook time and a doneness cue (temperature or a reliable visual).
 [ ] No step uses vague quantities ("some", "a bit", "to taste" without a default amount).
+[ ] Every step has a "summary" — a ≤8-word verb-first gist with no quantities or timers.
 [ ] The recipe is built on one of the STRUCTURAL SKELETONS — its method, step order and ratios follow that skeleton (adapted only in ingredient choice), and no copy claims the dish is tested/verified.
 [ ] Dish name is specific and appetising.
 [ ] "why" has 3–4 grounded reasons, completion + effort each set to High/Medium/Low (completion agrees with requiredSwaps), and a tasteNote that describes the flavour (not a rating word).

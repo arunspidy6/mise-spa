@@ -48,6 +48,15 @@ export function MobileFrame({ children, className }: { children: ReactNode; clas
             {children}
           </div>
         </div>
+
+        {/* Portrait-only: on a touch phone held sideways, show a rotate prompt
+            instead of a broken landscape layout (the native app is also locked
+            to portrait via Info.plist). */}
+        <div className="mise-landscape-block">
+          <span className="text-[34px]">📱</span>
+          <p className="font-display text-[20px] text-text-primary">Rotate to portrait</p>
+          <p className="text-[13px] text-text-secondary">Mise is designed to be used upright.</p>
+        </div>
       </div>
     </MobileFrameContext.Provider>
   );

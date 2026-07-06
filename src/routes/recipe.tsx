@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useRef } from "react";
-import { ArrowLeft, ArrowRight, Clock, RotateCw, ChevronDown, ChevronUp, Bookmark, BookmarkCheck, Check, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, RotateCw, Bookmark, BookmarkCheck, Check, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
@@ -8,6 +8,7 @@ import { EmberButton } from "@/components/mise/EmberButton";
 import { RecipeImage } from "@/components/mise/RecipeImage";
 import { RecipeLoaderContent } from "@/components/mise/RecipeLoader";
 import { WhyThisDish } from "@/components/mise/WhyThisDish";
+import { RecipePreview } from "@/components/mise/RecipePreview";
 import { useMise } from "@/store/mise";
 import { getRecipeFromAPI } from "@/lib/generate-recipe";
 import { track } from "@/lib/analytics";
@@ -184,29 +185,19 @@ function RecipeCard() {
             <RecipeImage src={recipe.image} cuisine={recipe.cuisine} alt={recipe.name} height={180} />
 
             <div className="p-4 space-y-2.5">
-              {/* Metadata → title → caption: three distinct tiers via size,
-                  weight, colour and spacing rhythm (not a single paragraph). */}
-              <div className="flex items-start gap-3">
-                <div className="flex-1 min-w-0">
-                  {/* Tier 1 — category + time metadata (eyebrow) */}
-                  <div className="flex gap-2 flex-wrap">
-                    <span className="bg-ember-glow text-ember-text text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full">
-                      {recipe.cuisine}
-                    </span>
-                    <span className="bg-bg-elevated text-text-secondary text-[10px] font-mono px-2.5 py-1 rounded-full flex items-center gap-1">
-                      <Clock className="w-3 h-3" />{recipe.time_minutes} min
-                    </span>
-                  </div>
-                  {/* Tier 2 — the hero: larger, brighter, tight leading so a
-                      multi-line name reads as one block */}
-                  <h2 className="font-display text-[22px] font-normal text-text-primary leading-[1.12] tracking-tight mt-2.5">
-                    {recipe.name}
-                  </h2>
-                  {/* Tier 3 — supporting caption: smaller, muted, looser */}
-                  <p className="text-[13px] text-text-tertiary leading-relaxed mt-2">{recipe.description}</p>
+              {/* Metadata row shares the top line with the save action, so the
+                  title & description below get the full card width. */}
+              <div className="flex items-start justify-between gap-3">
+                {/* Tier 1 — category + time metadata (eyebrow) */}
+                <div className="flex gap-2 flex-wrap min-w-0">
+                  <span className="bg-ember-glow text-ember-text text-[10px] font-semibold uppercase tracking-wider px-2.5 py-1 rounded-full">
+                    {recipe.cuisine}
+                  </span>
+                  <span className="bg-bg-elevated text-text-secondary text-[10px] font-mono px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <Clock className="w-3 h-3" />{recipe.time_minutes} min
+                  </span>
                 </div>
-                {/* Frameless save action — top-right, flips to a ticked
-                    "Recipe saved" once it's in the cookbook. */}
+                {/* Frameless save action — flips to a ticked "Recipe saved". */}
                 <button
                   onClick={toggleSave}
                   aria-pressed={isSaved}
@@ -221,6 +212,12 @@ function RecipeCard() {
                   )}
                 </button>
               </div>
+              {/* Tier 2 — the hero title, full width */}
+              <h2 className="font-display text-[22px] font-normal text-text-primary leading-[1.12] tracking-tight">
+                {recipe.name}
+              </h2>
+              {/* Tier 3 — supporting caption */}
+              <p className="text-[13px] text-text-tertiary leading-relaxed">{recipe.description}</p>
 
               {swaps.length > 0 && (
                 <div className="rounded-lg border border-ember-dim bg-ember-glow p-3 space-y-2">
@@ -264,68 +261,18 @@ function RecipeCard() {
             <span className="text-[11px] text-text-tertiary">See the match →</span>
           </button>
 
-          {/* Recipe preview dropdown */}
-          <div className="rounded-xl bg-bg-surface border border-border-subtle overflow-hidden">
-            <button
-              onClick={() => setPreviewOpen(o => !o)}
-              className="w-full flex items-center justify-between px-4 py-3.5 active:opacity-70 transition-opacity"
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-base">📋</span>
-                <span className="text-[13px] font-medium text-text-primary">Preview full recipe</span>
-                <span className="text-[11px] text-text-tertiary">
-                  {recipe.ingredients?.length ?? 0} ingredients · {recipe.steps?.length ?? 0} steps
-                </span>
-              </div>
-              {previewOpen
-                ? <ChevronUp className="w-4 h-4 text-text-tertiary" />
-                : <ChevronDown className="w-4 h-4 text-text-tertiary" />
-              }
-            </button>
-
-            <AnimatePresence>
-              {previewOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.25 }}
-                  className="overflow-hidden"
-                >
-                  <div className="px-4 pb-4 space-y-4 border-t border-border-subtle pt-3">
-                    {/* Ingredients */}
-                    <div>
-                      <p className="label-eyebrow mb-2">Ingredients</p>
-                      <div className="space-y-1.5">
-                        {recipe.ingredients?.map((ing, i) => (
-                          <div key={i} className="flex items-center justify-between">
-                            <span className={`text-[13px] ${ing.inInventory === false ? "text-text-tertiary line-through" : "text-text-primary"}`}>
-                              {ing.name}
-                            </span>
-                            <span className="text-[12px] text-text-tertiary font-mono">{ing.quantity}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    {/* Steps overview */}
-                    <div>
-                      <p className="label-eyebrow mb-2">Steps overview</p>
-                      <div className="space-y-2">
-                        {recipe.steps?.map((step, i) => (
-                          <div key={i} className="flex gap-3">
-                            <span className="font-mono text-[11px] text-ember-text mt-0.5 flex-shrink-0">
-                              {String(i + 1).padStart(2, "0")}
-                            </span>
-                            <p className="text-[12px] text-text-secondary leading-relaxed">{step.instruction}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          {/* Recipe preview — opens the read-ahead sheet (same style as the
+              "Why this dish?" sheet), not an inline dropdown. */}
+          <button
+            onClick={() => setPreviewOpen(true)}
+            className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl bg-bg-surface border border-border-subtle active:opacity-70 transition-opacity"
+          >
+            <span className="flex items-center gap-2">
+              <span className="text-base">📋</span>
+              <span className="text-[13px] font-medium text-text-primary">Preview the steps</span>
+            </span>
+            <span className="text-[11px] text-text-tertiary">{recipe.steps?.length ?? 0} steps →</span>
+          </button>
 
           {errMsg && (
             <div className="rounded-xl bg-bg-surface border border-border-default p-4 text-center space-y-2">
@@ -366,6 +313,9 @@ function RecipeCard() {
 
         {/* "Why this dish?" sheet — opened by the inline trigger above */}
         <WhyThisDish recipe={recipe} inventory={inventory} open={whyOpen} onClose={() => setWhyOpen(false)} />
+
+        {/* Read-ahead preview sheet — opened by the "Preview the steps" row */}
+        <RecipePreview recipe={recipe} open={previewOpen} onClose={() => setPreviewOpen(false)} />
       </div>
     </MobileFrame>
   );

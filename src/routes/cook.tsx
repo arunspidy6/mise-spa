@@ -6,6 +6,7 @@ import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { useMise } from "@/store/mise";
 import { track } from "@/lib/analytics";
+import { useSwipeBack } from "@/hooks/use-swipe-back";
 import { isNative, ensureNotificationPermission, scheduleNotice, cancelNotice } from "@/lib/native/notify";
 import { nativeVoiceSupported, startNativeSpeech, stopNativeSpeech } from "@/lib/native/speech";
 
@@ -931,6 +932,14 @@ function CookMode() {
     setStep(next);
     stepRef.current = next;
   }, []);
+
+  // Left-edge swipe → back, mirroring the header back button's hierarchy:
+  // prep screen → recipe; step 0 → prep; later steps → previous step.
+  useSwipeBack(() => {
+    if (!prepDone) { navigate({ to: "/recipe" }); return; }
+    if (step === 0) { setPrepDone(false); return; }
+    goTo(step - 1);
+  });
 
   // ── Timer-skip prompt actions (shared by buttons + voice) ──────────────
   const advanceToPending = useCallback(() => {

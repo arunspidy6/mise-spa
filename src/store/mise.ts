@@ -13,6 +13,10 @@ export type RecipeIngredient = {
 export type RecipeStep = {
   number: number;
   instruction: string;
+  // A short plain-language gist of what this step accomplishes (≤ 8 words, no
+  // quantities) — shown in the read-ahead preview. Optional: older/cached
+  // recipes fall back to a shortened instruction.
+  summary?: string;
   techniques?: string[];
   ingredientsUsed?: string[];
   timerMinutes?: number | null;

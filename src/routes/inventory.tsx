@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
+import { useSwipeBack } from "@/hooks/use-swipe-back";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { useMise } from "@/store/mise";
 import type { Inventory } from "@/store/mise";
@@ -696,6 +697,9 @@ function InventoryFlow() {
     else setStep(s => s + 1);
   };
 
+  // Swipe from the left edge → previous step (or leave the flow on step 0),
+  // mirroring the header back button.
+  useSwipeBack(() => (step === 0 ? goBack() : setStep(s => s - 1)));
 
   return (
     <MobileFrame>

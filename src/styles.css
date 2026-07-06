@@ -260,3 +260,23 @@
   50%      { transform: translateY(-7px) rotate(5deg); }
 }
 .animate-food-bob { animation: food-bob 1.4s var(--ease-out) infinite; }
+
+/* Portrait-only guard for web/PWA. The native iOS app is locked in Info.plist;
+   this covers a phone in a mobile browser. Targets touch devices in landscape
+   only (max-width keeps it off desktop; pointer:coarse keeps it off laptops). */
+.mise-landscape-block { display: none; }
+@media (orientation: landscape) and (max-width: 900px) and (pointer: coarse) {
+  .mise-landscape-block {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    text-align: center;
+    padding: 0 2rem;
+    background: var(--bg-base);
+  }
+}
