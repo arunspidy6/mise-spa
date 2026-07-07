@@ -372,6 +372,14 @@ export const Route = createFileRoute("/inventory")({
   component: InventoryFlow,
 });
 
+// Direction-aware page-slide variants. `custom` is the nav direction: +1 forward
+// (enter from right, exit left), -1 back (enter from left, exit right).
+const STEP_SLIDE = {
+  enter: (dir: number) => ({ x: dir >= 0 ? "100%" : "-100%" }),
+  center: { x: 0 },
+  exit: (dir: number) => ({ x: dir >= 0 ? "-100%" : "100%" }),
+};
+
 const STEPS = [
   { key: "staples" as const,    label: "Pantry staples",  title: "What's in your kitchen?",       intro: "Everything highlighted is in your kitchen. Tap to remove what you don't have.", mode: "remove" as const, sections: STAPLE_SECTIONS },
   { key: "proteins" as const,   label: "Proteins",         title: "What proteins do you have?",    intro: "Select everything you have right now. This drives your recipes.",            mode: "add" as const,    sections: PROTEIN_SECTIONS },
@@ -678,6 +686,11 @@ function InventoryFlow() {
   const addCustomItem = useMise(s => s.addCustomItem);
   const addCustomTokenMapping = useMise(s => s.addCustomTokenMapping);
   const [step, setStep] = useState(initStep ?? 0);
+  // Track navigation direction so the page slide follows the gesture: +1 forward
+  // (new enters from the right), -1 back (new enters from the left).
+  const [dir, setDir] = useState(0);
+  const goStep = (target: number, direction: number) => { setDir(direction); setStep(target); };
+  const goPrev = () => (step === 0 ? goBack() : goStep(step - 1, -1));
 
   const cur = STEPS[step];
   const selected = (inventory[cur.key] as string[] | undefined) ?? [];
@@ -694,19 +707,19 @@ function InventoryFlow() {
 
   const next = () => {
     if (isLast) { finalize(); navigate({ to: "/session" }); }
-    else setStep(s => s + 1);
+    else goStep(step + 1, 1);
   };
 
   // Swipe from the left edge → previous step (or leave the flow on step 0),
   // mirroring the header back button.
-  useSwipeBack(() => (step === 0 ? goBack() : setStep(s => s - 1)));
+  useSwipeBack(goPrev);
 
   return (
     <MobileFrame>
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-5 pb-3">
-          <button onClick={() => step === 0 ? goBack() : setStep(s => s - 1)}
+          <button onClick={goPrev}
             className="w-11 h-11 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -737,12 +750,15 @@ function InventoryFlow() {
           </div>
         </div>
 
-        {/* Content */}
-        <AnimatePresence mode="wait">
-          <motion.div key={step}
-            initial={{ opacity: 0, x: 24 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -24 }}
-            transition={{ duration: 0.2 }}
-            className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pb-4">
+        {/* Content — direction-aware page slide: both steps slide together so
+            the screen moves in the direction of the swipe / navigation. */}
+        <div className="relative flex-1 min-h-0 overflow-hidden">
+        <AnimatePresence initial={false} custom={dir}>
+          <motion.div key={step} custom={dir}
+            variants={STEP_SLIDE}
+            initial="enter" animate="center" exit="exit"
+            transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+            className="absolute inset-0 overflow-y-auto overscroll-contain px-4 pb-4">
 
             <span className="label-eyebrow text-ember-text">{cur.label}</span>
             <h1 className="font-display text-[28px] font-light text-text-primary mt-2 leading-tight">{cur.title}</h1>
@@ -858,6 +874,7 @@ function InventoryFlow() {
             )}
           </motion.div>
         </AnimatePresence>
+        </div>{/* end sliding content */}
 
         {/* Sticky CTA — hidden while keyboard is open so content fits the visible area */}
         <KeyboardAwareFooter>

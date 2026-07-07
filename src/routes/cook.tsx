@@ -10,6 +10,13 @@ import { useSwipeBack } from "@/hooks/use-swipe-back";
 import { isNative, ensureNotificationPermission, scheduleNotice, cancelNotice } from "@/lib/native/notify";
 import { nativeVoiceSupported, startNativeSpeech, stopNativeSpeech } from "@/lib/native/speech";
 
+// Direction-aware page-slide variants (custom = nav direction: +1 fwd, -1 back).
+const COOK_STEP_SLIDE = {
+  enter: (dir: number) => ({ x: dir >= 0 ? "100%" : "-100%" }),
+  center: { x: 0 },
+  exit: (dir: number) => ({ x: dir >= 0 ? "-100%" : "100%" }),
+};
+
 // Cook-timer notification ids live in their own range so they never collide
 // with saved-recipe reminder ids.
 const TIMER_NOTICE_BASE = 1_000_000;
@@ -703,6 +710,8 @@ function CookMode() {
   const addHistory = useMise(s => s.addHistory);
 
   const [step, setStep] = useState(0);
+  // Nav direction for the page slide: +1 forward, -1 back.
+  const [dir, setDir] = useState(0);
   const [timers, setTimers] = useState<Record<number, TimerState>>(() => loadTimers());
   const [prepDone, setPrepDone] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
@@ -929,6 +938,7 @@ function CookMode() {
     }
     if (next >= (stepsRef.current.length)) { setShowFinish(true); return; }
     hapticStep();
+    setDir(next >= stepRef.current ? 1 : -1);
     setStep(next);
     stepRef.current = next;
   }, []);
@@ -951,6 +961,7 @@ function CookMode() {
     pendingStepRef.current = null;
     if (ps >= stepsRef.current.length) { setShowFinish(true); return; }
     hapticStep();
+    setDir(1);
     setStep(ps);
     stepRef.current = ps;
   }, []);
@@ -1380,12 +1391,14 @@ function CookMode() {
           ))}
         </div>
 
-        {/* ── Step content ─────────────────────────────────────────────── */}
-        <AnimatePresence mode="wait">
-          <motion.div key={step}
-            initial={{ opacity: 0, x: 32 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -32 }}
-            transition={{ type: "spring", stiffness: 360, damping: 30 }}
-            className="flex-1 min-h-0 flex flex-col px-6 pt-2 overflow-y-auto overscroll-contain pb-4"
+        {/* ── Step content — direction-aware page slide ─────────────────── */}
+        <div className="relative flex-1 min-h-0 overflow-hidden">
+        <AnimatePresence initial={false} custom={dir}>
+          <motion.div key={step} custom={dir}
+            variants={COOK_STEP_SLIDE}
+            initial="enter" animate="center" exit="exit"
+            transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+            className="absolute inset-0 flex flex-col px-6 pt-2 overflow-y-auto overscroll-contain pb-4"
           >
             <div className="relative mb-5">
               <span className="absolute right-0 top-0 font-display text-[96px] font-light text-bg-surface leading-none select-none pointer-events-none">
@@ -1448,6 +1461,7 @@ function CookMode() {
             )}
           </motion.div>
         </AnimatePresence>
+        </div>{/* end sliding step content */}
 
         {/* ── Floating timer row — ABOVE nav buttons, left-to-right scroll */}
         <AnimatePresence>
