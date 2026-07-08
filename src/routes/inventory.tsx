@@ -6,6 +6,7 @@ import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { useScrollIntoViewOnFocus } from "@/hooks/use-scroll-into-view-on-focus";
 import { useSwipeBack } from "@/hooks/use-swipe-back";
+import { hapticWarn, hapticLight } from "@/lib/haptics";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { useMise } from "@/store/mise";
 import type { Inventory } from "@/store/mise";
@@ -467,7 +468,7 @@ type AddResult = { kind: "added" | "moved" | "duplicate"; label: string };
 // Fuzzy ingredient search — handles typos like "tumeric" → "turmeric",
 // "chiken" → "chicken". Uses sequential character matching so partial
 // out-of-order characters still score well.
-function fuzzyMatchIngredients(query: string, limit = 6): string[] {
+function scoredMatches(query: string): { key: string; score: number }[] {
   const q = query.toLowerCase().trim();
   if (q.length < 2) return [];
   return Object.keys(MASTER_INGREDIENTS)
@@ -486,9 +487,13 @@ function fuzzyMatchIngredients(query: string, limit = 6): string[] {
       return { key, score: seqScore };
     })
     .filter(({ score }) => score > 0.6)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map(({ key }) => key.replace(/\b\w/g, c => c.toUpperCase()));
+    .sort((a, b) => b.score - a.score);
+}
+
+const titleCase = (k: string) => k.replace(/\b\w/g, c => c.toUpperCase());
+
+function fuzzyMatchIngredients(query: string, limit = 6): string[] {
+  return scoredMatches(query).slice(0, limit).map(({ key }) => titleCase(key));
 }
 
 function CustomItemInput({
@@ -531,6 +536,7 @@ function CustomItemInput({
     const res = onAdd(clean, category);
     setValue(""); setSuggestions([]); setMsg(null);
     const ok = res.kind !== "duplicate";
+    if (ok) hapticLight(); else hapticWarn();
     setConfirm({
       text: info ?? (ok
         ? `“${clean}” added to ${capLabel(res.label)}`
@@ -560,12 +566,12 @@ function CustomItemInput({
   const resolveAndAdd = async (raw: string) => {
     // Empty submit → nudge with a buzz so the tap doesn't feel ignored.
     if (!raw.trim()) {
-      navigator.vibrate?.(60);
+      hapticWarn();
       showMsg("Type an ingredient first");
       return;
     }
     const clean = sanitiseIngredient(raw);
-    if (!clean) { showMsg("Letters only — no numbers or symbols"); return; }
+    if (!clean) { hapticWarn(); showMsg("Letters only — no numbers or symbols"); return; }
     const lower = clean.toLowerCase();
 
     // ① Instant lookup — MASTER_INGREDIENTS (no API call needed)
@@ -574,6 +580,21 @@ function CustomItemInput({
       addMapping(lower, masterEntry.satToken);
       commitAdd(clean, undefined, masterEntry.category);
       return;
+    }
+
+    // Spelling guard: if the word isn't a known ingredient but very closely
+    // matches one (a likely typo), offer "Did you mean?" corrections and a buzz
+    // instead of silently adding a misspelling. Only intercepts strong matches,
+    // so genuinely new ingredients still fall through to the classifier below.
+    const top = scoredMatches(lower)[0];
+    if (top && top.score >= 1) {
+      const picks = fuzzyMatchIngredients(lower);
+      if (picks.length && picks[0].toLowerCase() !== lower) {
+        setSuggestions(picks);
+        showMsg("Did you mean one of these?", "info");
+        hapticWarn();
+        return;
+      }
     }
 
     // ② localStorage cache (API result from a previous visit)
