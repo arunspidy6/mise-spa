@@ -643,22 +643,32 @@ function TimerModal({
                   style={{ width: `${progress * 100}%`, transition: "width 0.9s linear" }}
                 />
               )}
-              <div className="relative z-10">
+              <div className="relative z-10 min-w-0">
                 <p className="label-eyebrow mb-1">
                   {t.done ? "✓ Timer finished" : t.running ? "Running" : "Paused"}
                 </p>
-                <p className={`font-mono text-[48px] leading-none font-medium ${
-                  t.done ? "text-success" : urgent ? "text-warning" : "text-ember"
-                }`}>
-                  {t.done
-                    ? (t.completedAt ? fmtElapsed(t.completedAt) : "Done!")
-                    : fmt(t.remaining)}
-                </p>
+                {t.done ? (
+                  <>
+                    {/* A phrase like "2 min ago" doesn't belong in the giant
+                        MM:SS readout — show a compact "Done" and put the elapsed
+                        time in small supporting text. */}
+                    <p className="font-mono text-[44px] leading-none font-medium text-success">Done</p>
+                    {t.completedAt && (
+                      <p className="text-[12px] text-text-tertiary mt-1.5">Finished {fmtElapsed(t.completedAt)}</p>
+                    )}
+                  </>
+                ) : (
+                  <p className={`font-mono text-[48px] leading-none font-medium ${
+                    urgent ? "text-warning" : "text-ember"
+                  }`}>
+                    {fmt(t.remaining)}
+                  </p>
+                )}
               </div>
               {t.done ? (
                 <button
                   onClick={() => onToggle(timerIdx)}
-                  className="relative z-10 h-12 px-5 rounded-xl border border-border-default bg-bg-raised text-text-secondary text-[14px] font-medium active:scale-95 transition flex items-center gap-2"
+                  className="relative z-10 flex-shrink-0 whitespace-nowrap h-12 px-5 rounded-xl border border-border-default bg-bg-raised text-text-secondary text-[14px] font-medium active:scale-95 transition flex items-center gap-2"
                 >
                   <RotateCcw className="w-4 h-4" />Start again
                 </button>
