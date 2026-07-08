@@ -376,7 +376,7 @@ At lunch and dinner: if the user selected a meat, poultry or fish protein, it MU
   // AbortController bounds the call so a slow upstream returns a deterministic
   // 504 instead of pinning the function until Vercel's maxDuration.
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 25000); // < 30s maxDuration
+  const timeout = setTimeout(() => controller.abort(), 55000); // < 60s maxDuration
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -389,7 +389,14 @@ At lunch and dinner: if the user selected a meat, poultry or fish protein, it MU
       },
       body: JSON.stringify({
         model: "claude-sonnet-4-6",
-        max_tokens: 2500,
+        // Headroom for the full response: recipe + per-step summaries + the
+        // "why" panel. 2500 truncated longer/vibe-driven recipes, producing
+        // invalid JSON and a misleading "kitchen unreachable" error.
+        max_tokens: 4000,
+        // Stream the generation: a long (30-50s) non-streaming request held open
+        // is prone to network timeouts. Streaming keeps the connection healthy so
+        // the full recipe reliably comes back within the budget.
+        stream: true,
         system: [
           {
             type: "text",
@@ -409,13 +416,53 @@ At lunch and dinner: if the user selected a meat, poultry or fish protein, it MU
       return res.status(502).json({ error: "Generation failed" });
     }
 
-    const data = await response.json();
+    // Read the streamed SSE response, accumulating the model's text and picking
+    // up stop_reason + usage from the stream events.
+    let text = "";
+    let stopReason: string | null = null;
+    let usage: any = {};
+    const reader = response.body?.getReader();
+    if (reader) {
+      const decoder = new TextDecoder();
+      let buffer = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          const s = line.trim();
+          if (!s.startsWith("data:")) continue;
+          const payload = s.slice(5).trim();
+          if (!payload || payload === "[DONE]") continue;
+          let evt: any;
+          try { evt = JSON.parse(payload); } catch { continue; }
+          if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
+            text += evt.delta.text;
+          } else if (evt.type === "message_start") {
+            usage = { ...usage, ...(evt.message?.usage ?? {}) };
+          } else if (evt.type === "message_delta") {
+            if (evt.delta?.stop_reason) stopReason = evt.delta.stop_reason;
+            if (evt.usage) usage = { ...usage, ...evt.usage };
+          } else if (evt.type === "error") {
+            console.error("Anthropic stream error:", JSON.stringify(evt.error));
+          }
+        }
+      }
+    }
 
     // Per-request usage + cost, attributed to the device. One structured line
     // per call (grep "MISE_USAGE" in Vercel logs, or drain to analytics).
-    logUsage(req, "generate", "claude-sonnet-4-6", data.usage);
+    logUsage(req, "generate", "claude-sonnet-4-6", usage);
 
-    const raw = data.content?.[0]?.text?.replace(/```json|```/g, "").trim();
+    // Truncation guard: if the model ran out of output budget, the JSON is
+    // cut off — surface it clearly in logs instead of a mystery parse error.
+    if (stopReason === "max_tokens") {
+      console.error("Anthropic response hit max_tokens — recipe JSON truncated.");
+    }
+
+    const raw = text.replace(/```json|```/g, "").trim();
 
     let recipe;
     try { recipe = JSON.parse(raw); }

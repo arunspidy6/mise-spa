@@ -173,7 +173,9 @@ function Onboarding() {
   const finish = (via: "completed" | "skipped") => {
     setOnboarded();
     track(via === "completed" ? "onboarding_completed" : "onboarding_skipped", { slide: i + 1 });
-    navigate({ to: via === "completed" ? "/inventory" : "/" });
+    // Replace so onboarding leaves no history entry — a back-swipe from home
+    // must never land the user back in the intro.
+    navigate({ to: via === "completed" ? "/inventory" : "/", replace: true });
   };
 
   const slide = SLIDES[i];

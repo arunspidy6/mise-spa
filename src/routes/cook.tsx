@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type Dispatch, type SetStateAction } from "react";
 import { ArrowLeft, ArrowRight, X, Play, Pause, Mic, MicOff, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
@@ -149,18 +149,6 @@ const PREP_VERBS: Record<string, string> = {
   beat: "beaten", whisk: "whisked", trim: "trimmed", devein: "deveined",
 };
 
-// Default prep for common items — used only when the steps don't describe it.
-const DEFAULT_PREP: Record<string, string> = {
-  "red onion": "finely sliced", onion: "finely diced", shallot: "finely sliced",
-  "spring onion": "sliced", garlic: "minced", ginger: "grated", chilli: "finely chopped",
-  carrot: "diced", "sweet potato": "cut into chunks", potato: "cut into chunks",
-  tomato: "roughly chopped", pepper: "sliced", mushroom: "sliced", courgette: "sliced",
-  aubergine: "cubed", broccoli: "cut into florets", cauliflower: "cut into florets",
-  spinach: "washed", kale: "stalks removed", leek: "sliced", celery: "diced",
-  lemon: "cut into wedges", lime: "cut into wedges", parsley: "finely chopped",
-  coriander: "finely chopped", basil: "torn",
-};
-
 // Pantry / measure-and-pour items — never need a knife prep step.
 const NO_PREP = ["oil","salt","pepper","sugar","flour","stock","soy sauce","vinegar",
   "honey","water","cumin","paprika","spice","powder","sauce","paste","seeds","milk","cream","rice"];
@@ -220,9 +208,10 @@ function derivePrepNote(name: string, steps: any[]): string | null {
     }
     return adverb ? `${adverb} ${verb}` : verb;
   }
-  for (const key of Object.keys(DEFAULT_PREP)) {
-    if (low.includes(key)) return DEFAULT_PREP[key];
-  }
+  // No fabricated fallback: if the recipe's own steps don't describe a prep for
+  // this ingredient, we return null (it's listed under "grab", not prep). A
+  // guessed default like "potato → cut into chunks" could contradict a step
+  // that actually says "peel", which destroys trust in cook mode.
   return null;
 }
 
@@ -242,10 +231,15 @@ function extractStepTarget(text: string): number | null {
 }
 
 // ── Prep Screen ────────────────────────────────────────────────────────────
-function PrepScreen({ recipe, onStart, onBack }: { recipe: any; onStart: () => void; onBack: () => void }) {
+function PrepScreen({ recipe, checked, setChecked, onStart, onBack }: {
+  recipe: any;
+  checked: Set<number>;
+  setChecked: Dispatch<SetStateAction<Set<number>>>;
+  onStart: () => void;
+  onBack: () => void;
+}) {
   const ings: any[] = recipe.ingredients ?? [];
   const steps: any[] = recipe.steps ?? [];
-  const [checked, setChecked] = useState<Set<number>>(new Set());
   const [showWarn, setShowWarn] = useState(false);
   // Derive a precise prep note per ingredient from the recipe's own steps.
   const prepItems: any[] = [];
@@ -714,6 +708,9 @@ function CookMode() {
   const [dir, setDir] = useState(0);
   const [timers, setTimers] = useState<Record<number, TimerState>>(() => loadTimers());
   const [prepDone, setPrepDone] = useState(false);
+  // Lives here (not in PrepScreen) so ticked prep items survive re-entering the
+  // prep screen from cook mode — the checklist must not reset.
+  const [prepChecked, setPrepChecked] = useState<Set<number>>(new Set());
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showHint, setShowHint] = useState(() => !localStorage.getItem("mise_hint_v4"));
   const [showTimerPrompt, setShowTimerPrompt] = useState(false);
@@ -1670,6 +1667,8 @@ function CookMode() {
           {!prepDone && (
             <PrepScreen
               recipe={recipe}
+              checked={prepChecked}
+              setChecked={setPrepChecked}
               onStart={() => setPrepDone(true)}
               onBack={() => navigate({ to: "/recipe" })}
             />

@@ -381,12 +381,14 @@ const STEP_SLIDE = {
 };
 
 const STEPS = [
-  { key: "staples" as const,    label: "Pantry staples",  title: "What's in your kitchen?",       intro: "Everything highlighted is in your kitchen. Tap to remove what you don't have.", mode: "remove" as const, sections: STAPLE_SECTIONS },
-  { key: "proteins" as const,   label: "Proteins",         title: "What proteins do you have?",    intro: "Select everything you have right now. This drives your recipes.",            mode: "add" as const,    sections: PROTEIN_SECTIONS },
-  { key: "carbs" as const,      label: "Carbs",            title: "Anything carby?",               intro: "Pick what you actually have.",                                              mode: "add" as const,    sections: CARB_SECTIONS },
-  { key: "vegetables" as const, label: "Vegetables",       title: "Veg in the fridge or counter?", intro: "Even just a few opens up a lot of options.",                                mode: "add" as const,    sections: VEG_SECTIONS },
-  { key: "fridge" as const,     label: "Fridge & extras",  title: "What else is in the fridge?",   intro: "Dairy, sauces, the in-between things.",                                     mode: "add" as const,    sections: FRIDGE_SECTIONS },
-  { key: "appliances" as const, label: "Appliances",       title: "What can you cook with?",       intro: "We only suggest recipes you can actually make.",                            mode: "add" as const,    sections: APPLIANCE_SECTIONS },
+  // `cta` is the footer button label — it names the NEXT thing the user does,
+  // so the flow reads staples → proteins → carbs → … → appliances → recipes.
+  { key: "staples" as const,    label: "Pantry staples",  title: "What's in your kitchen?",       intro: "Everything highlighted is in your kitchen. Tap to remove what you don't have.", mode: "remove" as const, cta: "Add proteins",       sections: STAPLE_SECTIONS },
+  { key: "proteins" as const,   label: "Proteins",         title: "What proteins do you have?",    intro: "Select everything you have right now. This drives your recipes.",            mode: "add" as const,    cta: "Add carbs",          sections: PROTEIN_SECTIONS },
+  { key: "carbs" as const,      label: "Carbs",            title: "Anything carby?",               intro: "Pick what you actually have.",                                              mode: "add" as const,    cta: "Add vegetables",     sections: CARB_SECTIONS },
+  { key: "vegetables" as const, label: "Vegetables",       title: "Veg in the fridge or counter?", intro: "Even just a few opens up a lot of options.",                                mode: "add" as const,    cta: "Add extras",         sections: VEG_SECTIONS },
+  { key: "fridge" as const,     label: "Fridge & extras",  title: "What else is in the fridge?",   intro: "Dairy, sauces, the in-between things.",                                     mode: "add" as const,    cta: "Select appliances",  sections: FRIDGE_SECTIONS },
+  { key: "appliances" as const, label: "Appliances",       title: "What can you cook with?",       intro: "We only suggest recipes you can actually make.",                            mode: "add" as const,    cta: "Find recipes",       sections: APPLIANCE_SECTIONS },
 ];
 
 function Chip({ label, active, mode, onClick }: {
@@ -556,6 +558,12 @@ function CustomItemInput({
   };
 
   const resolveAndAdd = async (raw: string) => {
+    // Empty submit → nudge with a buzz so the tap doesn't feel ignored.
+    if (!raw.trim()) {
+      navigator.vibrate?.(60);
+      showMsg("Type an ingredient first");
+      return;
+    }
     const clean = sanitiseIngredient(raw);
     if (!clean) { showMsg("Letters only — no numbers or symbols"); return; }
     const lower = clean.toLowerCase();
@@ -659,16 +667,19 @@ function CustomItemInput({
       )}
 
       {suggestions.length > 0 && status === "idle" && (
-        <div className="flex flex-wrap gap-2 mt-3">
-          {suggestions.map(s => (
-            <button
-              key={s}
-              onMouseDown={e => { e.preventDefault(); resolveAndAdd(s); }}
-              className="h-8 px-3 rounded-full bg-bg-raised border border-border-default text-[12px] text-text-secondary active:bg-ember active:text-bg-base active:border-ember transition-colors"
-            >
-              {s}
-            </button>
-          ))}
+        <div className="mt-3">
+          <p className="text-[11px] text-text-tertiary mb-2 px-1">Did you mean?</p>
+          <div className="flex flex-wrap gap-2">
+            {suggestions.map(s => (
+              <button
+                key={s}
+                onMouseDown={e => { e.preventDefault(); resolveAndAdd(s); }}
+                className="h-8 px-3 rounded-full bg-bg-raised border border-border-default text-[12px] text-text-secondary active:bg-ember active:text-bg-base active:border-ember transition-colors"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -723,9 +734,12 @@ function InventoryFlow() {
             className="w-11 h-11 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
             <ArrowLeft className="w-5 h-5" />
           </button>
-          <span className="font-mono text-[10px] text-text-tertiary uppercase tracking-widest">
-            Step {step + 1} of {STEPS.length}
-          </span>
+          <div className="flex flex-col items-center leading-tight">
+            <span className="text-[14px] font-semibold text-text-primary">{cur.label}</span>
+            <span className="font-mono text-[10px] font-semibold text-ember-text uppercase tracking-widest mt-0.5">
+              Step {step + 1} of {STEPS.length}
+            </span>
+          </div>
           {/* Returning users (kitchen set up before) get a direct "Find recipes"
               shortcut to Tonight's cook; first-timers still get a plain close. */}
           {inventory.lastUpdated != null ? (
@@ -760,19 +774,21 @@ function InventoryFlow() {
             transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
             className="absolute inset-0 overflow-y-auto overscroll-contain px-4 pb-4">
 
-            <span className="label-eyebrow text-ember-text">{cur.label}</span>
-            <h1 className="font-display text-[28px] font-light text-text-primary mt-2 leading-tight">{cur.title}</h1>
+            <h1 className="font-display text-[28px] font-light text-text-primary leading-tight">{cur.title}</h1>
 
             {cur.mode === "remove" && (
               <div className="mt-4">
-                <div className="rounded-xl border border-border-subtle px-4 py-3 flex gap-3 bg-bg-elevated">
-                  <span className="text-base mt-0.5">👇</span>
+                <div className="rounded-xl border border-ember-dim px-4 py-3.5 flex gap-3 bg-ember-glow shadow-[0_2px_14px_rgba(0,0,0,0.28)]">
+                  <motion.span
+                    animate={{ y: [0, 5, 0] }}
+                    transition={{ repeat: Infinity, duration: 1.3, ease: "easeInOut" }}
+                    className="text-[22px] leading-none mt-0.5 flex-shrink-0"
+                  >👇</motion.span>
                   <div>
-                    <p className="text-[13px] font-semibold text-text-primary">Tap to remove what you don't have</p>
-                    <p className="text-[12px] text-text-secondary mt-0.5 leading-relaxed">Everything highlighted is assumed to be in your kitchen.</p>
+                    <p className="text-[15px] font-semibold text-ember-text">Tap to remove what you don't have</p>
+                    <p className="text-[12px] text-text-secondary mt-1 leading-relaxed">Everything below is assumed to be in your kitchen — tap anything you don't actually have.</p>
                   </div>
                 </div>
-
               </div>
             )}
 
@@ -879,7 +895,7 @@ function InventoryFlow() {
         {/* Sticky CTA — hidden while keyboard is open so content fits the visible area */}
         <KeyboardAwareFooter>
           <EmberButton size="lg" className="w-full" onClick={next}>
-            {isLast ? "Show me recipes" : "Next"}
+            {cur.cta}
             <ArrowRight className="w-4 h-4" />
           </EmberButton>
         </KeyboardAwareFooter>

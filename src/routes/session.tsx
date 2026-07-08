@@ -10,6 +10,7 @@ import { getRecipeFromAPI } from "@/lib/generate-recipe";
 import type { CookHistory } from "@/lib/generate-recipe";
 import { TIME_OPTIONS, VIBES } from "@/lib/mise-data";
 import { track } from "@/lib/analytics";
+import { playRecipeReady, primeAudio } from "@/lib/sound";
 import { RecipeLoaderContent } from "@/components/mise/RecipeLoader";
 
 export const Route = createFileRoute("/session")({ component: SessionSetup });
@@ -44,6 +45,9 @@ function SessionSetup() {
 
   const generate = async () => {
     const genId = ++genIdRef.current;
+    // Unlock audio inside the tap gesture so the "recipe ready" chime can play
+    // when generation finishes (iOS blocks audio started off-gesture).
+    primeAudio();
     setLoading(true);
     setErr(null);
 
@@ -63,9 +67,10 @@ function SessionSetup() {
     try {
       // Always try the API first — it uses the full inventory (including custom veg/items)
       // and generates a recipe that actually matches what the user has.
-      // 28 s timeout: Vercel function maxDuration is 30 s; Anthropic cold starts can be 6-12 s.
+      // 58 s timeout: server streams with a 55 s cap under a 60 s Vercel maxDuration,
+      // so the client must wait a touch longer than the server to receive its result.
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 28000);
+      const timeout = setTimeout(() => controller.abort(), 58000);
       let recipe = null;
       // Names of dishes the user has already cooked — deduped, most recent first.
       // The API uses these to generate something genuinely different, so the same
@@ -103,6 +108,7 @@ function SessionSetup() {
 
       if (genId !== genIdRef.current) return;
       setRecipe(recipe);
+      playRecipeReady();
       navigate({ to: "/recipe" });
     } catch (e2) {
       const msg = e2 instanceof Error ? e2.message : "unknown";

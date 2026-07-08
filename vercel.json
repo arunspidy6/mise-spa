@@ -3,7 +3,7 @@
   "functions": {
     "api/generate-recipe.ts": {
       "runtime": "@vercel/node@3.2.23",
-      "maxDuration": 30
+      "maxDuration": 60
     },
     "api/classify-ingredient.ts": {
       "runtime": "@vercel/node@3.2.23",
