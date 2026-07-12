@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ArrowLeft, ArrowRight, Clock, RotateCw, Bookmark, BookmarkCheck, Check, Sparkles } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
@@ -25,6 +25,7 @@ function RecipeCard() {
   const recipeBatch = useMise(s => s.recipeBatch);
   const batchIndex = useMise(s => s.batchIndex);
   const pushRecipe = useMise(s => s.pushRecipe);
+  const appendToBatch = useMise(s => s.appendToBatch);
   const cycleRecipe = useMise(s => s.cycleRecipe);
   const history = useMise(s => s.history);
   const saved = useMise(s => s.saved);
@@ -38,6 +39,52 @@ function RecipeCard() {
   const saveToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isSaved = !!recipe && saved.some(s => s.recipe.name === recipe.name);
+
+  // Fire recipe_generated when a recipe is actually SHOWN (once per name). This
+  // is where the metric lives now — so prefetched-but-unseen recipes don't count.
+  const seenRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!recipe || seenRef.current.has(recipe.name)) return;
+    seenRef.current.add(recipe.name);
+    track("recipe_generated", {
+      name: recipe.name,
+      cuisine: recipe.cuisine,
+      time_minutes: recipe.time_minutes,
+      difficulty: recipe.difficulty,
+      vibe: session.vibes?.[0] ?? "none",
+      why_source: recipe.why ? "model" : "derived",
+    });
+  }, [recipe?.name]);
+
+  // Background prefetch: while the user reads recipe 1, quietly generate the
+  // next couple (one at a time) so "Not this" is instant. Silent — appended to
+  // the batch without changing what's on screen. Best-effort; on-demand swap
+  // covers any that don't arrive in time.
+  const prefetchStarted = useRef(false);
+  useEffect(() => {
+    if (prefetchStarted.current) return;
+    prefetchStarted.current = true;
+    (async () => {
+      while (useMise.getState().recipeBatch.length < 3) {
+        const batch = useMise.getState().recipeBatch;
+        if (batch.length === 0) break;
+        const avoid = [...new Set([...batch.map(r => r.name), ...history.map(h => h.name)])];
+        try {
+          const controller = new AbortController();
+          const t = setTimeout(() => controller.abort(), 58000);
+          let next: any = null;
+          try {
+            next = await getRecipeFromAPI(inventory, session, controller.signal, batch[batch.length - 1].name, avoid);
+          } finally { clearTimeout(t); }
+          if (!next) break;
+          appendToBatch(next);
+        } catch {
+          break; // prefetch failed — leave it; on-demand swap will handle later
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openWhy = () => {
     if (!recipe) return;
@@ -95,13 +142,14 @@ function RecipeCard() {
   const swap = async () => {
     setErrMsg(null);
 
-    // Batch is full (3 recipes generated) — from here "Not this" just loops
-    // through them locally. No more API calls. Instant, no loader.
-    if (recipeBatch.length >= 3) {
+    // The next recipe is already available — either prefetched into the batch,
+    // or we've filled all 3 and are looping. Advance instantly, no API call.
+    if (batchIndex + 1 < recipeBatch.length || recipeBatch.length >= 3) {
       cycleRecipe();
       return;
     }
 
+    // Otherwise generate the next one on demand (prefetch hasn't caught up yet).
     setRerolling(true);
     let next = null;
     try {

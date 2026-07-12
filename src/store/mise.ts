@@ -104,6 +104,8 @@ type Store = {
   setRecipe: (r: Recipe | null) => void;
   // Append a freshly generated alternative to the batch and show it (caps at 3).
   pushRecipe: (r: Recipe) => void;
+  // Append to the batch WITHOUT changing the shown recipe (background prefetch).
+  appendToBatch: (r: Recipe) => void;
   // Advance to the next recipe in the full batch, wrapping around. No API call.
   cycleRecipe: () => void;
   addHistory: (e: HistoryEntry) => void;
@@ -157,6 +159,13 @@ export const useMise = create<Store>()(
         set((s) => {
           const batch = [...s.recipeBatch, r].slice(0, 3);
           return { recipe: r, recipeBatch: batch, batchIndex: batch.length - 1 };
+        }),
+      appendToBatch: (r) =>
+        set((s) => {
+          if (s.recipeBatch.length >= 3) return {};
+          // De-dupe by name; don't touch `recipe`/`batchIndex` (prefetch is silent).
+          if (s.recipeBatch.some((x) => x.name === r.name)) return {};
+          return { recipeBatch: [...s.recipeBatch, r] };
         }),
       cycleRecipe: () =>
         set((s) => {

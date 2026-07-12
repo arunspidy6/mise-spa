@@ -149,70 +149,76 @@ const PREP_VERBS: Record<string, string> = {
   beat: "beaten", whisk: "whisked", trim: "trimmed", devein: "deveined",
 };
 
-// Pantry / measure-and-pour items — never need a knife prep step.
-const NO_PREP = ["oil","salt","pepper","sugar","flour","stock","soy sauce","vinegar",
-  "honey","water","cumin","paprika","spice","powder","sauce","paste","seeds","milk","cream","rice"];
+// Pure measure-and-pour / seasoning items — never need a knife prep step. Note
+// bare "pepper" is intentionally NOT here (bell peppers are a veg you slice);
+// only the ground seasoning forms are.
+const NO_PREP = ["oil","salt","sugar","flour","stock","soy sauce","vinegar",
+  "honey","water","cumin","paprika","spice","powder","sauce","paste","seeds",
+  "milk","cream","rice","black pepper","white pepper","peppercorn"];
 
-function singular(w: string): string {
-  if (w.endsWith("ies")) return w.slice(0, -3) + "y";
-  if (w.endsWith("oes")) return w.slice(0, -2);
-  if (/(ch|sh|s|x|z)es$/.test(w)) return w.slice(0, -2);
-  if (w.endsWith("s") && !w.endsWith("ss")) return w.slice(0, -1);
-  return w;
+// Adjectives/qualifiers a step won't use as the ingredient's noun.
+const NOUN_STOPWORDS = new Set([
+  "red","green","yellow","white","sweet","baby","cherry","large","small",
+  "medium","fresh","dried","ground","whole","boneless","skinless","free","range",
+]);
+
+const singular = (w: string): string =>
+  w.endsWith("ies") ? w.slice(0, -3) + "y"
+  : w.endsWith("oes") ? w.slice(0, -2)
+  : (w.endsWith("s") && !w.endsWith("ss")) ? w.slice(0, -1)
+  : w;
+
+// The nouns a recipe step might use for an ingredient — "chicken breast" →
+// ["chicken","breast"], "cherry tomatoes" → ["tomato"] — so we match whichever
+// word the step actually names.
+function nounCandidates(name: string): string[] {
+  const clean = name.toLowerCase().replace(/\(.*?\)/g, "").replace(/[^a-z\s-]/g, " ").replace(/\s+/g, " ").trim();
+  const words = clean.split(" ").filter(w => w.length >= 3 && !NOUN_STOPWORDS.has(w));
+  return [...new Set(words.map(singular))];
 }
 
-// The searchable singular noun for an ingredient ("Cherry tomatoes" → "tomato").
-function searchNoun(name: string): string {
-  const n = name.toLowerCase().replace(/\(.*?\)/g, "")
-    .replace(/\b(fresh|large|small|medium|ripe|whole)\b/g, "").replace(/\s+/g, " ").trim();
-  const words = n.split(" ").filter(Boolean);
-  return singular(words[words.length - 1] || n);
-}
-
-// Derive a precise prep note for an ingredient from the recipe steps.
+// Derive a prep note for an ingredient STRICTLY from the recipe's own steps —
+// capturing every knife action applied to it (incl. compound "peel and dice"),
+// so prep matches cook mode exactly. No step describes a prep → it's a "grab",
+// never a fabricated guess that could contradict the steps.
 function derivePrepNote(name: string, steps: any[]): string | null {
   const low = name.toLowerCase();
   if (NO_PREP.some(k => low.includes(k))) return null;
-  const noun = searchNoun(name);
-  if (!noun || noun.length < 3) return null;
+  const cands = nounCandidates(name);
+  if (cands.length === 0) return null;
 
   const verbAlt = Object.keys(PREP_VERBS).join("|");
-  // verb (with optional adverb) appearing just before the noun, not crossing an "and"
+  const nounAlt = cands.map(c => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const N = `\\b(?:${nounAlt})(?:e?s)?\\b`;
+  const SHAPES = "chunks?|cubes?|strips?|pieces?|wedges?|rounds?|batons?|florets?|matchsticks?";
+  // (adverb?) verb (and verb2?) [a few words] noun (shape after) — captures
+  // "peel and dice the potatoes into 1cm cubes" as one phrase.
   const re = new RegExp(
-    `(finely|thinly|roughly|coarsely)?\\s*(${verbAlt})\\w*\\s+((?:(?!\\band\\b)[^.,;]){0,25}?)\\b${noun}s?\\b([^.,;]{0,40})`,
+    `(finely|thinly|roughly|coarsely)?\\s*(${verbAlt})\\w*(?:\\s+and\\s+(finely|thinly|roughly|coarsely)?\\s*(${verbAlt})\\w*)?\\s+(?:the\\s+)?(?:[^.,;]{0,18}?)${N}([^.,;]{0,40})`,
     "i"
   );
+
+  const collected: string[] = [];
   for (const s of steps || []) {
     const text = (s.instruction || "").toLowerCase();
+    if (!new RegExp(N).test(text)) continue;
     const m = text.match(re);
     if (!m) continue;
-    let adverb = (m[1] || "").trim();
-    const verb = PREP_VERBS[m[2].toLowerCase()] ?? (m[2].toLowerCase() + "ed");
-    const after = m[4] || "";
-    if (!adverb) {
-      const a = after.match(/^\s*(thinly|finely|roughly|coarsely)\b/);
-      if (a) adverb = a[1];
-    }
-    // Capture the exact cut shape (and size) so the prep note matches the
-    // steps — "sliced into 1cm strips", not a vague "sliced" the cook reads as
-    // cubes. Look across the whole step, with or without an "into".
-    const SHAPES = "chunks?|cubes?|strips?|pieces?|wedges?|rounds?|batons?|florets?|matchsticks?";
-    const shapeScope = `${m[3] || ""} ${noun} ${(after || "").split(/\band\b/i)[0]}`;
-    const shaped = shapeScope.match(
+    const adv1 = (m[1] || "").trim();
+    const v1 = m[2].toLowerCase();
+    const v2 = m[4] ? m[4].toLowerCase() : "";
+    const after = m[5] || "";
+    const shaped = after.split(/\band\b/i)[0].match(
       new RegExp(`(\\d+\\s?cm\\s*(?:thick|thin)?\\s*)?(thin|thick|small|large|bite-?sized)?\\s*\\b(${SHAPES})\\b`, "i")
     );
-    if (shaped) {
-      const sizeOrDesc = (shaped[1] || shaped[2] || "").trim();
-      const phrase = `${sizeOrDesc ? sizeOrDesc + " " : ""}${shaped[3]}`.replace(/\s+/g, " ").trim();
-      return `${verb} into ${phrase}`;
-    }
-    return adverb ? `${adverb} ${verb}` : verb;
+    const shape = shaped ? `${(shaped[1] || shaped[2] || "").trim()} ${shaped[3]}`.replace(/\s+/g, " ").trim() : "";
+    let phrase = adv1 ? `${adv1} ${v1}` : v1;
+    if (v2) phrase += ` and ${v2}`;
+    if (shape) phrase += ` into ${shape}`;
+    collected.push(phrase);
   }
-  // No fabricated fallback: if the recipe's own steps don't describe a prep for
-  // this ingredient, we return null (it's listed under "grab", not prep). A
-  // guessed default like "potato → cut into chunks" could contradict a step
-  // that actually says "peel", which destroys trust in cook mode.
-  return null;
+  if (collected.length === 0) return null;
+  return capFirst([...new Set(collected)].join(", then "));
 }
 
 const capFirst = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;

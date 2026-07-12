@@ -1,7 +1,6 @@
 import type { Inventory, Recipe, RecipeIngredient, RecipeStep } from "@/store/mise";
 import { appHeaders } from "./appguard";
 import { getDeviceId } from "./device";
-import { track } from "./analytics";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -1117,14 +1116,9 @@ export async function getRecipeFromAPI(
   const data = await res.json();
   if (data?.error === "no_recipe") throw new Error("no_recipe");
   if (data.error || !data.name || !data.steps) throw new Error("api_failed");
-  track("recipe_generated", {
-    name: data.name,
-    cuisine: data.cuisine,
-    time_minutes: data.time_minutes,
-    difficulty: data.difficulty,
-    vibe: session.vibes?.[0] ?? "none",
-    why_source: data.why ? "model" : "derived",
-  });
+  // NOTE: recipe_generated is fired by the recipe screen when a recipe is
+  // actually SHOWN — not here — so background-prefetched recipes the user never
+  // sees don't inflate the metric.
   return data as Recipe;
 }
 
