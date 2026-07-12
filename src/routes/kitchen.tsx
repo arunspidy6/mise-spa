@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, Plus } from "lucide-react";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { EmberButton } from "@/components/mise/EmberButton";
@@ -27,6 +27,17 @@ const SECTIONS: { key: keyof Inventory; label: string }[] = [
 ];
 
 const VALID_CATS = ["proteins", "carbs", "vegetables", "fridge", "staples"];
+
+// Shown when a section is empty, so a returning user gets a quick nudge instead
+// of a blank category. All are known ingredients (correct category + satToken).
+const SUGGESTIONS: Record<string, string[]> = {
+  proteins: ["Chicken breast", "Eggs", "Beef mince"],
+  vegetables: ["Tomatoes", "Carrots", "Broccoli"],
+  carbs: ["Rice", "Pasta", "Potatoes"],
+  fridge: ["Cheddar", "Butter", "Milk"],
+  staples: ["Olive oil", "Garlic", "Soy sauce"],
+  appliances: ["Hob / Stove", "Oven", "Microwave"],
+};
 
 // A single-screen overview of what the user actually owns — the returning-user
 // alternative to the first-time 6-step setup. Add via the search bar (auto-
@@ -64,6 +75,20 @@ function KitchenOverview() {
     return { kind: "duplicate", label: CATEGORY_LABEL[cat] };
   };
 
+  // Tap an empty-section suggestion to add it. Uses its true category + satToken
+  // (falling back to the section key for appliances, which aren't ingredients).
+  const addSuggestion = (secKey: keyof Inventory, item: string) => {
+    const lower = item.toLowerCase();
+    const entry = MASTER_INGREDIENTS[lower];
+    const cat = (entry?.category ?? secKey) as keyof Inventory;
+    const list = (inventory[cat] as string[]) ?? [];
+    if (list.map(x => x.toLowerCase()).includes(lower)) return;
+    if (entry) addCustomTokenMapping(lower, entry.satToken);
+    setInventory({ [cat]: [...list, item] } as never);
+    addCustomItem(item);
+    hapticLight();
+  };
+
   const itemCount =
     (inventory.proteins?.length ?? 0) + (inventory.carbs?.length ?? 0) +
     (inventory.vegetables?.length ?? 0) + (inventory.fridge?.length ?? 0);
@@ -96,7 +121,19 @@ function KitchenOverview() {
               <div key={sec.key}>
                 <p className="label-eyebrow mb-2.5">{sec.label}</p>
                 {items.length === 0 ? (
-                  <p className="text-[13px] text-text-tertiary italic">Nothing yet — add above.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(SUGGESTIONS[sec.key] ?? []).map(sug => (
+                      <button
+                        key={sug}
+                        onClick={() => addSuggestion(sec.key, sug)}
+                        aria-label={`Add ${sug}`}
+                        className="inline-flex items-center gap-1.5 h-9 pl-2.5 pr-3.5 rounded-full text-[13px] font-medium bg-bg-elevated border border-border-default text-text-secondary active:scale-[0.94] transition-all"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-ember-text" />
+                        {sug}
+                      </button>
+                    ))}
+                  </div>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {items.map(item => (
