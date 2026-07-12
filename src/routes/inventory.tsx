@@ -31,7 +31,7 @@ function sanitiseIngredient(raw: string): string | null {
 
 // Instant ingredient lookup — key is lowercase display name.
 // category: where to route it in inventory. satToken: which SAT key to use for recipe matching.
-const MASTER_INGREDIENTS: Record<string, { category: string; satToken: string }> = {
+export const MASTER_INGREDIENTS: Record<string, { category: string; satToken: string }> = {
   // ── Chicken ─────────────────────────────────────────────────────────────────
   "chicken thighs":     { category: "proteins", satToken: "chicken thighs" },
   "chicken breast":     { category: "proteins", satToken: "chicken breast" },
@@ -455,7 +455,7 @@ const MISPLACED: Partial<Record<string, "proteins" | "carbs" | "vegetables" | "f
   milk:"fridge", cheese:"fridge", yogurt:"fridge", yoghurt:"fridge", cream:"fridge",
 };
 
-const CATEGORY_LABEL: Record<string, string> = {
+export const CATEGORY_LABEL: Record<string, string> = {
   proteins:"proteins", carbs:"carbs", vegetables:"vegetables",
   fridge:"fridge", staples:"pantry", appliances:"appliances",
 };
@@ -463,7 +463,7 @@ const CATEGORY_LABEL: Record<string, string> = {
 const capLabel = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 // What happened when a custom item was added — drives the inline confirmation.
-type AddResult = { kind: "added" | "moved" | "duplicate"; label: string };
+export type AddResult = { kind: "added" | "moved" | "duplicate"; label: string };
 
 // Fuzzy ingredient search — handles typos like "tumeric" → "turmeric",
 // "chiken" → "chicken". Uses sequential character matching so partial
@@ -496,7 +496,7 @@ function fuzzyMatchIngredients(query: string, limit = 6): string[] {
   return scoredMatches(query).slice(0, limit).map(({ key }) => titleCase(key));
 }
 
-function CustomItemInput({
+export function CustomItemInput({
   onAdd,
   addMapping,
 }: {

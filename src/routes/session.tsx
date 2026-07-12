@@ -147,7 +147,7 @@ function SessionSetup() {
           {/* Cooking from — text-left resets the button's default centre alignment
               so the label and item count share the same left edge. */}
           <button
-            onClick={() => navigate({ to: "/inventory", search: { from: "session" } })}
+            onClick={() => navigate({ to: "/kitchen", search: { from: "session" } })}
             className="mt-5 w-full rounded-xl bg-bg-surface border border-border-default flex items-center justify-between gap-3 px-4 py-3.5 active:scale-[0.99] transition text-left"
           >
             <div className="flex flex-col items-start gap-1 min-w-0">
@@ -267,11 +267,11 @@ function SessionSetup() {
               <div className="space-y-2 pt-1">
                 {err.reason === "no_main" ? (
                   <>
-                    <button onClick={() => navigate({ to: "/inventory", search: { from: "session", step: 1 } })}
+                    <button onClick={() => navigate({ to: "/kitchen", search: { from: "session" } })}
                       className="w-full h-10 px-3 rounded-lg bg-ember/10 border border-ember-dim text-[13px] text-ember-text flex items-center justify-between active:opacity-70">
                       <span>🥩 Add a protein</span><span>→</span>
                     </button>
-                    <button onClick={() => navigate({ to: "/inventory", search: { from: "session", step: 3 } })}
+                    <button onClick={() => navigate({ to: "/kitchen", search: { from: "session" } })}
                       className="w-full h-10 px-3 rounded-lg bg-ember/10 border border-ember-dim text-[13px] text-ember-text flex items-center justify-between active:opacity-70">
                       <span>🥦 Add vegetables</span><span>→</span>
                     </button>
@@ -279,12 +279,12 @@ function SessionSetup() {
                 ) : (
                   <>
                     {isProteinErr && (
-                      <button onClick={() => navigate({ to: "/inventory", search: { from: "session", step: 1 } })}
+                      <button onClick={() => navigate({ to: "/kitchen", search: { from: "session" } })}
                         className="w-full h-10 px-3 rounded-lg bg-ember/10 border border-ember-dim text-[13px] text-ember-text flex items-center justify-between active:opacity-70">
                         <span>Select a different protein</span><span>→</span>
                       </button>
                     )}
-                    <button onClick={() => navigate({ to: "/inventory", search: { from: "session" } })}
+                    <button onClick={() => navigate({ to: "/kitchen", search: { from: "session" } })}
                       className="w-full h-10 px-3 rounded-lg bg-bg-raised border border-border-subtle text-[13px] text-text-secondary flex items-center justify-between active:opacity-70">
                       <span>Update my kitchen</span><span>→</span>
                     </button>

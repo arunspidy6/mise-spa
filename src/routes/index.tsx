@@ -121,7 +121,7 @@ function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ ...SPRING, delay: 0.28 }}
             >
-              <Link to="/inventory" search={{ from: "home" }} className="block">
+              <Link to="/kitchen" search={{ from: "home" }} className="block">
                 <motion.div
                   whileTap={{ scale: 0.98 }}
                   className="rounded-xl flex items-center gap-3.5 px-4 py-3.5 bg-bg-surface border border-border-default"
