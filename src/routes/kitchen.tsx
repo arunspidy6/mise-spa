@@ -117,44 +117,43 @@ function KitchenOverview() {
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pb-4 space-y-6">
           {SECTIONS.map(sec => {
             const items = (inventory[sec.key] as string[] | undefined) ?? [];
+            const ownedLower = items.map(x => x.toLowerCase());
+            // Suggestions persist alongside owned items — show any of the 3 the
+            // user hasn't added to this category yet.
+            const suggestions = (SUGGESTIONS[sec.key] ?? []).filter(s => !ownedLower.includes(s.toLowerCase()));
             return (
               <div key={sec.key}>
                 <p className="label-eyebrow mb-2.5">{sec.label}</p>
-                {items.length === 0 ? (
-                  <div className="flex flex-wrap gap-2">
-                    {(SUGGESTIONS[sec.key] ?? []).map(sug => (
-                      <button
-                        key={sug}
-                        onClick={() => addSuggestion(sec.key, sug)}
-                        aria-label={`Add ${sug}`}
-                        className="inline-flex items-center gap-1.5 h-9 pl-2.5 pr-3.5 rounded-full text-[13px] font-medium bg-bg-elevated border border-border-default text-text-secondary active:scale-[0.94] transition-all"
-                      >
-                        <Plus className="w-3.5 h-3.5 text-ember-text" />
-                        {sug}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {items.map(item => (
-                      <button
-                        key={item}
-                        onClick={() => removeItem(sec.key, item)}
-                        aria-label={`Remove ${item}`}
-                        className="inline-flex items-center gap-1.5 h-9 pl-3.5 pr-2.5 rounded-full text-[13px] font-medium border transition-all active:scale-[0.94]"
-                        style={{
-                          background: "var(--ember-chip)",
-                          borderColor: "var(--ember-chip)",
-                          color: "oklch(0.965 0.018 72)",
-                          boxShadow: "0 2px 8px oklch(0 0 0 / 0.28)",
-                        }}
-                      >
-                        {item}
-                        <X className="w-3.5 h-3.5 opacity-80" />
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <div className="flex flex-wrap gap-2">
+                  {items.map(item => (
+                    <button
+                      key={item}
+                      onClick={() => removeItem(sec.key, item)}
+                      aria-label={`Remove ${item}`}
+                      className="inline-flex items-center gap-1.5 h-9 pl-3.5 pr-2.5 rounded-full text-[13px] font-medium border transition-all active:scale-[0.94]"
+                      style={{
+                        background: "var(--ember-chip)",
+                        borderColor: "var(--ember-chip)",
+                        color: "oklch(0.965 0.018 72)",
+                        boxShadow: "0 2px 8px oklch(0 0 0 / 0.28)",
+                      }}
+                    >
+                      {item}
+                      <X className="w-3.5 h-3.5 opacity-80" />
+                    </button>
+                  ))}
+                  {suggestions.map(sug => (
+                    <button
+                      key={sug}
+                      onClick={() => addSuggestion(sec.key, sug)}
+                      aria-label={`Add ${sug}`}
+                      className="inline-flex items-center gap-1.5 h-9 pl-2.5 pr-3.5 rounded-full text-[13px] font-medium bg-bg-elevated border border-border-default text-text-secondary active:scale-[0.94] transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5 text-ember-text" />
+                      {sug}
+                    </button>
+                  ))}
+                </div>
               </div>
             );
           })}
