@@ -89,13 +89,23 @@ type Store = {
   inventory: Inventory;
   session: Session;
   recipe: Recipe | null;
+  // "Not this" cycles through a small batch of generated recipes. New recipes
+  // are appended (up to 3) via one API call each; once the batch is full,
+  // "Not this" just loops through them locally — no more API calls.
+  recipeBatch: Recipe[];
+  batchIndex: number;
   history: HistoryEntry[];
   saved: SavedRecipe[];
   setInventory: (i: Partial<Inventory>) => void;
   toggleItem: (cat: keyof Omit<Inventory, "lastUpdated" | "customItems" | "customTokenMap">, item: string) => void;
   finalizeInventory: () => void;
   setSession: (s: Partial<Session>) => void;
+  // setRecipe starts a fresh batch (a new generation or opening a saved recipe).
   setRecipe: (r: Recipe | null) => void;
+  // Append a freshly generated alternative to the batch and show it (caps at 3).
+  pushRecipe: (r: Recipe) => void;
+  // Advance to the next recipe in the full batch, wrapping around. No API call.
+  cycleRecipe: () => void;
   addHistory: (e: HistoryEntry) => void;
   // Save a recipe to cook later (dedupes by name).
   saveRecipe: (entry: SavedRecipe) => void;
@@ -124,6 +134,8 @@ export const useMise = create<Store>()(
       },
       session: { timeMinutes: 30, servings: 2, cuisine: null, vibes: [] },
       recipe: null,
+      recipeBatch: [],
+      batchIndex: 0,
       history: [],
       saved: [],
       setInventory: (i) => set((s) => ({ inventory: { ...s.inventory, ...i } })),
@@ -138,7 +150,20 @@ export const useMise = create<Store>()(
       finalizeInventory: () =>
         set((s) => ({ inventory: { ...s.inventory, lastUpdated: Date.now() } })),
       setSession: (s2) => set((s) => ({ session: { ...s.session, ...s2 } })),
-      setRecipe: (r) => set({ recipe: r }),
+      // A fresh recipe (new generation / opened from cookbook) starts a new
+      // batch containing just that recipe.
+      setRecipe: (r) => set({ recipe: r, recipeBatch: r ? [r] : [], batchIndex: 0 }),
+      pushRecipe: (r) =>
+        set((s) => {
+          const batch = [...s.recipeBatch, r].slice(0, 3);
+          return { recipe: r, recipeBatch: batch, batchIndex: batch.length - 1 };
+        }),
+      cycleRecipe: () =>
+        set((s) => {
+          if (s.recipeBatch.length === 0) return {};
+          const batchIndex = (s.batchIndex + 1) % s.recipeBatch.length;
+          return { batchIndex, recipe: s.recipeBatch[batchIndex] };
+        }),
       addHistory: (e) =>
         set((s) => {
           // Finishing a cook logs a provisional "good" entry, then the feedback

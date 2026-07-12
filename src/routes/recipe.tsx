@@ -22,7 +22,10 @@ function RecipeCard() {
   const recipe = useMise(s => s.recipe);
   const inventory = useMise(s => s.inventory);
   const session = useMise(s => s.session);
-  const setRecipe = useMise(s => s.setRecipe);
+  const recipeBatch = useMise(s => s.recipeBatch);
+  const batchIndex = useMise(s => s.batchIndex);
+  const pushRecipe = useMise(s => s.pushRecipe);
+  const cycleRecipe = useMise(s => s.cycleRecipe);
   const history = useMise(s => s.history);
   const saved = useMise(s => s.saved);
   const saveRecipe = useMise(s => s.saveRecipe);
@@ -90,16 +93,25 @@ function RecipeCard() {
   const allGood = swaps.length === 0 && optional.length === 0;
 
   const swap = async () => {
-    setRerolling(true);
     setErrMsg(null);
 
+    // Batch is full (3 recipes generated) — from here "Not this" just loops
+    // through them locally. No more API calls. Instant, no loader.
+    if (recipeBatch.length >= 3) {
+      cycleRecipe();
+      return;
+    }
+
+    setRerolling(true);
     let next = null;
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 58000);
-      // Recently-cooked dishes so reroll respects the history-based dedupe,
-      // just like the initial generation in session.tsx.
-      const avoidRecipes = [...new Set(history.map(h => h.name))];
+      // Don't repeat anything already in the batch (or recently cooked dishes).
+      const avoidRecipes = [...new Set([
+        ...recipeBatch.map(r => r.name),
+        ...history.map(h => h.name),
+      ])];
       let apiFailure: "no_recipe" | "api_unreachable" | null = null;
       try {
         next = await getRecipeFromAPI(inventory, session, controller.signal, recipe.name, avoidRecipes);
@@ -112,6 +124,12 @@ function RecipeCard() {
 
       // Honest failure — keep the current recipe and say so, never a random one.
       if (!next) {
+        // If the kitchen genuinely can't yield another distinct dish but we
+        // already have a couple, don't dead-end — loop the ones we have.
+        if (apiFailure === "no_recipe" && recipeBatch.length >= 2) {
+          cycleRecipe();
+          return;
+        }
         setErrMsg(
           apiFailure === "no_recipe"
             ? "We couldn't find a different recipe for these ingredients right now. Try updating your kitchen."
@@ -120,7 +138,7 @@ function RecipeCard() {
         return;
       }
 
-      setRecipe(next);
+      pushRecipe(next);
     } catch (e: any) {
       const reason = (e.message ?? "").split("|")[0];
       if (reason === "no_more_recipes") {
@@ -290,6 +308,20 @@ function RecipeCard() {
 
         {/* Sticky bottom CTAs — always visible */}
         <KeyboardAwareFooter className="space-y-2">
+          {/* Once the batch is full, we loop the 3 — show which one you're on
+              so the repeats read as intentional, not a glitch. */}
+          {recipeBatch.length >= 3 && (
+            <div className="flex items-center justify-center gap-1.5 pb-0.5">
+              {recipeBatch.map((_, i) => (
+                <span key={i} className={`h-1.5 rounded-full transition-all ${
+                  i === batchIndex ? "w-4 bg-ember" : "w-1.5 bg-border-default"
+                }`} />
+              ))}
+              <span className="ml-1.5 text-[11px] text-text-tertiary">
+                {batchIndex + 1} of {recipeBatch.length}
+              </span>
+            </div>
+          )}
           <div className="flex gap-3">
             <button onClick={swap} disabled={rerolling}
               className="flex-1 h-14 rounded-xl bg-bg-surface border border-border-default text-text-secondary flex items-center justify-center gap-2 text-[14px] active:scale-95 transition disabled:opacity-50">
