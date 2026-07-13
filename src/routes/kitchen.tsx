@@ -32,8 +32,8 @@ const VALID_CATS = ["proteins", "carbs", "vegetables", "fridge", "staples"];
 // of a blank category. All are known ingredients (correct category + satToken).
 const SUGGESTIONS: Record<string, string[]> = {
   proteins: ["Chicken breast", "Eggs", "Beef mince"],
-  vegetables: ["Tomatoes", "Carrots", "Broccoli"],
-  carbs: ["Rice", "Pasta", "Potatoes"],
+  vegetables: ["Tomatoes", "Carrots", "Potatoes"],
+  carbs: ["Rice", "Pasta", "Bread"],
   fridge: ["Cheddar", "Butter", "Milk"],
   staples: ["Olive oil", "Garlic", "Soy sauce"],
   appliances: ["Hob / Stove", "Oven", "Microwave"],

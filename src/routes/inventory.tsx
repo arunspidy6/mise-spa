@@ -152,8 +152,10 @@ export const MASTER_INGREDIENTS: Record<string, { category: string; satToken: st
   "quinoa":             { category: "carbs", satToken: "rice" },
   "bulgur wheat":       { category: "carbs", satToken: "couscous" },
   "polenta":            { category: "carbs", satToken: "rice" },
-  "potatoes":           { category: "carbs", satToken: "potatoes" },
-  "sweet potato":       { category: "carbs", satToken: "potatoes" },
+  "potatoes":           { category: "vegetables", satToken: "potatoes" },
+  "baby potatoes":      { category: "vegetables", satToken: "potatoes" },
+  "new potatoes":       { category: "vegetables", satToken: "potatoes" },
+  "sweet potato":       { category: "vegetables", satToken: "potatoes" },
   "bread":              { category: "carbs", satToken: "bread" },
   "sourdough":          { category: "carbs", satToken: "bread" },
   "baguette":           { category: "carbs", satToken: "bread" },
@@ -730,6 +732,14 @@ function InventoryFlow() {
   const isLast = step === STEPS.length - 1;
   const selectedCount = selected.filter(i => allItems.includes(i)).length;
 
+  // Soft completion gate: a recipe needs a hero, so at least one protein OR
+  // vegetable ("anchor") is required to leave the flow for the session screen.
+  // Individual screens stay fully skippable; only the final transition is gated.
+  const PROTEIN_STEP = STEPS.findIndex(s => s.key === "proteins");
+  const anchorCount = inventory.proteins.length + inventory.vegetables.length;
+  const [showAnchorHint, setShowAnchorHint] = useState(false);
+  const gated = isLast && anchorCount === 0;
+
   const goBack = () => {
     if (from === "session") navigate({ to: "/session" });
     else if (from === "home") navigate({ to: "/" });
@@ -738,8 +748,19 @@ function InventoryFlow() {
   };
 
   const next = () => {
-    if (isLast) { finalize(); navigate({ to: "/session" }); }
-    else goStep(step + 1, 1);
+    if (isLast) {
+      if (anchorCount === 0) {
+        // Block the exit and teach the interaction: bounce to the protein
+        // screen with the hint showing. Reverts the moment they add an anchor.
+        setShowAnchorHint(true);
+        goStep(PROTEIN_STEP, -1);
+        return;
+      }
+      finalize();
+      navigate({ to: "/session" });
+    } else {
+      goStep(step + 1, 1);
+    }
   };
 
   // Swipe from the left edge → previous step (or leave the flow on step 0),
@@ -815,6 +836,18 @@ function InventoryFlow() {
 
             {cur.mode === "add" && (
               <p className="text-[14px] text-text-secondary mt-2 leading-relaxed">{cur.intro}</p>
+            )}
+
+            {/* Soft-gate hint — shown once the user tried to proceed with no
+                anchor. Clears automatically the moment they add a protein/veg. */}
+            {showAnchorHint && anchorCount === 0 && (cur.key === "proteins" || cur.key === "vegetables") && (
+              <motion.div
+                initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }}
+                className="mt-3 rounded-xl border border-ember-dim px-4 py-3 bg-ember-glow"
+              >
+                <p className="text-[13px] font-semibold text-ember-text">Add at least one protein or vegetable to continue</p>
+                <p className="text-[12px] text-text-secondary mt-0.5 leading-relaxed">Tap anything you have, or type it in.</p>
+              </motion.div>
             )}
 
             {cur.key === "proteins" && (
@@ -915,9 +948,9 @@ function InventoryFlow() {
 
         {/* Sticky CTA — hidden while keyboard is open so content fits the visible area */}
         <KeyboardAwareFooter>
-          <EmberButton size="lg" className="w-full" onClick={next}>
-            {cur.cta}
-            <ArrowRight className="w-4 h-4" />
+          <EmberButton size="lg" variant={gated ? "secondary" : "primary"} className="w-full" onClick={next}>
+            {gated ? "Add an ingredient to continue" : cur.cta}
+            {gated ? <Plus className="w-4 h-4" /> : <ArrowRight className="w-4 h-4" />}
           </EmberButton>
         </KeyboardAwareFooter>
       </div>

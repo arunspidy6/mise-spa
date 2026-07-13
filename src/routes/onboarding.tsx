@@ -147,7 +147,7 @@ const SLIDES: Slide[] = [
     Visual: KitchenVisual,
     eyebrow: "Step 1 · one minute",
     title: "Tell us what you've got",
-    body: "Tap the ingredients already in your kitchen. No shopping list, no meal plan.",
+    body: "Tap the ingredients already in your kitchen — you'll need at least one protein or veg, that's the star we build the dish around.",
   },
   {
     Visual: RecipeVisual,

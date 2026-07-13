@@ -64,12 +64,12 @@ export const PROTEIN_SECTIONS = [
 
 export const CARB_SECTIONS = [
   { label: "Grains & pasta", items: ["Pasta", "Rice", "Noodles", "Couscous"] },
-  { label: "Other carbs",    items: ["Potatoes", "Bread", "Tortillas"] },
+  { label: "Other carbs",    items: ["Bread", "Tortillas"] },
 ];
 
 export const VEG_SECTIONS = [
   { label: "Fresh veg",    items: ["Tomatoes", "Peppers", "Spinach", "Broccoli", "Mushrooms", "Courgette", "Carrots"] },
-  { label: "Root & other", items: ["Sweet potato", "Corn", "Peas"] },
+  { label: "Root & other", items: ["Potatoes", "Sweet potato", "Corn", "Peas"] },
 ];
 
 export const FRIDGE_SECTIONS = [
