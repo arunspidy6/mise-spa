@@ -335,7 +335,7 @@ function RecipeCard() {
           >
             <span className="flex items-center gap-2">
               <span className="text-base">📋</span>
-              <span className="text-[13px] font-medium text-text-primary">Preview the steps</span>
+              <span className="text-[13px] font-medium text-text-primary">See the full recipe</span>
             </span>
             <span className="text-[11px] text-text-tertiary">{recipe.steps?.length ?? 0} steps →</span>
           </button>
@@ -356,20 +356,6 @@ function RecipeCard() {
 
         {/* Sticky bottom CTAs — always visible */}
         <KeyboardAwareFooter className="space-y-2">
-          {/* Once the batch is full, we loop the 3 — show which one you're on
-              so the repeats read as intentional, not a glitch. */}
-          {recipeBatch.length >= 3 && (
-            <div className="flex items-center justify-center gap-1.5 pb-0.5">
-              {recipeBatch.map((_, i) => (
-                <span key={i} className={`h-1.5 rounded-full transition-all ${
-                  i === batchIndex ? "w-4 bg-ember" : "w-1.5 bg-border-default"
-                }`} />
-              ))}
-              <span className="ml-1.5 text-[11px] text-text-tertiary">
-                {batchIndex + 1} of {recipeBatch.length}
-              </span>
-            </div>
-          )}
           <div className="flex gap-3">
             <button onClick={swap} disabled={rerolling}
               className="flex-1 h-14 rounded-xl bg-bg-surface border border-border-default text-text-secondary flex items-center justify-center gap-2 text-[14px] active:scale-95 transition disabled:opacity-50">

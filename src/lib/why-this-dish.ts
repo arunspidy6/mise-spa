@@ -12,6 +12,8 @@ export type WhyThisDish = {
   completion: Meter; // how much of it you can make from your kitchen
   effort: Meter;     // how hard it is to get right
   tasteNote: string; // a short sentence on how it actually tastes
+  flavourRationale?: string; // why the ingredients belong together
+  provenance?: "classic" | "adapted" | "original";
 };
 
 // Flavour cues → the descriptor they contribute to the taste note. Matched
@@ -98,7 +100,16 @@ export function whyThisDish(recipe: Recipe, inventory: Inventory): WhyThisDish {
     .map(f => f.note);
   const tasteNote = composeTasteNote(recipe.cuisine, detected);
 
-  return { reasons, completion, effort, tasteNote };
+  // A modest flavour rationale from the cuisine + detected cues (the model gives
+  // a much richer one; this is the offline/older-recipe fallback). Reuses `hero`.
+  const rationaleBits: string[] = [];
+  if (hero) rationaleBits.push(`built around your ${hero}`);
+  if (detected.length) rationaleBits.push(`with ${detected.slice(0, 2).join(" and ")}`);
+  const flavourRationale = rationaleBits.length
+    ? `A ${recipe.cuisine} dish ${rationaleBits.join(" ")} — ingredients chosen to share one flavour direction rather than clash.`
+    : undefined;
+
+  return { reasons, completion, effort, tasteNote, flavourRationale };
 }
 
 // Join up to two detected flavour notes into a natural sentence, prefixed with

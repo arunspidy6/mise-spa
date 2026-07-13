@@ -203,6 +203,16 @@ WHY THIS DISH — the confidence panel shown before the user commits:
   actually TASTES — the flavour, texture and what makes it good. Be specific and
   appetising, e.g. "Rich and garlicky with a bright chilli kick and silky sauce."
   Never a rating word like "Medium" — describe the flavour, don't score it.
+- "flavourRationale": 2–3 sentences explaining WHY these ingredients belong together
+  — the flavour logic a good cook would give. Name which ingredient carries the
+  dish, what balances or lifts it (fat, acid, heat, sweetness, aromatics), and the
+  cuisine tradition or classic pairing it follows. This is where you prove the dish
+  respects real culinary rules so a cautious cook trusts it. Concrete, not generic
+  ("The tomato's acidity cuts the richness of the cheese, a classic Italian balance"
+  — not "the flavours work well together").
+- "provenance": one word — "classic" if this is a recognised traditional dish,
+  "adapted" if it's a known dish adjusted to the user's ingredients, or "original"
+  if it's a new combination you composed for this kitchen. Be honest.
 
 RETURN FORMAT — valid JSON only. No markdown fences. No explanation before or after.
 {
@@ -222,7 +232,9 @@ RETURN FORMAT — valid JSON only. No markdown fences. No explanation before or 
     "reasons": ["Uses your <ingredient>", "Ready in <n> minutes", "Hard to get wrong"],
     "completion": "High | Medium | Low",
     "effort": "High | Medium | Low",
-    "tasteNote": "One short sentence on how the finished dish tastes"
+    "tasteNote": "One short sentence on how the finished dish tastes",
+    "flavourRationale": "2-3 sentences on why these ingredients belong together and the tradition/pairing it follows",
+    "provenance": "classic | adapted | original"
   },
   "ingredients": [
     { "name": "<ingredient>", "quantity": "<specific amount + unit>", "inInventory": true }
@@ -516,8 +528,11 @@ At lunch and dinner: if the user selected a meat, poultry or fish protein, it MU
       const completion = asMeter(w.completion);
       const effort = asMeter(w.effort);
       const tasteNote = typeof w.tasteNote === "string" ? w.tasteNote.trim().slice(0, 140) : "";
+      const flavourRationale = typeof w.flavourRationale === "string" ? w.flavourRationale.trim().slice(0, 400) : "";
+      const prov = String(w.provenance ?? "").trim().toLowerCase();
+      const provenance = prov === "classic" ? "classic" : prov === "adapted" ? "adapted" : prov === "original" ? "original" : undefined;
       recipe.why = reasons.length && completion && effort && tasteNote
-        ? { reasons, completion, effort, tasteNote }
+        ? { reasons, completion, effort, tasteNote, flavourRationale: flavourRationale || undefined, provenance }
         : undefined;
     } else {
       recipe.why = undefined;

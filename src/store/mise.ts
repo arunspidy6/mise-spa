@@ -47,6 +47,8 @@ export type Recipe = {
     completion: "Low" | "Medium" | "High";
     effort: "Low" | "Medium" | "High";
     tasteNote: string;
+    flavourRationale?: string;
+    provenance?: "classic" | "adapted" | "original";
   };
 };
 

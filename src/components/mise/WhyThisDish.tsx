@@ -1,7 +1,15 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, X, Check, BarChart3, UtensilsCrossed } from "lucide-react";
+import { Sparkles, X, Check, BarChart3, UtensilsCrossed, BookOpen } from "lucide-react";
 import type { Recipe, Inventory } from "@/store/mise";
 import { whyThisDish, type Meter } from "@/lib/why-this-dish";
+
+// How the dish's origin is phrased — honest about being AI-composed while
+// showing it's grounded in real cooking, not random.
+const PROVENANCE: Record<string, { label: string; sentence: (cuisine: string) => string }> = {
+  classic:  { label: "Classic",          sentence: c => `A recognised ${c} dish.` },
+  adapted:  { label: "Adapted classic",  sentence: c => `A classic ${c} dish, adapted to what's in your kitchen.` },
+  original: { label: "Original",         sentence: c => `An original combination, composed for your kitchen.` },
+};
 
 // A three-bar meter (Low / Medium / High) matching the ember + success palette.
 function MeterBars({ level }: { level: Meter }) {
@@ -67,9 +75,9 @@ export function WhyThisDish({
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 380, damping: 34 }}
-              className="absolute inset-x-0 bottom-0 z-50 rounded-t-3xl bg-bg-surface border-t border-border-default shadow-2xl"
+              className="absolute inset-x-0 bottom-0 z-50 max-h-[88%] flex flex-col rounded-t-3xl bg-bg-surface border-t border-border-default shadow-2xl"
             >
-              <div className="px-5 pt-3 pb-6">
+              <div className="px-5 pt-3 pb-6 flex-1 min-h-0 overflow-y-auto overscroll-contain">
                 {/* Grab handle */}
                 <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border-default" />
 
@@ -112,6 +120,17 @@ export function WhyThisDish({
                   ))}
                 </div>
 
+                {/* Why these flavours work — the culinary reasoning, for trust */}
+                {why.flavourRationale && (
+                  <>
+                    <div className="mt-6 flex items-center gap-2 text-text-tertiary">
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <p className="label-eyebrow leading-none">Why these flavours work</p>
+                    </div>
+                    <p className="mt-2 text-[15px] text-text-primary leading-relaxed">{why.flavourRationale}</p>
+                  </>
+                )}
+
                 {/* How it tastes — a real description, not a rating */}
                 <div className="mt-6 flex items-center gap-2 text-text-tertiary">
                   <UtensilsCrossed className="w-3.5 h-3.5" />
@@ -128,6 +147,21 @@ export function WhyThisDish({
                   <MeterCard label="Completion" level={why.completion} />
                   <MeterCard label="Effort" level={why.effort} />
                 </div>
+
+                {/* Where it comes from — honest provenance to build trust */}
+                <div className="mt-6 flex items-center gap-2 text-text-tertiary">
+                  <BookOpen className="w-3.5 h-3.5" />
+                  <p className="label-eyebrow leading-none">Where it comes from</p>
+                </div>
+                {why.provenance && (
+                  <span className="mt-2 inline-flex items-center h-6 px-2.5 rounded-full bg-ember-glow border border-ember-dim text-[11px] font-semibold text-ember-text">
+                    {PROVENANCE[why.provenance].label}
+                  </span>
+                )}
+                <p className="mt-2 text-[13px] text-text-secondary leading-relaxed">
+                  {why.provenance ? PROVENANCE[why.provenance].sentence(recipe.cuisine) + " " : ""}
+                  Created by Mise's AI for your kitchen — grounded in real {recipe.cuisine} technique, not assembled at random.
+                </p>
               </div>
             </motion.div>
           </>
