@@ -7,9 +7,11 @@ import { hasOnboarded } from "@/lib/onboarding";
 import { getVariant } from "@/lib/variant";
 
 export const Route = createFileRoute("/")({
-  // First launch → show the intro before the home screen paints.
+  // First launch → show the intro before the home screen paints. The dump
+  // variant's home IS the Cook (ingredient) screen, so send it straight there.
   beforeLoad: () => {
     if (!hasOnboarded()) throw redirect({ to: "/onboarding" });
+    if (getVariant() === "dump") throw redirect({ to: "/dump" });
   },
   component: Home,
 });

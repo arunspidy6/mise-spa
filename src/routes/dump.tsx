@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, ArrowRight, X, Plus, Sparkles, ChevronDown, Check, Drumstick, Carrot, Mic } from "lucide-react";
+import { ArrowRight, X, Plus, Sparkles, Check, Drumstick, Carrot, Mic, ChevronRight } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MobileFrame } from "@/components/mise/MobileFrame";
-import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
+import { MobileFrame, useMobileFrame } from "@/components/mise/MobileFrame";
+import { BottomTabBar } from "@/components/mise/BottomTabBar";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { RecipeLoaderContent } from "@/components/mise/RecipeLoader";
 import { useMise } from "@/store/mise";
@@ -45,7 +45,6 @@ function IngredientDump() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<ErrState | null>(null);
   const [showAnchorHint, setShowAnchorHint] = useState(false);
-  const [pantryOpen, setPantryOpen] = useState(false);
   const [composer, setComposer] = useState("");
   const [adding, setAdding] = useState(false);
   const [confirm, setConfirm] = useState<string | null>(null);
@@ -226,6 +225,8 @@ function IngredientDump() {
     (s) => !dumped.some((d) => d.item.toLowerCase() === s.toLowerCase())
   );
   const hasAnchor = anchorCount > 0;
+  const { keyboardOpen } = useMobileFrame();
+  const pantryCount = (inventory.staples?.length ?? 0) + (inventory.appliances?.length ?? 0);
 
   return (
     <MobileFrame>
@@ -239,13 +240,12 @@ function IngredientDump() {
       </AnimatePresence>
 
       <div className="flex flex-col h-full overflow-hidden">
-        {/* Header */}
-        <div className="flex-shrink-0 px-6 pt-5">
-          <button onClick={() => navigate({ to: "/" })}
-            className="w-10 h-10 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <h1 className="font-display text-[30px] font-light text-text-primary leading-tight mt-2">
+        {/* Header — this screen is home, so no back button */}
+        <div className="flex-shrink-0 px-6 pt-6">
+          <span className="font-display text-[20px] font-light text-text-primary tracking-tight">
+            Mise<span className="text-ember">.</span>
+          </span>
+          <h1 className="font-display text-[28px] font-light text-text-primary leading-tight mt-2">
             What do you want to cook with?
           </h1>
         </div>
@@ -403,68 +403,45 @@ function IngredientDump() {
             </div>
           )}
 
-          {/* Pantry transparency — we assume these basics; show exactly which. */}
-          <div className="mt-2 rounded-xl bg-bg-surface border border-border-subtle overflow-hidden">
-            <button
-              onClick={() => setPantryOpen((o) => !o)}
-              aria-expanded={pantryOpen}
-              className="w-full flex items-center gap-3 px-4 py-3 text-left active:opacity-70 transition"
-            >
-              <span className="w-8 h-8 rounded-lg bg-ember-glow flex items-center justify-center flex-shrink-0">
-                <Sparkles className="w-4 h-4 text-ember-text" />
+          {/* Pantry & appliances — opens a focused screen for the assumed basics */}
+          <button
+            onClick={() => navigate({ to: "/pantry" })}
+            className="mt-2 w-full flex items-center gap-3 rounded-xl bg-bg-surface border border-border-subtle px-4 py-3 text-left active:opacity-70 transition"
+          >
+            <span className="w-8 h-8 rounded-lg bg-ember-glow flex items-center justify-center flex-shrink-0">
+              <Sparkles className="w-4 h-4 text-ember-text" />
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block text-[13px] font-medium text-text-primary leading-tight">Pantry &amp; appliances</span>
+              <span className="block text-[12px] text-text-tertiary leading-tight mt-0.5">
+                {pantryCount} assumed on · add or edit your basics
               </span>
-              <span className="flex-1 min-w-0">
-                <span className="block text-[13px] font-medium text-text-primary leading-tight">
-                  Pantry basics included
-                </span>
-                <span className="block text-[12px] text-text-tertiary leading-tight mt-0.5">
-                  We assume you've got the everyday staples — no need to add them.
-                </span>
-              </span>
-              <ChevronDown className={`w-4 h-4 text-text-tertiary flex-shrink-0 transition-transform ${pantryOpen ? "rotate-180" : ""}`} />
-            </button>
-            <AnimatePresence>
-              {pantryOpen && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.22 }} className="overflow-hidden"
-                >
-                  <div className="px-4 pb-3.5 pt-0.5 flex flex-wrap gap-1.5">
-                    {(inventory.staples ?? []).map((s) => (
-                      <span key={s} className="inline-flex items-center h-7 px-2.5 rounded-full bg-bg-elevated border border-border-subtle text-[11px] text-text-secondary">
-                        {s}
-                      </span>
-                    ))}
-                    <button
-                      onClick={() => navigate({ to: "/kitchen", search: { from: "session" } })}
-                      className="inline-flex items-center h-7 px-2.5 rounded-full border border-ember-dim text-[11px] font-medium text-ember-text active:opacity-70"
-                    >
-                      Edit pantry →
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+            </span>
+            <ChevronRight className="w-4 h-4 text-text-tertiary flex-shrink-0" />
+          </button>
         </div>
 
-        {/* CTA */}
-        <KeyboardAwareFooter className="px-6">
-          {err && (
-            <div className="mb-4 rounded-xl bg-bg-surface border border-border-default p-4 space-y-1.5">
-              <p className="text-[13px] font-semibold text-text-primary">
-                {err.reason === "api_unreachable" ? "Couldn't reach the kitchen" : "Couldn't find a recipe"}
-              </p>
-              <p className="text-[12px] text-text-secondary leading-relaxed">{err.detail}</p>
-            </div>
-          )}
-          <EmberButton size="lg" className="w-full" onClick={generate} disabled={loading}>
-            Find me a recipe <ArrowRight className="w-4 h-4" />
-          </EmberButton>
-          <p className="text-center text-[11px] text-text-tertiary leading-snug pt-2">
-            Next: we'll create one recipe from these — then you pick how many you're cooking for.
-          </p>
-        </KeyboardAwareFooter>
+        {/* CTA — sits just above the tab bar. Both hide while typing. */}
+        {!keyboardOpen && (
+          <div className="flex-shrink-0 px-6 pt-3 pb-3 bg-bg-base border-t border-border-subtle">
+            {err && (
+              <div className="mb-3 rounded-xl bg-bg-surface border border-border-default p-4 space-y-1.5">
+                <p className="text-[13px] font-semibold text-text-primary">
+                  {err.reason === "api_unreachable" ? "Couldn't reach the kitchen" : "Couldn't find a recipe"}
+                </p>
+                <p className="text-[12px] text-text-secondary leading-relaxed">{err.detail}</p>
+              </div>
+            )}
+            <EmberButton size="lg" className="w-full" onClick={generate} disabled={loading}>
+              Find me a recipe <ArrowRight className="w-4 h-4" />
+            </EmberButton>
+            <p className="text-center text-[11px] text-text-tertiary leading-snug pt-2">
+              Next: one recipe from these — then pick how many you're cooking for.
+            </p>
+          </div>
+        )}
+
+        <BottomTabBar />
       </div>
     </MobileFrame>
   );
