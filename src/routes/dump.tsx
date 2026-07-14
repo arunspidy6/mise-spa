@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, ArrowRight, ArrowUp, X, Plus, Sparkles, ChevronDown, Check, Drumstick, Carrot } from "lucide-react";
+import { ArrowLeft, ArrowRight, X, Plus, Sparkles, ChevronDown, Check, Drumstick, Carrot, Mic } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
@@ -13,6 +13,7 @@ import { track } from "@/lib/analytics";
 import { playRecipeReady, primeAudio } from "@/lib/sound";
 import { hapticLight } from "@/lib/haptics";
 import { classifyIngredient, sanitiseIngredient } from "@/lib/classify-ingredient";
+import { useVoiceInput } from "@/lib/use-voice-input";
 import { MASTER_INGREDIENTS } from "./inventory";
 
 export const Route = createFileRoute("/dump")({ component: IngredientDump });
@@ -50,6 +51,17 @@ function IngredientDump() {
   const [confirm, setConfirm] = useState<string | null>(null);
   const genIdRef = useRef(0);
   const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Voice dictation into the composer — the spoken text is dropped in after
+  // whatever's already typed, so the user can review, edit, then add with +.
+  const voiceBaseRef = useRef("");
+  const { listening, start: startVoice, supported: voiceSupported } = useVoiceInput((text) => {
+    setComposer(voiceBaseRef.current ? `${voiceBaseRef.current}, ${text}` : text);
+  });
+  const toggleVoice = () => {
+    if (!listening) { voiceBaseRef.current = composer.trim(); track("dump_voice_started"); }
+    startVoice();
+  };
 
   useEffect(() => { track("dump_started"); }, []);
   useEffect(() => () => { if (confirmTimer.current) clearTimeout(confirmTimer.current); }, []);
@@ -244,20 +256,46 @@ function IngredientDump() {
               className="w-full bg-transparent resize-none text-[16px] text-text-primary placeholder:text-text-tertiary focus:outline-none leading-relaxed"
             />
             <div className="flex items-center justify-between pt-1">
-              <span className="text-[11px] text-text-tertiary">Separate with commas</span>
-              <button
-                onClick={() => addFromComposer(composer)}
-                disabled={adding || !composer.trim()}
-                aria-label="Add ingredients"
-                className="w-10 h-10 rounded-full flex items-center justify-center text-[color:var(--on-ember)] active:scale-90 disabled:opacity-40 transition"
-                style={{ background: "var(--ember-gradient)", boxShadow: "var(--shadow-button)" }}
-              >
-                {adding ? (
-                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <ArrowUp className="w-5 h-5" />
+              <span className={`text-[11px] ${listening ? "text-ember-text font-medium" : "text-text-tertiary"}`}>
+                {listening ? "Listening…" : voiceSupported ? "Speak or type · commas separate" : "Separate with commas"}
+              </span>
+              <div className="flex items-center gap-2">
+                {voiceSupported && (
+                  <button
+                    onClick={toggleVoice}
+                    aria-label={listening ? "Stop voice input" : "Add ingredients by voice"}
+                    aria-pressed={listening}
+                    className={`relative w-10 h-10 rounded-full flex items-center justify-center border active:scale-90 transition ${
+                      listening
+                        ? "bg-ember-glow border-ember text-ember-text"
+                        : "bg-bg-raised border-border-default text-text-secondary"
+                    }`}
+                  >
+                    {listening && (
+                      <motion.span
+                        aria-hidden
+                        animate={{ scale: [1, 1.35], opacity: [0.5, 0] }}
+                        transition={{ duration: 1.1, repeat: Infinity, ease: "easeOut" }}
+                        className="absolute inset-0 rounded-full border border-ember"
+                      />
+                    )}
+                    <Mic className="w-5 h-5" />
+                  </button>
                 )}
-              </button>
+                <button
+                  onClick={() => addFromComposer(composer)}
+                  disabled={adding || !composer.trim()}
+                  aria-label="Add ingredients"
+                  className="w-10 h-10 rounded-full flex items-center justify-center text-[color:var(--on-ember)] active:scale-90 disabled:opacity-40 transition"
+                  style={{ background: "var(--ember-gradient)", boxShadow: "var(--shadow-button)" }}
+                >
+                  {adding ? (
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <Plus className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 

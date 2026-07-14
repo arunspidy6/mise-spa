@@ -164,23 +164,8 @@ function KitchenOverview() {
 
         {/* Sections */}
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pb-4 space-y-7">
-          {PRIMARY.map(sec => {
-            const count = (inventory[sec.key] as string[] | undefined)?.length ?? 0;
-            return (
-              <div key={sec.key}>
-                <div className="flex items-baseline gap-2 mb-2.5">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-secondary">{sec.label}</p>
-                  {count > 0 && (
-                    <span className="text-[10px] font-mono text-text-tertiary tabular-nums">{count}</span>
-                  )}
-                </div>
-                {renderSection(sec.key)}
-              </div>
-            );
-          })}
-
-          {/* Assumed basics — pantry + appliances, collapsed to keep the view
-              focused on the ingredients that actually drive recipes. */}
+          {/* Assumed basics — pantry + appliances, pinned at the top and
+              collapsed. Confirms what we assume before the food you cook with. */}
           <div className="rounded-xl bg-bg-surface border border-border-subtle overflow-hidden">
             <button
               onClick={() => setBasicsOpen(o => !o)}
@@ -213,6 +198,21 @@ function KitchenOverview() {
               )}
             </AnimatePresence>
           </div>
+
+          {PRIMARY.map(sec => {
+            const count = (inventory[sec.key] as string[] | undefined)?.length ?? 0;
+            return (
+              <div key={sec.key}>
+                <div className="flex items-baseline gap-2 mb-2.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-secondary">{sec.label}</p>
+                  {count > 0 && (
+                    <span className="text-[10px] font-mono text-text-tertiary tabular-nums">{count}</span>
+                  )}
+                </div>
+                {renderSection(sec.key)}
+              </div>
+            );
+          })}
         </div>
 
         {/* Proceed to recipes */}
