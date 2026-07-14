@@ -6,6 +6,7 @@ import { MobileFrame } from "@/components/mise/MobileFrame";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { setOnboarded } from "@/lib/onboarding";
 import { track } from "@/lib/analytics";
+import { getVariant } from "@/lib/variant";
 
 export const Route = createFileRoute("/onboarding")({ component: Onboarding });
 
@@ -174,8 +175,10 @@ function Onboarding() {
     setOnboarded();
     track(via === "completed" ? "onboarding_completed" : "onboarding_skipped", { slide: i + 1 });
     // Replace so onboarding leaves no history entry — a back-swipe from home
-    // must never land the user back in the intro.
-    navigate({ to: via === "completed" ? "/inventory" : "/", replace: true });
+    // must never land the user back in the intro. The "dump" variant sends a
+    // completed intro straight to the single ingredient screen.
+    const completedTo = getVariant() === "dump" ? "/dump" : "/inventory";
+    navigate({ to: via === "completed" ? completedTo : "/", replace: true });
   };
 
   const slide = SLIDES[i];

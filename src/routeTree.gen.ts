@@ -16,6 +16,7 @@ import { Route as KitchenRouteImport } from './routes/kitchen'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as FeedbackRouteImport } from './routes/feedback'
+import { Route as DumpRouteImport } from './routes/dump'
 import { Route as CookRouteImport } from './routes/cook'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -54,6 +55,11 @@ const FeedbackRoute = FeedbackRouteImport.update({
   path: '/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DumpRoute = DumpRouteImport.update({
+  id: '/dump',
+  path: '/dump',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CookRoute = CookRouteImport.update({
   id: '/cook',
   path: '/cook',
@@ -68,6 +74,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cook': typeof CookRoute
+  '/dump': typeof DumpRoute
   '/feedback': typeof FeedbackRoute
   '/history': typeof HistoryRoute
   '/inventory': typeof InventoryRoute
@@ -79,6 +86,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cook': typeof CookRoute
+  '/dump': typeof DumpRoute
   '/feedback': typeof FeedbackRoute
   '/history': typeof HistoryRoute
   '/inventory': typeof InventoryRoute
@@ -91,6 +99,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cook': typeof CookRoute
+  '/dump': typeof DumpRoute
   '/feedback': typeof FeedbackRoute
   '/history': typeof HistoryRoute
   '/inventory': typeof InventoryRoute
@@ -104,6 +113,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/cook'
+    | '/dump'
     | '/feedback'
     | '/history'
     | '/inventory'
@@ -115,6 +125,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/cook'
+    | '/dump'
     | '/feedback'
     | '/history'
     | '/inventory'
@@ -126,6 +137,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/cook'
+    | '/dump'
     | '/feedback'
     | '/history'
     | '/inventory'
@@ -138,6 +150,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CookRoute: typeof CookRoute
+  DumpRoute: typeof DumpRoute
   FeedbackRoute: typeof FeedbackRoute
   HistoryRoute: typeof HistoryRoute
   InventoryRoute: typeof InventoryRoute
@@ -198,6 +211,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dump': {
+      id: '/dump'
+      path: '/dump'
+      fullPath: '/dump'
+      preLoaderRoute: typeof DumpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cook': {
       id: '/cook'
       path: '/cook'
@@ -218,6 +238,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CookRoute: CookRoute,
+  DumpRoute: DumpRoute,
   FeedbackRoute: FeedbackRoute,
   HistoryRoute: HistoryRoute,
   InventoryRoute: InventoryRoute,

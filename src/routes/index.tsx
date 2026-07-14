@@ -4,6 +4,7 @@ import { Package, Clock, ArrowRight } from "lucide-react";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { useMise } from "@/store/mise";
 import { hasOnboarded } from "@/lib/onboarding";
+import { getVariant } from "@/lib/variant";
 
 export const Route = createFileRoute("/")({
   // First launch → show the intro before the home screen paints.
@@ -44,12 +45,17 @@ function Home() {
     (inventory.vegetables?.length ?? 0) +
     (inventory.fridge?.length     ?? 0);
 
+  // "dump" variant funnels every cook through the single ingredient-dump screen;
+  // "classic" keeps the wizard (first run) → session (returning) split.
+  const isDump            = getVariant() === "dump";
   const hasSetup          = (inventory.lastUpdated ?? 0) > 0;
-  const showUpdateKitchen = hasSetup && history.length > 0;
-  const mainCTATo         = hasSetup ? "/session" : "/inventory";
-  const mainCTASub        = hasSetup
-    ? "Best match from your pantry"
-    : "First, let's see what you've got";
+  const showUpdateKitchen = !isDump && hasSetup && history.length > 0;
+  const mainCTATo         = isDump ? "/dump" : hasSetup ? "/session" : "/inventory";
+  const mainCTASub        = isDump
+    ? "Tell us what you've got — get a recipe"
+    : hasSetup
+      ? "Best match from your pantry"
+      : "First, let's see what you've got";
   const caption = hasSetup ? "What are you cooking?" : "Let's get you cooking.";
 
   return (

@@ -9,6 +9,24 @@ import { getDeviceId } from "./device";
 let ready = false;
 let ph: any = null;
 
+// Super-properties merged onto every captured event. Registered before init
+// (e.g. the A/B variant) and applied once PostHog is ready, so no event is
+// left untagged. Also mirrored to person properties for cohort breakdowns.
+const superProps: Record<string, unknown> = {};
+
+// Tag all events (and the person) with a property — used for the app_variant
+// A/B split so any metric can be broken down by version in PostHog. Safe to
+// call before initAnalytics(); the value is applied when PostHog comes up.
+export function registerSuperProps(props: Record<string, unknown>): void {
+  Object.assign(superProps, props);
+  try {
+    if (ready && ph) {
+      ph.register(props);
+      ph.setPersonProperties?.(props);
+    }
+  } catch { /* ignore */ }
+}
+
 export async function initAnalytics(): Promise<void> {
   const key = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
   const host = (import.meta.env.VITE_POSTHOG_HOST as string | undefined) || "https://us.i.posthog.com";
@@ -25,6 +43,12 @@ export async function initAnalytics(): Promise<void> {
       bootstrap: { distinctID: getDeviceId() },
     });
     ph.identify(getDeviceId());
+    // Apply any super-properties registered before init (e.g. app_variant) so
+    // they tag the very first pageview too.
+    if (Object.keys(superProps).length) {
+      ph.register(superProps);
+      ph.setPersonProperties?.(superProps);
+    }
     ready = true;
   } catch {
     /* analytics must never break the app */

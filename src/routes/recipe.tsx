@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, ArrowRight, Clock, RotateCw, Bookmark, BookmarkCheck, Check, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Clock, RotateCw, Bookmark, BookmarkCheck, Check, Sparkles, Minus, Plus, Users } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
@@ -12,6 +12,8 @@ import { RecipePreview } from "@/components/mise/RecipePreview";
 import { useMise } from "@/store/mise";
 import { getRecipeFromAPI } from "@/lib/generate-recipe";
 import { track } from "@/lib/analytics";
+import { getVariant } from "@/lib/variant";
+import { scaleRecipe } from "@/lib/scale-recipe";
 import { pickMealSlot, describeSlot, scheduleRecipeReminder, cancelRecipeReminder } from "@/lib/reminders";
 
 export const Route = createFileRoute("/recipe")({ component: RecipeCard });
@@ -31,6 +33,12 @@ function RecipeCard() {
   const saved = useMise(s => s.saved);
   const saveRecipe = useMise(s => s.saveRecipe);
   const unsaveRecipe = useMise(s => s.unsaveRecipe);
+  const setSession = useMise(s => s.setSession);
+  // In the "dump" variant, servings are chosen here (after the recipe is shown)
+  // rather than up front, so the recipe screen owns the serving control and
+  // scales the ingredient amounts live. Classic is untouched.
+  const isDump = getVariant() === "dump";
+  const backTo = isDump ? "/dump" as const : "/session" as const;
   const [rerolling, setRerolling] = useState(false);
   const [errMsg, setErrMsg] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -126,7 +134,7 @@ function RecipeCard() {
       <MobileFrame>
         <div className="flex-1 flex flex-col items-center justify-center px-6 gap-4">
           <p className="text-text-secondary text-[15px] text-center">No recipe loaded.</p>
-          <button onClick={() => navigate({ to: "/session" })}
+          <button onClick={() => navigate({ to: backTo })}
             className="h-12 px-6 rounded-xl bg-ember text-bg-base text-[14px] font-semibold">
             ← Back
           </button>
@@ -134,6 +142,10 @@ function RecipeCard() {
       </MobileFrame>
     );
   }
+
+  // Dump variant: scale the shown quantities to the chosen serving count (a
+  // display-only transform — the stored recipe/batch stay at the model's count).
+  const shown = isDump ? scaleRecipe(recipe, session.servings) : recipe;
 
   const swaps = recipe.requiredSwaps ?? [];
   const optional = recipe.optionalMissing ?? [];
@@ -221,7 +233,7 @@ function RecipeCard() {
         </AnimatePresence>
 
         <div className="flex-shrink-0 px-4 pt-5 pb-2">
-          <button onClick={() => navigate({ to: "/session" })}
+          <button onClick={() => navigate({ to: backTo })}
             className="w-10 h-10 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
             <ArrowLeft className="w-5 h-5" />
           </button>
@@ -314,6 +326,41 @@ function RecipeCard() {
             </div>
           </div>
 
+          {/* Cooking for — dump variant asks servings AFTER the recipe is shown,
+              scaling the ingredient amounts live (no regeneration). */}
+          {isDump && (
+            <div className="rounded-xl bg-bg-surface border border-border-subtle px-4 py-3 flex items-center justify-between gap-3">
+              <span className="flex items-center gap-2 min-w-0">
+                <Users className="w-4 h-4 text-ember-text flex-shrink-0" />
+                <span className="flex flex-col min-w-0">
+                  <span className="text-[13px] font-medium text-text-primary leading-tight">Cooking for</span>
+                  <span className="text-[11px] text-text-tertiary leading-tight mt-0.5">Amounts update automatically</span>
+                </span>
+              </span>
+              <span className="flex items-center gap-3 flex-shrink-0">
+                <button
+                  onClick={() => setSession({ servings: Math.max(1, session.servings - 1) })}
+                  aria-label="Fewer people"
+                  className="w-9 h-9 rounded-full bg-bg-raised flex items-center justify-center text-text-secondary active:scale-90 disabled:opacity-40"
+                  disabled={session.servings <= 1}
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+                <span className="font-display text-[22px] font-light text-text-primary tabular-nums w-8 text-center">
+                  {session.servings}
+                </span>
+                <button
+                  onClick={() => setSession({ servings: Math.min(8, session.servings + 1) })}
+                  aria-label="More people"
+                  className="w-9 h-9 rounded-full bg-bg-raised flex items-center justify-center text-text-secondary active:scale-90 disabled:opacity-40"
+                  disabled={session.servings >= 8}
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </span>
+            </div>
+          )}
+
           {/* Why this dish — inline trigger, styled like the preview row so it
               never overlaps the CTAs or the dropdown below it. */}
           <button
@@ -344,10 +391,10 @@ function RecipeCard() {
             <div className="rounded-xl bg-bg-surface border border-border-default p-4 text-center space-y-2">
               <p className="text-[13px] text-text-secondary">{errMsg}</p>
               <button
-                onClick={() => navigate({ to: "/inventory" })}
+                onClick={() => navigate({ to: isDump ? "/dump" : "/inventory" })}
                 className="text-[12px] font-semibold text-ember underline underline-offset-2 active:opacity-70"
               >
-                Update my kitchen →
+                {isDump ? "Change ingredients →" : "Update my kitchen →"}
               </button>
             </div>
           )}
@@ -367,7 +414,7 @@ function RecipeCard() {
             </EmberButton>
           </div>
           {swaps.length > 0 && (
-            <button onClick={() => navigate({ to: "/session" })}
+            <button onClick={() => navigate({ to: backTo })}
               className="w-full text-center text-[12px] text-text-tertiary py-1 active:opacity-70">
               These swaps don't work for me. Try a different recipe.
             </button>
@@ -380,8 +427,9 @@ function RecipeCard() {
         {/* "Why this dish?" sheet — opened by the inline trigger above */}
         <WhyThisDish recipe={recipe} inventory={inventory} open={whyOpen} onClose={() => setWhyOpen(false)} />
 
-        {/* Read-ahead preview sheet — opened by the "Preview the steps" row */}
-        <RecipePreview recipe={recipe} open={previewOpen} onClose={() => setPreviewOpen(false)} />
+        {/* Read-ahead preview sheet — opened by the "Preview the steps" row.
+            Shows the serving-scaled quantities in the dump variant. */}
+        <RecipePreview recipe={shown} open={previewOpen} onClose={() => setPreviewOpen(false)} />
       </div>
     </MobileFrame>
   );
