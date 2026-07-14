@@ -381,6 +381,7 @@ export const MASTER_INGREDIENTS: Record<string, { category: string; satToken: st
   "mushroom":           { category: "vegetables", satToken: "mushrooms" },
   "courgettes":         { category: "vegetables", satToken: "courgette" },
   "pea":                { category: "vegetables", satToken: "spinach" },
+  "cheese":             { category: "fridge", satToken: "cheddar" },
 };
 
 export const Route = createFileRoute("/inventory")({

@@ -12,7 +12,7 @@ import { getRecipeFromAPI } from "@/lib/generate-recipe";
 import { track } from "@/lib/analytics";
 import { playRecipeReady, primeAudio } from "@/lib/sound";
 import { hapticLight } from "@/lib/haptics";
-import { classifyIngredient, sanitiseIngredient } from "@/lib/classify-ingredient";
+import { classifyIngredient, sanitiseIngredient, extractKnownIngredients } from "@/lib/classify-ingredient";
 import { useVoiceInput } from "@/lib/use-voice-input";
 import { MASTER_INGREDIENTS } from "./inventory";
 
@@ -49,22 +49,12 @@ function IngredientDump() {
   const [composer, setComposer] = useState("");
   const [adding, setAdding] = useState(false);
   const [confirm, setConfirm] = useState<string | null>(null);
+  const [heard, setHeard] = useState("");
   const genIdRef = useRef(0);
   const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Voice dictation into the composer — the spoken text is dropped in after
-  // whatever's already typed, so the user can review, edit, then add with +.
-  const voiceBaseRef = useRef("");
-  const { listening, start: startVoice, supported: voiceSupported } = useVoiceInput((text) => {
-    setComposer(voiceBaseRef.current ? `${voiceBaseRef.current}, ${text}` : text);
-  });
-  const toggleVoice = () => {
-    if (!listening) { voiceBaseRef.current = composer.trim(); track("dump_voice_started"); }
-    startVoice();
-  };
-
-  useEffect(() => { track("dump_started"); }, []);
-  useEffect(() => () => { if (confirmTimer.current) clearTimeout(confirmTimer.current); }, []);
+  // Accumulated final speech across the whole listening session, so ingredients
+  // spoken across pauses are all kept and re-scanned as one.
+  const spokenRef = useRef("");
 
   // Everything the user has dumped, flattened with its source category so a chip
   // can be removed from the right list. Pantry/appliances are excluded.
@@ -84,6 +74,46 @@ function IngredientDump() {
     const list = (inventory[cat] as string[]) ?? [];
     setInventory({ [cat]: list.filter((x) => x !== item) } as never);
   };
+
+  // Add ingredients recognised in speech — master matches only, so filler words
+  // ("I have", "some", "and") are dropped. Each new one appears as a chip live.
+  const addRecognizedKeys = (keys: string[]) => {
+    let added = 0;
+    for (const key of keys) {
+      const entry = MASTER_INGREDIENTS[key];
+      if (!entry) continue;
+      const cat = entry.category as keyof Inventory;
+      const list = (useMise.getState().inventory[cat] as string[]) ?? [];
+      if (list.map((x) => x.toLowerCase()).includes(key)) continue;
+      const display = key.replace(/\b\w/g, (c) => c.toUpperCase());
+      addCustomTokenMapping(key, entry.satToken);
+      setInventory({ [cat]: [...list, display] } as never);
+      addCustomItem(display);
+      track("dump_ingredient_added", { item: key, category: cat, via: "voice" });
+      added++;
+    }
+    if (added > 0) {
+      hapticLight();
+      setShowAnchorHint(false);
+      showConfirm(added === 1 ? "Added 1 ingredient" : `Added ${added} ingredients`);
+    }
+  };
+
+  // Voice: keep listening until the user taps stop; scan the running transcript
+  // for real ingredients and add them. Unrecognised words are simply ignored.
+  const { listening, start: startVoice, supported: voiceSupported } = useVoiceInput((text, isFinal) => {
+    setHeard(text);
+    if (!isFinal) return;
+    spokenRef.current = (spokenRef.current + " " + text).trim();
+    addRecognizedKeys(extractKnownIngredients(spokenRef.current));
+  });
+  const toggleVoice = () => {
+    if (!listening) { spokenRef.current = ""; setHeard(""); track("dump_voice_started"); }
+    startVoice();
+  };
+
+  useEffect(() => { track("dump_started"); }, []);
+  useEffect(() => () => { if (confirmTimer.current) clearTimeout(confirmTimer.current); }, []);
 
   // Parse the composer's free text ("chicken, pasta, tomato" / "chicken and
   // rice") and add each item to its true category. Reads the live store between
@@ -241,8 +271,10 @@ function IngredientDump() {
                 className="w-full bg-transparent resize-none text-[16px] text-text-primary placeholder:text-text-tertiary focus:outline-none leading-relaxed"
               />
               <div className="flex items-center justify-between pt-1">
-                <span className={`text-[11px] ${listening ? "text-ember-text font-medium" : "text-text-tertiary"}`}>
-                  {listening ? "Listening…" : voiceSupported ? "Speak or type · commas separate" : "Separate with commas"}
+                <span className={`text-[11px] truncate max-w-[200px] ${listening ? "text-ember-text font-medium" : "text-text-tertiary"}`}>
+                  {listening
+                    ? (heard ? `“${heard.length > 24 ? "…" + heard.slice(-24) : heard}”` : "Listening… tap mic to stop")
+                    : voiceSupported ? "Speak or type · commas separate" : "Separate with commas"}
                 </span>
                 <div className="flex items-center gap-2">
                   {voiceSupported && (

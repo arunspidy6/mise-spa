@@ -27,6 +27,29 @@ export function sanitiseIngredient(raw: string): string | null {
   return clean.replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Pull known ingredient names out of free speech ("I have some chicken and a
+// couple of potatoes" → ["chicken", "potatoes"]). Matches against the master
+// vocabulary only — longest phrases first, removing each match so sub-words
+// don't double-count ("sweet potato" wins over "potato"). Filler words never
+// match, so they're dropped. Returns lowercase master keys, in spoken order.
+export function extractKnownIngredients(text: string): string[] {
+  if (!text) return [];
+  let remaining = " " + text.toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim() + " ";
+  const keys = Object.keys(MASTER_INGREDIENTS).sort((a, b) => b.length - a.length);
+  const found: { key: string; at: number }[] = [];
+  for (const key of keys) {
+    const pat = " " + key + " ";
+    const at = remaining.indexOf(pat);
+    if (at !== -1) {
+      found.push({ key, at });
+      // Blank out the match (keep surrounding spaces) so shorter keys and this
+      // same key elsewhere are handled cleanly.
+      remaining = remaining.replace(pat, "  ");
+    }
+  }
+  return found.sort((a, b) => a.at - b.at).map((f) => f.key);
+}
+
 export async function classifyIngredient(clean: string): Promise<Classified> {
   const lower = clean.toLowerCase();
 
