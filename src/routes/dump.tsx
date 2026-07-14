@@ -221,132 +221,137 @@ function IngredientDump() {
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pt-3 pb-4">
-          {/* Guidance — the one thing to know before typing: a dish is built
-              around a protein or a veg. Flips to a confirmation once satisfied. */}
-          <div className={`flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5 mb-3 transition-colors ${
-            hasAnchor ? "border-success/40 bg-success/10" : "border-ember-dim bg-ember-glow"
-          }`}>
-            {hasAnchor ? (
-              <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
-            ) : (
-              <span className="flex-shrink-0 mt-0.5 flex gap-0.5">
-                <Drumstick className="w-4 h-4 text-ember-text" />
-                <Carrot className="w-4 h-4 text-ember-text" />
-              </span>
-            )}
-            <p className={`text-[12.5px] leading-snug ${hasAnchor ? "text-text-secondary" : "text-text-primary"}`}>
-              {hasAnchor
-                ? "Nice — that's enough to build a dish. Add anything else, then find your recipe."
-                : "A good recipe is built around a protein or a veg. Add those first — we'll assume the everyday pantry basics."}
-            </p>
-          </div>
-
-          {/* LLM-style composer — the hero input. Type several at once. */}
-          <div className="rounded-2xl bg-bg-surface border border-border-default focus-within:border-ember transition-colors px-3.5 pt-3 pb-2.5 shadow-[0_2px_14px_rgba(0,0,0,0.22)]">
-            <textarea
-              value={composer}
-              onChange={(e) => setComposer(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addFromComposer(composer); }
-              }}
-              placeholder="Enter chicken, pasta, tomato…"
-              rows={2}
-              maxLength={200}
-              autoCapitalize="none"
-              className="w-full bg-transparent resize-none text-[16px] text-text-primary placeholder:text-text-tertiary focus:outline-none leading-relaxed"
-            />
-            <div className="flex items-center justify-between pt-1">
-              <span className={`text-[11px] ${listening ? "text-ember-text font-medium" : "text-text-tertiary"}`}>
-                {listening ? "Listening…" : voiceSupported ? "Speak or type · commas separate" : "Separate with commas"}
-              </span>
-              <div className="flex items-center gap-2">
-                {voiceSupported && (
-                  <button
-                    onClick={toggleVoice}
-                    aria-label={listening ? "Stop voice input" : "Add ingredients by voice"}
-                    aria-pressed={listening}
-                    className={`relative w-10 h-10 rounded-full flex items-center justify-center border active:scale-90 transition ${
-                      listening
-                        ? "bg-ember-glow border-ember text-ember-text"
-                        : "bg-bg-raised border-border-default text-text-secondary"
-                    }`}
-                  >
-                    {listening && (
-                      <motion.span
-                        aria-hidden
-                        animate={{ scale: [1, 1.35], opacity: [0.5, 0] }}
-                        transition={{ duration: 1.1, repeat: Infinity, ease: "easeOut" }}
-                        className="absolute inset-0 rounded-full border border-ember"
-                      />
-                    )}
-                    <Mic className="w-5 h-5" />
-                  </button>
-                )}
-                <button
-                  onClick={() => addFromComposer(composer)}
-                  disabled={adding || !composer.trim()}
-                  aria-label="Add ingredients"
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-[color:var(--on-ember)] active:scale-90 disabled:opacity-40 transition"
-                  style={{ background: "var(--ember-gradient)", boxShadow: "var(--shadow-button)" }}
-                >
-                  {adding ? (
-                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <Plus className="w-5 h-5" />
+          {/* One panel groups the three related things — the input, what you're
+              cooking with, and the protein/veg status — so they read as a single
+              unit instead of three scattered blocks. "Cooking with" sits right
+              under the input so a returning user sees it first. */}
+          <div className="rounded-2xl bg-bg-surface border border-border-default overflow-hidden shadow-[0_2px_14px_rgba(0,0,0,0.22)] mb-5">
+            {/* Composer */}
+            <div className="px-3.5 pt-3 pb-2.5 focus-within:bg-bg-raised/25 transition-colors">
+              <textarea
+                value={composer}
+                onChange={(e) => setComposer(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addFromComposer(composer); }
+                }}
+                placeholder="Enter chicken, pasta, tomato…"
+                rows={2}
+                maxLength={200}
+                autoCapitalize="none"
+                className="w-full bg-transparent resize-none text-[16px] text-text-primary placeholder:text-text-tertiary focus:outline-none leading-relaxed"
+              />
+              <div className="flex items-center justify-between pt-1">
+                <span className={`text-[11px] ${listening ? "text-ember-text font-medium" : "text-text-tertiary"}`}>
+                  {listening ? "Listening…" : voiceSupported ? "Speak or type · commas separate" : "Separate with commas"}
+                </span>
+                <div className="flex items-center gap-2">
+                  {voiceSupported && (
+                    <button
+                      onClick={toggleVoice}
+                      aria-label={listening ? "Stop voice input" : "Add ingredients by voice"}
+                      aria-pressed={listening}
+                      className={`relative w-10 h-10 rounded-full flex items-center justify-center border active:scale-90 transition ${
+                        listening
+                          ? "bg-ember-glow border-ember text-ember-text"
+                          : "bg-bg-raised border-border-default text-text-secondary"
+                      }`}
+                    >
+                      {listening && (
+                        <motion.span
+                          aria-hidden
+                          animate={{ scale: [1, 1.35], opacity: [0.5, 0] }}
+                          transition={{ duration: 1.1, repeat: Infinity, ease: "easeOut" }}
+                          className="absolute inset-0 rounded-full border border-ember"
+                        />
+                      )}
+                      <Mic className="w-5 h-5" />
+                    </button>
                   )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Add confirmation / anchor nudge — one live line under the composer */}
-          <div className="min-h-[20px] mt-2">
-            <AnimatePresence mode="wait">
-              {showAnchorHint && !hasAnchor ? (
-                <motion.p key="hint" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="text-[12px] text-ember-text font-medium px-1">
-                  Add at least one protein or veg to continue.
-                </motion.p>
-              ) : confirm ? (
-                <motion.p key="confirm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="text-[12px] text-text-secondary px-1 flex items-center gap-1.5">
-                  <Check className="w-3.5 h-3.5 text-ember-text" /> {confirm}
-                </motion.p>
-              ) : null}
-            </AnimatePresence>
-          </div>
-
-          {/* Your ingredients */}
-          {dumped.length > 0 && (
-            <div className="mt-3 mb-5">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary mb-2.5">
-                Cooking with · {dumped.length}
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {dumped.map(({ cat, item }) => (
                   <button
-                    key={`${cat}:${item}`}
-                    onClick={() => removeItem(cat, item)}
-                    aria-label={`Remove ${item}`}
-                    className="inline-flex items-center gap-1.5 h-10 pl-4 pr-3 rounded-full text-[13px] font-medium border transition-all active:scale-[0.94]"
-                    style={{
-                      background: "var(--ember-chip)",
-                      borderColor: "var(--ember-chip)",
-                      color: "oklch(0.965 0.018 72)",
-                      boxShadow: "0 2px 8px oklch(0 0 0 / 0.28)",
-                    }}
+                    onClick={() => addFromComposer(composer)}
+                    disabled={adding || !composer.trim()}
+                    aria-label="Add ingredients"
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-[color:var(--on-ember)] active:scale-90 disabled:opacity-40 transition"
+                    style={{ background: "var(--ember-gradient)", boxShadow: "var(--shadow-button)" }}
                   >
-                    {item}
-                    <X className="w-3.5 h-3.5 opacity-80" />
+                    {adding ? (
+                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Plus className="w-5 h-5" />
+                    )}
                   </button>
-                ))}
+                </div>
               </div>
             </div>
-          )}
+
+            <div className="h-px bg-border-subtle" />
+
+            {/* Cooking with — the ingredients + protein/veg status, in the same
+                card as the input they came from. */}
+            <div className="px-3.5 py-3.5">
+              <div className="flex items-center justify-between gap-2 mb-2.5">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-secondary">
+                  Cooking with{dumped.length > 0 ? ` · ${dumped.length}` : ""}
+                </p>
+                <AnimatePresence mode="wait">
+                  {confirm ? (
+                    <motion.span key="confirm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className="text-[11px] text-ember-text flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> {confirm}
+                    </motion.span>
+                  ) : dumped.length === 0 ? null : hasAnchor ? (
+                    <motion.span key="ready" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className="text-[11px] text-success flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> Enough to cook
+                    </motion.span>
+                  ) : (
+                    <motion.span key="need" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className={`text-[11px] flex items-center gap-1 ${showAnchorHint ? "text-ember-text font-medium" : "text-text-tertiary"}`}>
+                      Add a protein or veg
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {dumped.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {dumped.map(({ cat, item }) => (
+                    <button
+                      key={`${cat}:${item}`}
+                      onClick={() => removeItem(cat, item)}
+                      aria-label={`Remove ${item}`}
+                      className="inline-flex items-center gap-1.5 h-10 pl-4 pr-3 rounded-full text-[13px] font-medium border transition-all active:scale-[0.94]"
+                      style={{
+                        background: "var(--ember-chip)",
+                        borderColor: "var(--ember-chip)",
+                        color: "oklch(0.965 0.018 72)",
+                        boxShadow: "0 2px 8px oklch(0 0 0 / 0.28)",
+                      }}
+                    >
+                      {item}
+                      <X className="w-3.5 h-3.5 opacity-80" />
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className={`flex items-start gap-2.5 rounded-xl border px-3 py-2.5 transition-colors ${
+                  showAnchorHint ? "border-ember bg-ember-glow" : "border-ember-dim bg-ember-glow"
+                }`}>
+                  <span className="flex-shrink-0 mt-0.5 flex gap-0.5">
+                    <Drumstick className="w-4 h-4 text-ember-text" />
+                    <Carrot className="w-4 h-4 text-ember-text" />
+                  </span>
+                  <p className="text-[12.5px] leading-snug text-text-primary">
+                    Add a protein or a veg — that's the star we build the dish around. We'll assume the everyday pantry basics.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* One-tap starters */}
           {starters.length > 0 && (
-            <div className={dumped.length > 0 ? "mb-5" : "mt-5 mb-5"}>
+            <div className="mb-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary mb-2.5">
                 {dumped.length > 0 ? "Quick add" : "Or tap to add"}
               </p>
