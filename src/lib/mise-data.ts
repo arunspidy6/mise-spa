@@ -1,6 +1,9 @@
 // ── Inventory data ─────────────────────────────────────────────────────────
 
 // Preselected staples — common in Irish households (shown already "in kitchen").
+// Kept deliberately lean: just the everyday basics almost everyone has, so the
+// assumed-pantry list stays honest and uncluttered. Herbs, stock and vinegar
+// are no longer assumed by default — users add them if they have them.
 export const STAPLES_DEFAULTS = [
   // Oils & fats
   "Olive oil", "Butter",
@@ -10,12 +13,10 @@ export const STAPLES_DEFAULTS = [
   "Garlic", "Onion",
   // Warm spices
   "Paprika",
-  // Herbs
-  "Thyme", "Parsley", "Rosemary", "Bay leaves", "Mixed herbs",
   // Baking & dry goods
   "Flour", "Sugar",
-  // Sauces & stock
-  "Tomato paste", "Stock cubes", "Vinegar",
+  // Sauce
+  "Tomato paste",
 ];
 
 // Categorised sections for inventory UI

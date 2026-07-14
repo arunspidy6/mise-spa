@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, ArrowRight, X, Plus, Sparkles, ChevronDown } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUp, X, Plus, Sparkles, ChevronDown, Check, Drumstick, Carrot } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
@@ -12,18 +12,19 @@ import { getRecipeFromAPI } from "@/lib/generate-recipe";
 import { track } from "@/lib/analytics";
 import { playRecipeReady, primeAudio } from "@/lib/sound";
 import { hapticLight } from "@/lib/haptics";
-import { CustomItemInput, MASTER_INGREDIENTS, CATEGORY_LABEL, type AddResult } from "./inventory";
+import { classifyIngredient, sanitiseIngredient } from "@/lib/classify-ingredient";
+import { MASTER_INGREDIENTS } from "./inventory";
 
 export const Route = createFileRoute("/dump")({ component: IngredientDump });
 
 // The ingredient buckets that count as "things you want to cook with" — pantry
 // staples (salt, oil, spices) and appliances are assumed/separate, so they're
-// not shown here.
+// not shown as dumped items.
 const DUMP_CATS: (keyof Inventory)[] = ["proteins", "vegetables", "carbs", "fridge"];
 const VALID_CATS = ["proteins", "carbs", "vegetables", "fridge", "staples"];
 
 // One-tap starters so a blank screen teaches the interaction. Each is a known
-// ingredient (correct category + satToken), covering the anchor types first.
+// ingredient (correct category + satToken), anchor types first.
 const STARTERS = ["Chicken breast", "Eggs", "Tomatoes", "Broccoli", "Pasta", "Rice", "Cheddar"];
 
 type ErrState = { reason: string; detail: string };
@@ -44,9 +45,14 @@ function IngredientDump() {
   const [err, setErr] = useState<ErrState | null>(null);
   const [showAnchorHint, setShowAnchorHint] = useState(false);
   const [pantryOpen, setPantryOpen] = useState(false);
+  const [composer, setComposer] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [confirm, setConfirm] = useState<string | null>(null);
   const genIdRef = useRef(0);
+  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => { track("dump_started"); }, []);
+  useEffect(() => () => { if (confirmTimer.current) clearTimeout(confirmTimer.current); }, []);
 
   // Everything the user has dumped, flattened with its source category so a chip
   // can be removed from the right list. Pantry/appliances are excluded.
@@ -55,25 +61,50 @@ function IngredientDump() {
   );
   const anchorCount = inventory.proteins.length + inventory.vegetables.length;
 
+  const showConfirm = (text: string) => {
+    setConfirm(text);
+    if (confirmTimer.current) clearTimeout(confirmTimer.current);
+    confirmTimer.current = setTimeout(() => setConfirm(null), 2400);
+  };
+
   const removeItem = (cat: keyof Inventory, item: string) => {
     hapticLight();
     const list = (inventory[cat] as string[]) ?? [];
     setInventory({ [cat]: list.filter((x) => x !== item) } as never);
   };
 
-  // Auto-route a typed item to its true category (classifier/master), else fridge.
-  const onAdd = (item: string, category?: string): AddResult => {
-    const lower = item.toLowerCase();
-    const cat = ((category && VALID_CATS.includes(category) ? category
-      : MASTER_INGREDIENTS[lower]?.category) ?? "fridge") as keyof Inventory;
-    const list = (inventory[cat] as string[]) ?? [];
-    if (!list.map((x) => x.toLowerCase()).includes(lower)) {
-      setInventory({ [cat]: [...list, item] } as never);
-      addCustomItem(item);
-      track("dump_ingredient_added", { item: lower, category: cat });
-      return { kind: "added", label: CATEGORY_LABEL[cat] };
+  // Parse the composer's free text ("chicken, pasta, tomato" / "chicken and
+  // rice") and add each item to its true category. Reads the live store between
+  // adds so a batch dedupes correctly across awaits.
+  const addFromComposer = async (raw: string) => {
+    const parts = raw.split(/[,\n]|\s+and\s+/i).map((s) => s.trim()).filter(Boolean);
+    if (!parts.length) return;
+    setAdding(true);
+    let added = 0;
+    let dupes = 0;
+    for (const part of parts) {
+      const clean = sanitiseIngredient(part);
+      if (!clean) continue;
+      const lower = clean.toLowerCase();
+      const cls = await classifyIngredient(clean);
+      const cat = ((cls.category && VALID_CATS.includes(cls.category) ? cls.category : "fridge")) as keyof Inventory;
+      const list = (useMise.getState().inventory[cat] as string[]) ?? [];
+      if (list.map((x) => x.toLowerCase()).includes(lower)) { dupes++; continue; }
+      if (cls.satToken) addCustomTokenMapping(lower, cls.satToken);
+      setInventory({ [cat]: [...list, clean] } as never);
+      addCustomItem(clean);
+      track("dump_ingredient_added", { item: lower, category: cat, via: "composer" });
+      added++;
     }
-    return { kind: "duplicate", label: CATEGORY_LABEL[cat] };
+    setAdding(false);
+    setComposer("");
+    setShowAnchorHint(false);
+    if (added > 0) {
+      hapticLight();
+      showConfirm(added === 1 ? "Added 1 ingredient" : `Added ${added} ingredients`);
+    } else if (dupes > 0) {
+      showConfirm("Already in your list");
+    }
   };
 
   const addStarter = (item: string) => {
@@ -85,6 +116,7 @@ function IngredientDump() {
     if (entry) addCustomTokenMapping(lower, entry.satToken);
     setInventory({ [cat]: [...list, item] } as never);
     addCustomItem(item);
+    setShowAnchorHint(false);
     hapticLight();
     track("dump_ingredient_added", { item: lower, category: cat, via: "starter" });
   };
@@ -151,6 +183,7 @@ function IngredientDump() {
   const starters = STARTERS.filter(
     (s) => !dumped.some((d) => d.item.toLowerCase() === s.toLowerCase())
   );
+  const hasAnchor = anchorCount > 0;
 
   return (
     <MobileFrame>
@@ -173,36 +206,81 @@ function IngredientDump() {
           <h1 className="font-display text-[30px] font-light text-text-primary leading-tight mt-2">
             What do you want to cook with?
           </h1>
-          <p className="text-[14px] text-text-secondary mt-2 leading-relaxed">
-            Add a few ingredients you feel like using. We'll build one real recipe
-            around them — using the everyday pantry basics you already have.
-          </p>
         </div>
 
-        {/* Add box — auto-sorts whatever you type */}
-        <div className="flex-shrink-0 px-6 pt-4">
-          <CustomItemInput onAdd={onAdd} addMapping={addCustomTokenMapping} />
-        </div>
-
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pb-4">
-          {/* Anchor nudge — shown once they try to cook with no protein/veg. */}
-          <AnimatePresence>
-            {showAnchorHint && anchorCount === 0 && (
-              <motion.div
-                initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                className="mb-4 rounded-xl border border-ember-dim px-4 py-3 bg-ember-glow"
-              >
-                <p className="text-[13px] font-semibold text-ember-text">Add at least one protein or veg</p>
-                <p className="text-[12px] text-text-secondary mt-0.5 leading-relaxed">
-                  A good recipe is built around a protein or a vegetable. Add one and we'll do the rest.
-                </p>
-              </motion.div>
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pt-3 pb-4">
+          {/* Guidance — the one thing to know before typing: a dish is built
+              around a protein or a veg. Flips to a confirmation once satisfied. */}
+          <div className={`flex items-start gap-2.5 rounded-xl border px-3.5 py-2.5 mb-3 transition-colors ${
+            hasAnchor ? "border-success/40 bg-success/10" : "border-ember-dim bg-ember-glow"
+          }`}>
+            {hasAnchor ? (
+              <Check className="w-4 h-4 text-success flex-shrink-0 mt-0.5" />
+            ) : (
+              <span className="flex-shrink-0 mt-0.5 flex gap-0.5">
+                <Drumstick className="w-4 h-4 text-ember-text" />
+                <Carrot className="w-4 h-4 text-ember-text" />
+              </span>
             )}
-          </AnimatePresence>
+            <p className={`text-[12.5px] leading-snug ${hasAnchor ? "text-text-secondary" : "text-text-primary"}`}>
+              {hasAnchor
+                ? "Nice — that's enough to build a dish. Add anything else, then find your recipe."
+                : "A good recipe is built around a protein or a veg. Add those first — we'll assume the everyday pantry basics."}
+            </p>
+          </div>
+
+          {/* LLM-style composer — the hero input. Type several at once. */}
+          <div className="rounded-2xl bg-bg-surface border border-border-default focus-within:border-ember transition-colors px-3.5 pt-3 pb-2.5 shadow-[0_2px_14px_rgba(0,0,0,0.22)]">
+            <textarea
+              value={composer}
+              onChange={(e) => setComposer(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); addFromComposer(composer); }
+              }}
+              placeholder="Enter chicken, pasta, tomato…"
+              rows={2}
+              maxLength={200}
+              autoCapitalize="none"
+              className="w-full bg-transparent resize-none text-[16px] text-text-primary placeholder:text-text-tertiary focus:outline-none leading-relaxed"
+            />
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-[11px] text-text-tertiary">Separate with commas</span>
+              <button
+                onClick={() => addFromComposer(composer)}
+                disabled={adding || !composer.trim()}
+                aria-label="Add ingredients"
+                className="w-10 h-10 rounded-full flex items-center justify-center text-[color:var(--on-ember)] active:scale-90 disabled:opacity-40 transition"
+                style={{ background: "var(--ember-gradient)", boxShadow: "var(--shadow-button)" }}
+              >
+                {adding ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <ArrowUp className="w-5 h-5" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Add confirmation / anchor nudge — one live line under the composer */}
+          <div className="min-h-[20px] mt-2">
+            <AnimatePresence mode="wait">
+              {showAnchorHint && !hasAnchor ? (
+                <motion.p key="hint" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="text-[12px] text-ember-text font-medium px-1">
+                  Add at least one protein or veg to continue.
+                </motion.p>
+              ) : confirm ? (
+                <motion.p key="confirm" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="text-[12px] text-text-secondary px-1 flex items-center gap-1.5">
+                  <Check className="w-3.5 h-3.5 text-ember-text" /> {confirm}
+                </motion.p>
+              ) : null}
+            </AnimatePresence>
+          </div>
 
           {/* Your ingredients */}
-          {dumped.length > 0 ? (
-            <div className="mb-5">
+          {dumped.length > 0 && (
+            <div className="mt-3 mb-5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary mb-2.5">
                 Cooking with · {dumped.length}
               </p>
@@ -226,13 +304,13 @@ function IngredientDump() {
                 ))}
               </div>
             </div>
-          ) : null}
+          )}
 
-          {/* One-tap starters — teaches the interaction on an empty screen */}
+          {/* One-tap starters */}
           {starters.length > 0 && (
-            <div className="mb-5">
+            <div className={dumped.length > 0 ? "mb-5" : "mt-5 mb-5"}>
               <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-text-tertiary mb-2.5">
-                {dumped.length > 0 ? "Add another" : "Tap to add — or type above"}
+                {dumped.length > 0 ? "Quick add" : "Or tap to add"}
               </p>
               <div className="flex flex-wrap gap-2">
                 {starters.map((s) => (

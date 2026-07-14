@@ -361,6 +361,26 @@ export const MASTER_INGREDIENTS: Record<string, { category: string; satToken: st
   // ── Aromatics (can go in staples or fridge) ─────────────────────────────────
   "garlic":             { category: "staples", satToken: "garlic" },
   "onion":              { category: "staples", satToken: "onion" },
+  // ── Common bare / singular forms — what people actually type ("chicken",
+  // "tomato") rather than the specific cut/plural. Kept here so free-text entry
+  // (dump composer, kitchen search) classifies them without an API round-trip.
+  "chicken":            { category: "proteins", satToken: "chicken breast" },
+  "beef":               { category: "proteins", satToken: "beef mince" },
+  "pork":               { category: "proteins", satToken: "pork chops" },
+  "fish":               { category: "proteins", satToken: "white fish" },
+  "tuna":               { category: "proteins", satToken: "canned tuna" },
+  "egg":                { category: "proteins", satToken: "eggs" },
+  "prawn":              { category: "proteins", satToken: "prawns" },
+  "chickpea":           { category: "proteins", satToken: "chickpeas" },
+  "lentil":             { category: "proteins", satToken: "lentils" },
+  "sausage":            { category: "proteins", satToken: "sausages" },
+  "noodle":             { category: "carbs", satToken: "noodles" },
+  "potato":             { category: "vegetables", satToken: "potatoes" },
+  "tomato":             { category: "vegetables", satToken: "tomatoes" },
+  "carrot":             { category: "vegetables", satToken: "carrots" },
+  "mushroom":           { category: "vegetables", satToken: "mushrooms" },
+  "courgettes":         { category: "vegetables", satToken: "courgette" },
+  "pea":                { category: "vegetables", satToken: "spinach" },
 };
 
 export const Route = createFileRoute("/inventory")({
