@@ -9,8 +9,6 @@ import { useMise } from "@/store/mise";
 import type { Inventory } from "@/store/mise";
 import { useSwipeBack } from "@/hooks/use-swipe-back";
 import { hapticLight } from "@/lib/haptics";
-import { getVariant } from "@/lib/variant";
-import { BottomTabBar } from "@/components/mise/BottomTabBar";
 import { CustomItemInput, MASTER_INGREDIENTS, CATEGORY_LABEL, type AddResult } from "./inventory";
 
 export const Route = createFileRoute("/kitchen")({
@@ -60,9 +58,6 @@ function KitchenOverview() {
   const addCustomItem = useMise(s => s.addCustomItem);
   const addCustomTokenMapping = useMise(s => s.addCustomTokenMapping);
   const [basicsOpen, setBasicsOpen] = useState(false);
-  // In the dump variant, Kitchen is a bottom-tab screen (no back button, no
-  // proceed CTA — the tab bar handles navigation). Classic keeps the sub-flow.
-  const isDump = getVariant() === "dump";
 
   const back = () => navigate({ to: from === "session" ? "/session" : "/" });
   useSwipeBack(back);
@@ -152,13 +147,11 @@ function KitchenOverview() {
       <div className="flex flex-col h-full overflow-hidden">
         {/* Header */}
         <div className="flex-shrink-0 px-6 pt-5">
-          {!isDump && (
-            <button onClick={back}
-              className="w-10 h-10 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-          )}
-          <h1 className={`font-display text-[32px] font-light text-text-primary leading-none ${isDump ? "mt-1" : "mt-2"}`}>Your kitchen</h1>
+          <button onClick={back}
+            className="w-10 h-10 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+          <h1 className="font-display text-[32px] font-light text-text-primary leading-none mt-2">Your kitchen</h1>
           <p className="text-[13px] text-text-secondary mt-2">
             {itemCount} {itemCount === 1 ? "ingredient" : "ingredients"} · tap to add, × to remove
           </p>
@@ -222,17 +215,11 @@ function KitchenOverview() {
           })}
         </div>
 
-        {/* Dump: Kitchen is a tab — navigation lives in the bottom bar. Classic:
-            keep the proceed-to-recipes CTA. */}
-        {isDump ? (
-          <BottomTabBar />
-        ) : (
-          <KeyboardAwareFooter className="px-6">
-            <EmberButton size="lg" className="w-full" onClick={proceed}>
-              Find recipes <ArrowRight className="w-4 h-4" />
-            </EmberButton>
-          </KeyboardAwareFooter>
-        )}
+        <KeyboardAwareFooter className="px-6">
+          <EmberButton size="lg" className="w-full" onClick={proceed}>
+            Find recipes <ArrowRight className="w-4 h-4" />
+          </EmberButton>
+        </KeyboardAwareFooter>
       </div>
     </MobileFrame>
   );

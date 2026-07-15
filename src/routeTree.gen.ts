@@ -11,13 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SessionRouteImport } from './routes/session'
 import { Route as RecipeRouteImport } from './routes/recipe'
-import { Route as PantryRouteImport } from './routes/pantry'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as KitchenRouteImport } from './routes/kitchen'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as FeedbackRouteImport } from './routes/feedback'
-import { Route as DumpRouteImport } from './routes/dump'
 import { Route as CookRouteImport } from './routes/cook'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -29,11 +27,6 @@ const SessionRoute = SessionRouteImport.update({
 const RecipeRoute = RecipeRouteImport.update({
   id: '/recipe',
   path: '/recipe',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const PantryRoute = PantryRouteImport.update({
-  id: '/pantry',
-  path: '/pantry',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OnboardingRoute = OnboardingRouteImport.update({
@@ -61,11 +54,6 @@ const FeedbackRoute = FeedbackRouteImport.update({
   path: '/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DumpRoute = DumpRouteImport.update({
-  id: '/dump',
-  path: '/dump',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const CookRoute = CookRouteImport.update({
   id: '/cook',
   path: '/cook',
@@ -80,26 +68,22 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cook': typeof CookRoute
-  '/dump': typeof DumpRoute
   '/feedback': typeof FeedbackRoute
   '/history': typeof HistoryRoute
   '/inventory': typeof InventoryRoute
   '/kitchen': typeof KitchenRoute
   '/onboarding': typeof OnboardingRoute
-  '/pantry': typeof PantryRoute
   '/recipe': typeof RecipeRoute
   '/session': typeof SessionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cook': typeof CookRoute
-  '/dump': typeof DumpRoute
   '/feedback': typeof FeedbackRoute
   '/history': typeof HistoryRoute
   '/inventory': typeof InventoryRoute
   '/kitchen': typeof KitchenRoute
   '/onboarding': typeof OnboardingRoute
-  '/pantry': typeof PantryRoute
   '/recipe': typeof RecipeRoute
   '/session': typeof SessionRoute
 }
@@ -107,13 +91,11 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cook': typeof CookRoute
-  '/dump': typeof DumpRoute
   '/feedback': typeof FeedbackRoute
   '/history': typeof HistoryRoute
   '/inventory': typeof InventoryRoute
   '/kitchen': typeof KitchenRoute
   '/onboarding': typeof OnboardingRoute
-  '/pantry': typeof PantryRoute
   '/recipe': typeof RecipeRoute
   '/session': typeof SessionRoute
 }
@@ -122,39 +104,33 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/cook'
-    | '/dump'
     | '/feedback'
     | '/history'
     | '/inventory'
     | '/kitchen'
     | '/onboarding'
-    | '/pantry'
     | '/recipe'
     | '/session'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/cook'
-    | '/dump'
     | '/feedback'
     | '/history'
     | '/inventory'
     | '/kitchen'
     | '/onboarding'
-    | '/pantry'
     | '/recipe'
     | '/session'
   id:
     | '__root__'
     | '/'
     | '/cook'
-    | '/dump'
     | '/feedback'
     | '/history'
     | '/inventory'
     | '/kitchen'
     | '/onboarding'
-    | '/pantry'
     | '/recipe'
     | '/session'
   fileRoutesById: FileRoutesById
@@ -162,13 +138,11 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CookRoute: typeof CookRoute
-  DumpRoute: typeof DumpRoute
   FeedbackRoute: typeof FeedbackRoute
   HistoryRoute: typeof HistoryRoute
   InventoryRoute: typeof InventoryRoute
   KitchenRoute: typeof KitchenRoute
   OnboardingRoute: typeof OnboardingRoute
-  PantryRoute: typeof PantryRoute
   RecipeRoute: typeof RecipeRoute
   SessionRoute: typeof SessionRoute
 }
@@ -187,13 +161,6 @@ declare module '@tanstack/react-router' {
       path: '/recipe'
       fullPath: '/recipe'
       preLoaderRoute: typeof RecipeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/pantry': {
-      id: '/pantry'
-      path: '/pantry'
-      fullPath: '/pantry'
-      preLoaderRoute: typeof PantryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/onboarding': {
@@ -231,13 +198,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dump': {
-      id: '/dump'
-      path: '/dump'
-      fullPath: '/dump'
-      preLoaderRoute: typeof DumpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/cook': {
       id: '/cook'
       path: '/cook'
@@ -258,13 +218,11 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CookRoute: CookRoute,
-  DumpRoute: DumpRoute,
   FeedbackRoute: FeedbackRoute,
   HistoryRoute: HistoryRoute,
   InventoryRoute: InventoryRoute,
   KitchenRoute: KitchenRoute,
   OnboardingRoute: OnboardingRoute,
-  PantryRoute: PantryRoute,
   RecipeRoute: RecipeRoute,
   SessionRoute: SessionRoute,
 }

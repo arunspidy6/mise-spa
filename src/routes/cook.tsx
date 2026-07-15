@@ -1,13 +1,11 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState, useEffect, useRef, useCallback, useMemo, type Dispatch, type SetStateAction } from "react";
+import { useState, useEffect, useRef, useCallback, type Dispatch, type SetStateAction } from "react";
 import { ArrowLeft, ArrowRight, X, Play, Pause, Mic, MicOff, RotateCcw } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { useMise } from "@/store/mise";
 import { track } from "@/lib/analytics";
-import { getVariant } from "@/lib/variant";
-import { scaleRecipe } from "@/lib/scale-recipe";
 import { useSwipeBack } from "@/hooks/use-swipe-back";
 import { isNative, ensureNotificationPermission, scheduleNotice, cancelNotice } from "@/lib/native/notify";
 import { nativeVoiceSupported, startNativeSpeech, stopNativeSpeech } from "@/lib/native/speech";
@@ -718,15 +716,8 @@ function TimerModal({
 // ── Cook Mode ──────────────────────────────────────────────────────────────
 function CookMode() {
   const navigate = useNavigate();
-  const rawRecipe = useMise(s => s.recipe);
-  const servings = useMise(s => s.session.servings);
+  const recipe = useMise(s => s.recipe);
   const addHistory = useMise(s => s.addHistory);
-  // Dump variant scales quantities to the chosen serving count (display only),
-  // so prep amounts here match what the recipe screen showed.
-  const recipe = useMemo(
-    () => (rawRecipe && getVariant() === "dump" ? scaleRecipe(rawRecipe, servings) : rawRecipe),
-    [rawRecipe, servings]
-  );
 
   const [step, setStep] = useState(0);
   // Nav direction for the page slide: +1 forward, -1 back.

@@ -4,8 +4,7 @@ import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { routeTree } from "./routeTree.gen";
 import { onNotificationTap } from "./lib/native/notify";
-import { initAnalytics, registerSuperProps } from "./lib/analytics";
-import { resolveVariant } from "./lib/variant";
+import { initAnalytics } from "./lib/analytics";
 import "./styles.css";
 
 const queryClient = new QueryClient();
@@ -23,11 +22,6 @@ declare module "@tanstack/react-router" {
 
 // On native, tapping a local notification deep-links to its target screen.
 onNotificationTap((url) => router.navigate({ to: url as string }));
-
-// Resolve the A/B variant before analytics so every event — including the
-// first pageview — is tagged with app_variant. Reads ?v=, then sticky storage.
-const appVariant = resolveVariant();
-registerSuperProps({ app_variant: appVariant });
 
 // Product analytics (no-op unless VITE_POSTHOG_KEY is set).
 initAnalytics();

@@ -4,9 +4,7 @@ import { ArrowLeft, Search, Clock, Bell, X, ChevronRight, Trash2 } from "lucide-
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { RecipeImage } from "@/components/mise/RecipeImage";
-import { BottomTabBar } from "@/components/mise/BottomTabBar";
 import { useMise } from "@/store/mise";
-import { getVariant } from "@/lib/variant";
 import { cancelRecipeReminder } from "@/lib/reminders";
 
 export const Route = createFileRoute("/history")({ component: Cookbook });
@@ -32,7 +30,6 @@ function Cookbook() {
   const setRecipe = useMise(s => s.setRecipe);
   const unsaveRecipe = useMise(s => s.unsaveRecipe);
 
-  const isDump = getVariant() === "dump";
   const [tab, setTab] = useState<"saved" | "cooked">(saved.length > 0 ? "saved" : "cooked");
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -82,12 +79,10 @@ function Cookbook() {
       <div className="flex flex-col flex-1 min-h-0 overflow-y-auto px-4 pt-5 pb-safe">
         {/* Header row */}
         <div className="flex items-center justify-between min-h-[40px]">
-          {isDump ? <span /> : (
-            <button onClick={() => navigate({ to: "/" })} aria-label="Back"
-              className="w-10 h-10 rounded-full bg-bg-raised flex items-center justify-center text-text-secondary active:scale-90">
-              <ArrowLeft className="w-5 h-5" />
-            </button>
-          )}
+          <button onClick={() => navigate({ to: "/" })} aria-label="Back"
+            className="w-10 h-10 rounded-full bg-bg-raised flex items-center justify-center text-text-secondary active:scale-90">
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           {searchable && (
             <button
               onClick={() => (searchOpen ? closeSearch() : setSearchOpen(true))}
@@ -231,8 +226,6 @@ function Cookbook() {
           </div>
         )}
       </div>
-
-      {isDump && <BottomTabBar />}
 
       {/* Delete confirmation modal */}
       {pendingDelete && (
