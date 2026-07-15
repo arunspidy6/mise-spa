@@ -43,6 +43,10 @@ export async function initAnalytics(): Promise<void> {
       bootstrap: { distinctID: getDeviceId() },
     });
     ph.identify(getDeviceId());
+    // Tag every event with the stable device id explicitly (in addition to it
+    // being the distinct_id), so funnels can be grouped on it without relying on
+    // distinct_id resolution.
+    ph.register({ device_id: getDeviceId() });
     // Apply any super-properties registered before init (e.g. app_variant) so
     // they tag the very first pageview too.
     if (Object.keys(superProps).length) {

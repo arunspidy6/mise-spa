@@ -13,6 +13,9 @@ import type { Inventory } from "@/store/mise";
 import { API_BASE } from "@/lib/generate-recipe";
 import { appHeaders } from "@/lib/appguard";
 import { getDeviceId } from "@/lib/device";
+import { track } from "@/lib/analytics";
+import { startActiveTimer, type ActiveTimer } from "@/lib/active-timer";
+import { isForeground } from "@/lib/visibility";
 import {
   STAPLE_SECTIONS, PROTEIN_SECTIONS, CARB_SECTIONS,
   VEG_SECTIONS, FRIDGE_SECTIONS, APPLIANCE_SECTIONS,
@@ -415,6 +418,19 @@ const STEPS = [
   { key: "appliances" as const, label: "Appliances",       title: "What can you cook with?",       intro: "We only suggest recipes you can actually make.",                            mode: "add" as const,    cta: "Find recipes",       sections: APPLIANCE_SECTIONS },
 ];
 
+// Analytics screen name per inventory step key. The step ORDER on screen is
+// staples → proteins → carbs → vegetables → fridge → appliances; these names map
+// each step to the funnel vocabulary the analytics spec uses ("pantry" for
+// staples, "dairy" for the fridge/extras step).
+const SCREEN_NAME: Record<(typeof STEPS)[number]["key"], string> = {
+  staples: "pantry",
+  proteins: "protein",
+  carbs: "carbs",
+  vegetables: "vegetables",
+  fridge: "dairy",
+  appliances: "appliances",
+};
+
 function Chip({ label, active, mode, onClick }: {
   label: string; active: boolean; mode: "add" | "remove"; onClick: () => void;
 }) {
@@ -768,6 +784,72 @@ function InventoryFlow() {
     else navigate({ to: "/" });
   };
 
+  // ── Per-screen funnel instrumentation ──────────────────────────────────
+  // Each of the 6 screens lives in this one component (the `step` state drives
+  // which is shown), so "mount / unmount" of a screen is a change of `step`.
+  // We fire `inventory_screen_viewed` on entering a screen and, on leaving it,
+  // `inventory_screen_abandoned` — UNLESS that screen was completed via the CTA
+  // (screenCompletedRef) or the tab was merely backgrounded (isForeground()).
+  // The timer counts foreground time only, so time_on_screen_ms excludes idle.
+  const screenTimerRef = useRef<ActiveTimer | null>(null);
+  const screenCompletedRef = useRef(false);
+  const inventoryRef = useRef(inventory);
+  useEffect(() => { inventoryRef.current = inventory; }, [inventory]);
+
+  useEffect(() => {
+    // Capture the screen being entered; this closure's cleanup fires for it.
+    const entered = STEPS[step];
+    const screen = SCREEN_NAME[entered.key];
+    const stepNumber = step + 1;
+    screenCompletedRef.current = false;
+    const timer = startActiveTimer();
+    screenTimerRef.current = timer;
+    track("inventory_screen_viewed", { screen, step_number: stepNumber });
+
+    return () => {
+      const activeMs = timer.getActiveMs();
+      timer.dispose();
+      // Only a real navigation-away while looking at the screen counts as
+      // abandonment — not a completed screen, and not a backgrounded tab.
+      if (!screenCompletedRef.current && isForeground()) {
+        const count = (inventoryRef.current[entered.key] as string[] | undefined)?.length ?? 0;
+        track("inventory_screen_abandoned", {
+          screen,
+          step_number: stepNumber,
+          items_selected_count: count,
+          time_on_screen_ms: activeMs,
+        });
+      }
+    };
+  }, [step]);
+
+  // Marks the current screen completed and emits the event. Called from the CTA
+  // when the user actually advances (or finishes into the session screen).
+  const completeScreen = () => {
+    screenCompletedRef.current = true;
+    const s = STEPS[step];
+    const count = (inventory[s.key] as string[] | undefined)?.length ?? 0;
+    track("inventory_screen_completed", {
+      screen: SCREEN_NAME[s.key],
+      step_number: step + 1,
+      items_selected_count: count,
+      time_on_screen_ms: screenTimerRef.current?.getActiveMs() ?? 0,
+    });
+  };
+
+  // Chip tap → toggle, tagged with whether it selected or deselected and whether
+  // the item is a custom (user-added) one vs a predefined chip.
+  const handleToggle = (item: string) => {
+    const wasSelected = selected.includes(item);
+    track("inventory_item_toggled", {
+      screen: SCREEN_NAME[cur.key],
+      item_name: item,
+      action: wasSelected ? "deselected" : "selected",
+      is_custom_input: !allItems.includes(item),
+    });
+    toggleItem(cur.key, item);
+  };
+
   const next = () => {
     if (isLast) {
       if (anchorCount === 0) {
@@ -777,9 +859,11 @@ function InventoryFlow() {
         goStep(PROTEIN_STEP, -1);
         return;
       }
+      completeScreen();
       finalize();
       navigate({ to: "/session" });
     } else {
+      completeScreen();
       goStep(step + 1, 1);
     }
   };
@@ -904,6 +988,11 @@ function InventoryFlow() {
                     if (!targetList.map(s => s.toLowerCase()).includes(lower)) {
                       setInventory({ [targetCat]: [...targetList, item] } as never);
                       addCustomItem(item);
+                      track("inventory_custom_item_added", {
+                        screen: SCREEN_NAME[cur.key],
+                        raw_input: item,
+                        classified_category: targetCat,
+                      });
                     }
                     return { kind: "moved", label: CATEGORY_LABEL[targetCat] };
                   }
@@ -911,6 +1000,11 @@ function InventoryFlow() {
                   if (!list.map(s => s.toLowerCase()).includes(lower)) {
                     setInventory({ [cur.key]: [...list, item] } as never);
                     addCustomItem(item);
+                    track("inventory_custom_item_added", {
+                      screen: SCREEN_NAME[cur.key],
+                      raw_input: item,
+                      classified_category: cur.key,
+                    });
                     return { kind: "added", label: CATEGORY_LABEL[cur.key] };
                   }
                   return { kind: "duplicate", label: CATEGORY_LABEL[cur.key] };
@@ -926,7 +1020,7 @@ function InventoryFlow() {
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {selected.filter(s => !allItems.includes(s)).map(c => (
-                    <Chip key={c} label={c} active mode={cur.mode} onClick={() => toggleItem(cur.key, c)} />
+                    <Chip key={c} label={c} active mode={cur.mode} onClick={() => handleToggle(c)} />
                   ))}
                 </div>
               </div>
@@ -944,7 +1038,7 @@ function InventoryFlow() {
                       <Chip key={item} label={item}
                         active={selected.includes(item)}
                         mode={cur.mode}
-                        onClick={() => toggleItem(cur.key, item)} />
+                        onClick={() => handleToggle(item)} />
                     ))}
                   </div>
                 </div>

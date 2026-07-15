@@ -5,8 +5,16 @@ import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { useMise } from "@/store/mise";
 import { cancelRecipeReminder } from "@/lib/reminders";
+import { track } from "@/lib/analytics";
 
 export const Route = createFileRoute("/feedback")({ component: FeedbackPage });
+
+// Map the on-screen rating ids to the analytics vocabulary.
+const RATING_EVENT: Record<string, "loved" | "pretty_good" | "not_for_me"> = {
+  loved: "loved",
+  good: "pretty_good",
+  skip: "not_for_me",
+};
 
 const RATINGS = [
   { id: "loved",  emoji: "❤️",  label: "Loved it",             sub: "Adding this to my rotation", color: "border-success bg-success/10" },
@@ -28,6 +36,7 @@ function FeedbackPage() {
 
   const submit = () => {
     if (!selected || !recipe) return;
+    track("recipe_rated", { rating: RATING_EVENT[selected] });
     addHistory({ name: recipe.name, cuisine: recipe.cuisine, rating: selected, ts: Date.now() });
     // Cooking moves the recipe out of "saved to cook" — it now lives in the
     // journal, and its history entry already excludes it from future generation.

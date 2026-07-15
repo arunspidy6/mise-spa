@@ -28,6 +28,19 @@ function SessionSetup() {
   const [err, setErr] = useState<ErrState | null>(null);
   const [vibeOpen, setVibeOpen] = useState(false);
 
+  useEffect(() => { track("session_screen_viewed"); }, []);
+
+  // Preference changes (time / servings) — each explicit change reports the full
+  // current preference state so we can see what people settle on before cooking.
+  const setTime = (value: number) => {
+    setSession({ timeMinutes: value });
+    track("session_preferences_set", { time_available: value, servings: session.servings });
+  };
+  const setServings = (value: number) => {
+    setSession({ servings: value });
+    track("session_preferences_set", { time_available: session.timeMinutes, servings: value });
+  };
+
   // Single-select vibe stored as session.vibes ([] = no preference / surprise me).
   const selectedVibe = VIBES.find(v => v.value === session.vibes[0]) ?? null;
   const pickVibe = (value: string | null) => {
@@ -45,6 +58,12 @@ function SessionSetup() {
 
   const generate = async () => {
     const genId = ++genIdRef.current;
+    // Anchor items = the ingredients a dish can be built around (protein + veg +
+    // carbs). Reported on the tap so we can correlate kitchen size with dropoff.
+    track("generate_tapped", {
+      total_anchor_items:
+        inventory.proteins.length + inventory.vegetables.length + inventory.carbs.length,
+    });
     // Unlock audio inside the tap gesture so the "recipe ready" chime can play
     // when generation finishes (iOS blocks audio started off-gesture).
     primeAudio();
@@ -56,6 +75,7 @@ function SessionSetup() {
     // least one protein OR vegetable so we have something to build around.
     const mains = inventory.proteins.length + inventory.vegetables.length;
     if (mains < 1) {
+      track("generate_blocked", { reason: "no_anchor_items" });
       setLoading(false);
       setErr({
         reason: "no_main",
@@ -64,6 +84,8 @@ function SessionSetup() {
       return;
     }
 
+    const genStart = Date.now();
+    track("recipe_generation_started");
     try {
       // Always try the API first — it uses the full inventory (including custom veg/items)
       // and generates a recipe that actually matches what the user has.
@@ -91,6 +113,7 @@ function SessionSetup() {
 
       // Honest failure — never silently substitute a random library recipe.
       if (!recipe) {
+        track("recipe_generation_failed", { error_type: apiFailure ?? "unknown" });
         setLoading(false);
         if (apiFailure === "no_recipe") {
           setErr({
@@ -107,12 +130,19 @@ function SessionSetup() {
       }
 
       if (genId !== genIdRef.current) return;
+      // One recipe is generated up front (the user waits on this); recipes 2–3
+      // are prefetched later on the recipe screen, so recipe_count is 1 here.
+      track("recipe_generation_succeeded", {
+        recipe_count: 1,
+        generation_time_ms: Date.now() - genStart,
+      });
       setRecipe(recipe);
       playRecipeReady();
       navigate({ to: "/recipe" });
     } catch (e2) {
       const msg = e2 instanceof Error ? e2.message : "unknown";
       const parts = msg.split("|");
+      track("recipe_generation_failed", { error_type: parts[0] || "unknown" });
       setErr({ reason: parts[0], detail: parts[1] ?? "Something went wrong." });
     } finally {
       if (genId === genIdRef.current) setLoading(false);
@@ -222,7 +252,7 @@ function SessionSetup() {
               {TIME_OPTIONS.map(o => {
                 const active = session.timeMinutes === o.value;
                 return (
-                  <button key={o.value} onClick={() => setSession({ timeMinutes: o.value })}
+                  <button key={o.value} onClick={() => setTime(o.value)}
                     className={`h-14 rounded-xl flex flex-col items-center justify-center gap-0.5 border transition-all active:scale-95
                       ${active ? "bg-ember-glow border-ember-dim text-ember-text" : "bg-bg-surface border-border-default text-text-secondary"}`}>
                     <span className="text-base">{o.icon}</span>
@@ -236,7 +266,7 @@ function SessionSetup() {
           <div className="mt-6 pb-4">
             <p className="label-eyebrow mb-3">Cooking for</p>
             <div className="h-16 bg-bg-surface border border-border-default rounded-xl flex items-center justify-between px-4">
-              <button onClick={() => setSession({ servings: Math.max(1, session.servings - 1) })}
+              <button onClick={() => setServings(Math.max(1, session.servings - 1))}
                 className="w-10 h-10 rounded-full bg-bg-raised flex items-center justify-center text-text-secondary active:scale-90">
                 <Minus className="w-4 h-4" />
               </button>
@@ -244,7 +274,7 @@ function SessionSetup() {
                 <span className="font-display text-[40px] font-light text-text-primary tabular-nums">{session.servings}</span>
                 <span className="text-[13px] text-text-tertiary">{session.servings === 1 ? "person" : "people"}</span>
               </div>
-              <button onClick={() => setSession({ servings: Math.min(8, session.servings + 1) })}
+              <button onClick={() => setServings(Math.min(8, session.servings + 1))}
                 className="w-10 h-10 rounded-full bg-bg-raised flex items-center justify-center text-text-secondary active:scale-90">
                 <Plus className="w-4 h-4" />
               </button>

@@ -168,14 +168,24 @@ function Onboarding() {
   const [i, setI] = useState(0);
   const isLast = i === SLIDES.length - 1;
 
-  useEffect(() => { track("onboarding_started"); }, []);
+  useEffect(() => { track("onboarding_viewed", { slide: 1 }); }, []);
 
   const finish = (via: "completed" | "skipped") => {
     setOnboarded();
-    track(via === "completed" ? "onboarding_completed" : "onboarding_skipped", { slide: i + 1 });
+    if (via === "completed") track("onboarding_completed");
+    else track("onboarding_skipped", { slide_when_skipped: i + 1 });
     // Replace so onboarding leaves no history entry — a back-swipe from home
     // must never land the user back in the intro.
     navigate({ to: via === "completed" ? "/inventory" : "/", replace: true });
+  };
+
+  // Advance via the CTA. Slides only change through this button (no swipe
+  // gesture on this screen), so this is the single slide-change instrumentation
+  // point. The final tap ("Set up my kitchen") completes rather than advances.
+  const goNext = () => {
+    if (isLast) { finish("completed"); return; }
+    track("onboarding_slide_changed", { from_slide: i + 1, to_slide: i + 2 });
+    setI(i + 1);
   };
 
   const slide = SLIDES[i];
@@ -235,7 +245,7 @@ function Onboarding() {
             ))}
           </div>
           <EmberButton size="lg" className="w-full"
-            onClick={() => (isLast ? finish("completed") : setI(i + 1))}>
+            onClick={goNext}>
             {isLast ? "Set up my kitchen" : "Next"}
             <ArrowRight className="w-4 h-4" />
           </EmberButton>

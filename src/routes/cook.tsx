@@ -6,6 +6,7 @@ import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { useMise } from "@/store/mise";
 import { track } from "@/lib/analytics";
+import { isForeground } from "@/lib/visibility";
 import { useSwipeBack } from "@/hooks/use-swipe-back";
 import { isNative, ensureNotificationPermission, scheduleNotice, cancelNotice } from "@/lib/native/notify";
 import { nativeVoiceSupported, startNativeSpeech, stopNativeSpeech } from "@/lib/native/speech";
@@ -769,6 +770,35 @@ function CookMode() {
   const total = steps.length;
   const curTimer = timers[step];
 
+  // ── Funnel instrumentation ─────────────────────────────────────────────
+  // cook_mode_started on arrival; cook_step_viewed once the prep screen is done
+  // and for every cooking step; cook_mode_completed on finish; and, on leaving
+  // before finishing, cook_mode_abandoned — but only for a real navigation-away
+  // while foregrounded (not a backgrounded tab). completedRef gates that.
+  const completedRef = useRef(false);
+  const prepDoneRef = useRef(prepDone);
+  useEffect(() => { prepDoneRef.current = prepDone; }, [prepDone]);
+
+  useEffect(() => {
+    track("cook_mode_started");
+    return () => {
+      if (!completedRef.current && isForeground()) {
+        track("cook_mode_abandoned", {
+          // Prep screen not yet passed → 0; otherwise the 1-based step reached.
+          last_step_reached: prepDoneRef.current ? stepRef.current + 1 : 0,
+          total_steps: stepsRef.current.length,
+        });
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Each cooking step view (only once the prep checklist screen is behind us).
+  useEffect(() => {
+    if (!prepDone || total === 0) return;
+    track("cook_step_viewed", { step_number: step + 1, total_steps: total });
+  }, [step, prepDone, total]);
+
   // ── Wake lock ──────────────────────────────────────────────────────────
   useEffect(() => {
     let wl: any;
@@ -1220,6 +1250,10 @@ function CookMode() {
 
   const finish = () => {
     stopVoice();
+    // Mark complete BEFORE navigating so the unmount cleanup doesn't misfire a
+    // cook_mode_abandoned for a cook the user actually finished.
+    completedRef.current = true;
+    track("cook_mode_completed", { total_steps: total });
     if (recipe) {
       addHistory({ name: recipe.name, cuisine: recipe.cuisine, rating: "good", ts: Date.now() });
       // Funnel endpoint — carry the vibe so "cooked" can be segmented by it.

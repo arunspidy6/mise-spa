@@ -41,8 +41,9 @@ function RecipeCard() {
 
   const isSaved = !!recipe && saved.some(s => s.recipe.name === recipe.name);
 
-  // Fire recipe_generated when a recipe is actually SHOWN (once per name). This
-  // is where the metric lives now — so prefetched-but-unseen recipes don't count.
+  // Fire recipe_generated + recipe_viewed when a recipe is actually SHOWN (once
+  // per name) — so prefetched-but-unseen recipes don't count. recipe_index is
+  // the 1-based position in the batch (capped at 3, the pool size).
   const seenRef = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!recipe || seenRef.current.has(recipe.name)) return;
@@ -55,7 +56,17 @@ function RecipeCard() {
       vibe: session.vibes?.[0] ?? "none",
       why_source: recipe.why ? "model" : "derived",
     });
+    track("recipe_viewed", { recipe_index: Math.min(batchIndex + 1, 3) });
   }, [recipe?.name]);
+
+  // Pool-exhausted fires once per visit — when the user has rejected everything
+  // available and "Not this" can only loop back to a recipe they've already seen.
+  const poolExhaustedRef = useRef(false);
+  const firePoolExhausted = () => {
+    if (poolExhaustedRef.current) return;
+    poolExhaustedRef.current = true;
+    track("recipe_pool_exhausted", { recipe_count: recipeBatch.length });
+  };
 
   // Background prefetch: while the user reads recipe 1, quietly generate the
   // next couple (one at a time) so "Not this" is instant. Silent — appended to
@@ -142,10 +153,17 @@ function RecipeCard() {
 
   const swap = async () => {
     setErrMsg(null);
+    track("recipe_rejected", { recipe_index: Math.min(batchIndex + 1, 3) });
 
-    // The next recipe is already available — either prefetched into the batch,
-    // or we've filled all 3 and are looping. Advance instantly, no API call.
-    if (batchIndex + 1 < recipeBatch.length || recipeBatch.length >= 3) {
+    // A fresh, not-yet-seen recipe is already prefetched — advance instantly.
+    if (batchIndex + 1 < recipeBatch.length) {
+      cycleRecipe();
+      return;
+    }
+    // The batch is full (3) but there's nothing new past this point — "Not this"
+    // now loops back over recipes already seen: the pool is exhausted.
+    if (recipeBatch.length >= 3) {
+      firePoolExhausted();
       cycleRecipe();
       return;
     }
@@ -176,6 +194,7 @@ function RecipeCard() {
         // If the kitchen genuinely can't yield another distinct dish but we
         // already have a couple, don't dead-end — loop the ones we have.
         if (apiFailure === "no_recipe" && recipeBatch.length >= 2) {
+          firePoolExhausted();
           cycleRecipe();
           return;
         }
@@ -363,7 +382,10 @@ function RecipeCard() {
               <RotateCw className="w-4 h-4" />
               Not this
             </button>
-            <EmberButton size="lg" className="flex-1" onClick={() => navigate({ to: "/cook" })}>
+            <EmberButton size="lg" className="flex-1" onClick={() => {
+              track("recipe_selected", { recipe_index: Math.min(batchIndex + 1, 3) });
+              navigate({ to: "/cook" });
+            }}>
               Let's make it <ArrowRight className="w-4 h-4" />
             </EmberButton>
           </div>
