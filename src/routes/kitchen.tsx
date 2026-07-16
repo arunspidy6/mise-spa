@@ -9,7 +9,7 @@ import { useMise } from "@/store/mise";
 import type { Inventory } from "@/store/mise";
 import { useSwipeBack } from "@/hooks/use-swipe-back";
 import { hapticLight } from "@/lib/haptics";
-import { CustomItemInput, MASTER_INGREDIENTS, CATEGORY_LABEL, type AddResult } from "./inventory";
+import { CustomItemInput, MASTER_INGREDIENTS, CATEGORY_LABEL, isAppliance, applianceLabel, type AddResult } from "./inventory";
 
 export const Route = createFileRoute("/kitchen")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -33,7 +33,7 @@ const SECONDARY: { key: keyof Inventory; label: string }[] = [
   { key: "appliances", label: "Appliances" },
 ];
 
-const VALID_CATS = ["proteins", "carbs", "vegetables", "fridge", "staples"];
+const VALID_CATS = ["proteins", "carbs", "vegetables", "fridge", "staples", "appliances"];
 
 // Shown when a section is empty, so a returning user gets a quick nudge instead
 // of a blank category. All are known ingredients (correct category + satToken).
@@ -69,11 +69,16 @@ function KitchenOverview() {
     setInventory({ [cat]: list.filter(x => x !== item) } as never);
   };
 
-  // Add routes to the item's true category (classifier / master), else fridge.
+  // Add routes to the item's true category (classifier / master / appliance),
+  // else fridge.
   const onAdd = (item: string, category?: string): AddResult => {
     const lower = item.toLowerCase();
     const cat = ((category && VALID_CATS.includes(category) ? category
-      : MASTER_INGREDIENTS[lower]?.category) ?? "fridge") as keyof Inventory;
+      : MASTER_INGREDIENTS[lower]?.category)
+      ?? (isAppliance(lower) ? "appliances" : "fridge")) as keyof Inventory;
+    // Pantry & appliances live inside the collapsed "basics" disclosure — open
+    // it on add so the user actually sees where the item landed.
+    if (cat === "staples" || cat === "appliances") setBasicsOpen(true);
     const list = (inventory[cat] as string[]) ?? [];
     if (!list.map(x => x.toLowerCase()).includes(lower)) {
       setInventory({ [cat]: [...list, item] } as never);

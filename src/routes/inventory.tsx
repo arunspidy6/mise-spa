@@ -408,18 +408,20 @@ const STEP_SLIDE = {
 };
 
 const STEPS = [
-  // `cta` is the footer button label — it names the NEXT thing the user does,
-  // so the flow reads staples → proteins → carbs → … → appliances → recipes.
-  { key: "staples" as const,    label: "Pantry staples",  title: "What's in your kitchen?",       intro: "Everything highlighted is in your kitchen. Tap to remove what you don't have.", mode: "remove" as const, cta: "Add proteins",       sections: STAPLE_SECTIONS },
-  { key: "proteins" as const,   label: "Proteins",         title: "What proteins do you have?",    intro: "Select everything you have right now. This drives your recipes.",            mode: "add" as const,    cta: "Add carbs",          sections: PROTEIN_SECTIONS },
-  { key: "carbs" as const,      label: "Carbs",            title: "Anything carby?",               intro: "Pick what you actually have.",                                              mode: "add" as const,    cta: "Add vegetables",     sections: CARB_SECTIONS },
-  { key: "vegetables" as const, label: "Vegetables",       title: "Veg in the fridge or counter?", intro: "Even just a few opens up a lot of options.",                                mode: "add" as const,    cta: "Add extras",         sections: VEG_SECTIONS },
-  { key: "fridge" as const,     label: "Fridge & extras",  title: "What else is in the fridge?",   intro: "Dairy, sauces, the in-between things.",                                     mode: "add" as const,    cta: "Select appliances",  sections: FRIDGE_SECTIONS },
-  { key: "appliances" as const, label: "Appliances",       title: "What can you cook with?",       intro: "We only suggest recipes you can actually make.",                            mode: "add" as const,    cta: "Find recipes",       sections: APPLIANCE_SECTIONS },
+  // Order leads with the ingredients that actually drive recipes (protein first),
+  // then the assumed pantry basics, then appliances — so the effortful "confirm
+  // the staples" screen comes near the end, after the user's already invested.
+  // `cta` names the NEXT step; `guide` is the calm momentum cue shown per step.
+  { key: "proteins" as const,   label: "Proteins",        title: "What proteins do you have?",    intro: "Start with the star of the dish. Pick whatever you've got — this shapes every recipe we suggest.", guide: "Let's start here", mode: "add" as const,    cta: "Add carbs",          sections: PROTEIN_SECTIONS },
+  { key: "carbs" as const,      label: "Carbs",           title: "Anything carby?",               intro: "Rice, pasta, bread, potatoes — pick what you actually have to build the meal around.",             guide: "Nice — keep going", mode: "add" as const,   cta: "Add vegetables",     sections: CARB_SECTIONS },
+  { key: "vegetables" as const, label: "Vegetables",      title: "Veg in the fridge or counter?", intro: "Even just a couple opens up a lot of options. Tap anything you have.",                              guide: "Halfway there",    mode: "add" as const,    cta: "Add extras",         sections: VEG_SECTIONS },
+  { key: "fridge" as const,     label: "Fridge & extras", title: "What else is in the fridge?",   intro: "Dairy, sauces and the in-between bits — grab anything you've got.",                                 guide: "Almost done",      mode: "add" as const,    cta: "Check the pantry",   sections: FRIDGE_SECTIONS },
+  { key: "staples" as const,    label: "Pantry staples",  title: "Just confirm the basics",       intro: "Everything highlighted is assumed to be in your kitchen. Tap to remove anything you don't keep.",   guide: "Quick check",      mode: "remove" as const, cta: "Add appliances",     sections: STAPLE_SECTIONS },
+  { key: "appliances" as const, label: "Appliances",      title: "What can you cook with?",       intro: "Last one — so every recipe is something you can actually make.",                                    guide: "Last step",        mode: "add" as const,    cta: "Find recipes",       sections: APPLIANCE_SECTIONS },
 ];
 
 // Analytics screen name per inventory step key. The step ORDER on screen is
-// staples → proteins → carbs → vegetables → fridge → appliances; these names map
+// proteins → carbs → vegetables → fridge → staples → appliances; these names map
 // each step to the funnel vocabulary the analytics spec uses ("pantry" for
 // staples, "dairy" for the fridge/extras step).
 const SCREEN_NAME: Record<(typeof STEPS)[number]["key"], string> = {
@@ -498,6 +500,50 @@ export const CATEGORY_LABEL: Record<string, string> = {
   proteins:"proteins", carbs:"carbs", vegetables:"vegetables",
   fridge:"fridge", staples:"pantry", appliances:"appliances",
 };
+
+// Appliance detection. The food classifier (and MASTER_INGREDIENTS) only know
+// ingredient categories, so cooking equipment typed anywhere — e.g. "air fryer"
+// on the pantry screen — would otherwise fall through to pantry/fridge. Catch it
+// here and route it to the appliances list instead. Canonical labels reuse the
+// predefined appliance chips so a typed "air fryer" and the "Airfryer" chip
+// don't become two separate entries.
+const APPLIANCE_CANON: Record<string, string> = {
+  "air fryer": "Airfryer", "airfryer": "Airfryer", "air-fryer": "Airfryer",
+  "oven": "Oven",
+  "hob": "Hob / Stove", "stove": "Hob / Stove", "cooktop": "Hob / Stove",
+  "stovetop": "Hob / Stove", "hotplate": "Hob / Stove", "hot plate": "Hob / Stove",
+  "microwave": "Microwave",
+  "blender": "Blender",
+  "rice cooker": "Rice cooker",
+  "slow cooker": "Slow cooker", "crockpot": "Slow cooker", "crock pot": "Slow cooker",
+};
+// Other appliances we recognise but keep under the user's own (title-cased) label.
+const APPLIANCE_EXTRA = [
+  "pressure cooker", "instant pot", "instapot", "toaster", "toaster oven",
+  "grill", "griddle", "deep fryer", "fryer", "kettle", "food processor",
+  "stand mixer", "hand mixer", "mixer", "sous vide", "waffle maker",
+  "sandwich maker", "panini press", "steamer", "halogen oven", "combi oven",
+  "tandoor", "barbecue", "bbq",
+];
+function applianceKey(name: string): string | null {
+  const l = name.toLowerCase().trim().replace(/\s+/g, " ");
+  if (l in APPLIANCE_CANON) return l;
+  // Whole-word / phrase match, so "grilled chicken" is NOT read as "grill".
+  return (
+    [...Object.keys(APPLIANCE_CANON), ...APPLIANCE_EXTRA].find(t =>
+      new RegExp(`\\b${t.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&")}\\b`).test(l)
+    ) ?? null
+  );
+}
+export function isAppliance(name: string): boolean {
+  return applianceKey(name) !== null;
+}
+export function applianceLabel(name: string): string {
+  const key = applianceKey(name);
+  if (key && APPLIANCE_CANON[key]) return APPLIANCE_CANON[key];
+  // Not a canonical chip — tidy the user's own words into a title-cased label.
+  return name.trim().replace(/\s+/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
 
 const capLabel = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -618,6 +664,14 @@ export function CustomItemInput({
     if (masterEntry) {
       addMapping(lower, masterEntry.satToken);
       commitAdd(clean, undefined, masterEntry.category);
+      return;
+    }
+
+    // ①b Appliances aren't ingredients — route straight to the appliances list
+    // (skipping the food classifier, which would mislabel them and warn "no
+    // recipes for this ingredient"). Uses the canonical chip label where known.
+    if (isAppliance(lower)) {
+      commitAdd(applianceLabel(clean), undefined, "appliances");
       return;
     }
 
@@ -751,6 +805,7 @@ function InventoryFlow() {
   const router = useRouter();
   const { from, step: initStep } = Route.useSearch();
   const inventory = useMise(s => s.inventory);
+  const history = useMise(s => s.history);
   const toggleItem = useMise(s => s.toggleItem);
   const finalize = useMise(s => s.finalizeInventory);
   const setInventory = useMise(s => s.setInventory);
@@ -887,9 +942,12 @@ function InventoryFlow() {
               Step {step + 1} of {STEPS.length}
             </span>
           </div>
-          {/* Returning users (kitchen set up before) get a direct "Find recipes"
-              shortcut to Tonight's cook; first-timers still get a plain close. */}
-          {inventory.lastUpdated != null ? (
+          {/* Returning cooks (they've cooked before) get a direct "Find recipes"
+              shortcut to Tonight's cook. First-time users have no cook history,
+              so they never see it — they go through the setup and get a plain
+              close. (lastUpdated persists forever once set, so it can't tell a
+              genuine first-timer apart; cook history can.) */}
+          {history.length > 0 ? (
             <button onClick={() => { finalize(); navigate({ to: "/session" }); }}
               className="h-11 -mr-2 pl-2 flex items-center gap-1 text-[13px] font-medium text-ember-text active:opacity-60 transition">
               Find recipes <ArrowRight className="w-4 h-4" />
@@ -903,12 +961,17 @@ function InventoryFlow() {
         </div>
 
         {/* Progress */}
-        <div className="px-4 mb-4">
+        <div className="px-4 mb-3">
           <div className="h-[3px] bg-bg-overlay rounded-full flex gap-1 overflow-hidden">
             {STEPS.map((_, i) => (
               <div key={i} className={`flex-1 rounded-full transition-colors ${i <= step ? "bg-ember" : "bg-bg-overlay"}`} />
             ))}
           </div>
+          {/* Quiet, constant reassurance — low-stakes, saved, reversible. Same
+              on every step so it reassures without pulling focus. */}
+          <p className="text-center text-[11px] text-text-tertiary mt-2">
+            Saved as you go — you can change your kitchen anytime
+          </p>
         </div>
 
         {/* Content — direction-aware page slide: both steps slide together so
@@ -921,6 +984,9 @@ function InventoryFlow() {
             transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
             className="absolute inset-0 overflow-y-auto overscroll-contain px-4 pb-4">
 
+            {/* Momentum cue — a calm, per-step "where you are" that guides the
+                user forward without shouting. */}
+            <p className="text-[12px] font-semibold text-ember-text mb-1">{cur.guide}</p>
             <h1 className="font-display text-[28px] font-light text-text-primary leading-tight">{cur.title}</h1>
 
             {cur.mode === "remove" && (
@@ -977,12 +1043,13 @@ function InventoryFlow() {
                   // Route to the ingredient's TRUE category, not whichever screen
                   // it was typed on: classifier/master category first, then the
                   // misplaced-redirect map, else the current step.
-                  const VALID_CATS = ["proteins", "carbs", "vegetables", "fridge", "staples"];
+                  const VALID_CATS = ["proteins", "carbs", "vegetables", "fridge", "staples", "appliances"];
                   const resolved =
                     (category && VALID_CATS.includes(category) ? category : MASTER_INGREDIENTS[lower]?.category) as
                       | keyof Inventory
                       | undefined;
-                  const targetCat = (resolved ?? MISPLACED[lower] ?? cur.key) as keyof Inventory;
+                  const applianceCat = isAppliance(lower) ? ("appliances" as keyof Inventory) : undefined;
+                  const targetCat = (resolved ?? applianceCat ?? MISPLACED[lower] ?? cur.key) as keyof Inventory;
                   if (targetCat !== cur.key) {
                     const targetList = (inventory[targetCat] as string[]) ?? [];
                     if (!targetList.map(s => s.toLowerCase()).includes(lower)) {
@@ -1049,7 +1116,7 @@ function InventoryFlow() {
               <div className="mt-4 rounded-lg bg-bg-surface border border-border-subtle px-4 py-3">
                 <p className="text-[12px] text-text-secondary leading-relaxed">
                   <span className="text-text-primary font-medium">No protein?</span>{" "}
-                  No protein? No problem. We have recipes for eggs, chickpeas and lentils.
+                  No problem. We have recipes for eggs, chickpeas and lentils.
                 </p>
               </div>
             )}

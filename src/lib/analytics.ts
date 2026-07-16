@@ -9,6 +9,53 @@ import { getDeviceId } from "./device";
 let ready = false;
 let ph: any = null;
 
+// ── Device / testing opt-out ────────────────────────────────────────────────
+// Our own dev machines must never pollute product metrics. A device is excluded
+// three ways, resolved at startup; when excluded, PostHog is never initialised,
+// so nothing (not even a $pageview) is ever captured on that device.
+//   1. Hardcoded dev-device denylist below — survives storage clears as long as
+//      the same mise-device-id is kept.
+//   2. Sticky localStorage flag (mise-analytics-optout = "1").
+//   3. URL ?notrack=1 to opt out (sticky, then stripped), ?notrack=0 to opt back
+//      in — so any browser/PC can exclude itself by visiting the app once.
+const DEV_DEVICE_IDS = new Set<string>([
+  "2adfb6af-bfef-4575-aceb-fcea17bd7aa7", // Arun's dev machine — never record
+]);
+const OPTOUT_KEY = "mise-analytics-optout";
+
+function resolveOptOut(): boolean {
+  // ?notrack= makes the choice sticky per install, then strips itself from the
+  // URL so the raw link isn't re-shared with the flag attached.
+  try {
+    const url = new URL(window.location.href);
+    const p = url.searchParams.get("notrack");
+    if (p === "1" || p === "true") {
+      localStorage.setItem(OPTOUT_KEY, "1");
+      url.searchParams.delete("notrack");
+      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    } else if (p === "0" || p === "false") {
+      localStorage.removeItem(OPTOUT_KEY);
+      url.searchParams.delete("notrack");
+      window.history.replaceState({}, "", url.pathname + url.search + url.hash);
+    }
+  } catch { /* no window / bad URL */ }
+
+  try {
+    if (localStorage.getItem(OPTOUT_KEY) === "1") return true;
+  } catch { /* storage blocked */ }
+
+  try {
+    if (DEV_DEVICE_IDS.has(getDeviceId())) return true;
+  } catch { /* ignore */ }
+
+  return false;
+}
+
+// Exposed so callers can short-circuit their own analytics setup if needed.
+export function analyticsOptedOut(): boolean {
+  return resolveOptOut();
+}
+
 // Super-properties merged onto every captured event. Registered before init
 // (e.g. the A/B variant) and applied once PostHog is ready, so no event is
 // left untagged. Also mirrored to person properties for cohort breakdowns.
@@ -31,6 +78,9 @@ export async function initAnalytics(): Promise<void> {
   const key = import.meta.env.VITE_POSTHOG_KEY as string | undefined;
   const host = (import.meta.env.VITE_POSTHOG_HOST as string | undefined) || "https://us.i.posthog.com";
   if (!key || ready) return;
+  // Excluded device (dev machine / opted out) — never load or init PostHog, so
+  // nothing is recorded here at all.
+  if (resolveOptOut()) return;
   try {
     const mod: any = await import("posthog-js");
     ph = mod.default ?? mod.posthog ?? mod;
