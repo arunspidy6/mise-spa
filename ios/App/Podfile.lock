@@ -4,6 +4,8 @@ PODS:
   - CapacitorCommunitySpeechRecognition (7.0.1):
     - Capacitor
   - CapacitorCordova (8.4.1)
+  - CapacitorHaptics (8.0.2):
+    - Capacitor
   - CapacitorLocalNotifications (8.2.0):
     - Capacitor
   - CapacitorPreferences (8.0.1):
@@ -13,6 +15,7 @@ DEPENDENCIES:
   - "Capacitor (from `../../node_modules/@capacitor/ios`)"
   - "CapacitorCommunitySpeechRecognition (from `../../node_modules/@capacitor-community/speech-recognition`)"
   - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorHaptics (from `../../node_modules/@capacitor/haptics`)"
   - "CapacitorLocalNotifications (from `../../node_modules/@capacitor/local-notifications`)"
   - "CapacitorPreferences (from `../../node_modules/@capacitor/preferences`)"
 
@@ -23,6 +26,8 @@ EXTERNAL SOURCES:
     :path: "../../node_modules/@capacitor-community/speech-recognition"
   CapacitorCordova:
     :path: "../../node_modules/@capacitor/ios"
+  CapacitorHaptics:
+    :path: "../../node_modules/@capacitor/haptics"
   CapacitorLocalNotifications:
     :path: "../../node_modules/@capacitor/local-notifications"
   CapacitorPreferences:
@@ -32,9 +37,10 @@ SPEC CHECKSUMS:
   Capacitor: 35242afe195b1e53c58ca1b827d1b444c5e6602b
   CapacitorCommunitySpeechRecognition: 3e03566c44c2bb3b52391a33d4518b1adbdeb38f
   CapacitorCordova: eebe6bcf807b1b06f3f48237650f96bbcd0eef09
+  CapacitorHaptics: 296f771ecd89c7a1bd92a7b6826a7d268e2e70f5
   CapacitorLocalNotifications: 2615aa008f608b95d3921a778ee1988abf1e6148
   CapacitorPreferences: cca2021f386efb75947c850334447d9ff22b14f1
 
-PODFILE CHECKSUM: e1a2c0a995903bf51641f093901e0962bb9b440f
+PODFILE CHECKSUM: b8adfc86fbc66358ed7703733da0dffaebaa9610
 
 COCOAPODS: 1.16.2
