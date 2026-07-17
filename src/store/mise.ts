@@ -136,7 +136,7 @@ export const useMise = create<Store>()(
         customTokenMap: {},
         lastUpdated: null,
       },
-      session: { timeMinutes: 30, servings: 2, cuisine: null, vibes: [] },
+      session: { timeMinutes: 45, servings: 2, cuisine: null, vibes: [] },
       recipe: null,
       recipeBatch: [],
       batchIndex: 0,
