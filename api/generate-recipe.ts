@@ -263,84 +263,6 @@ SELF-CHECK before returning:
 [ ] Description is ≤ 15 words and names the hero ingredient.
 [ ] JSON is valid and complete — no trailing commas, no missing closing brackets.`;
 
-// ── Slate mode ─────────────────────────────────────────────────────────────
-// Generate THREE recipes in one response, with protein-anchor and skeleton
-// variety, so the client can show recipe 1 and let "Not this" advance through
-// pre-generated recipes 2 and 3 — never generating a new recipe per rejection.
-const SLATE_INSTRUCTIONS = `Generate a SLATE of THREE distinct recipes as a single set, using the ingredients below. Follow every rule in the system prompt for EACH recipe (skeletons, timers, protein safety, honesty, step standards), PLUS the slate rules here.
-
-PROTEIN COMPATIBILITY:
-- Two proteins are COMPATIBLE only if they are variants of the same core protein commonly cooked together (e.g. chicken breast + chicken thighs; beef mince + beef diced/steak). All other pairings are NON-COMPATIBLE (e.g. chicken + pork, chicken + prawns).
-
-SLATE CONSTRUCTION BY PROTEIN COUNT (count only the meat/poultry/fish/plant proteins in AVAILABLE):
-- 0 proteins: vegetables are the anchor. All 3 recipes are vegetable-led, each on a DIFFERENT skeleton.
-- 1 protein: all 3 anchor on that protein, each on a DIFFERENT skeleton (never the same skeleton twice).
-- 2 proteins, COMPATIBLE: recipes may combine both or use either; still 3 DIFFERENT skeletons. Do not present 3 variations of the same dish.
-- 2 proteins, NON-COMPATIBLE: recipe 1 anchors on protein A (the strongest overall inventory match); recipe 2 anchors on protein B; recipe 3 is whichever protein gives the best remaining skeleton match (may reuse A or B, but a skeleton not already used). There is NO priority between A and B — slate order reflects match quality only, not a preference.
-- 3+ proteins, NON-COMPATIBLE: do NOT try to feature every protein. Pick the 3 highest-quality skeleton matches across all selected proteins. It is expected that one or more proteins do not appear — never force inclusion at the cost of recipe quality or skeleton fit.
-
-HARD SLATE CONSTRAINTS:
-- The 3 recipes MUST use 3 DIFFERENT skeleton_ids.
-- No two recipes may share the SAME protein_anchor AND the SAME skeleton_id. If two would collide, change one to the alternate protein or a different skeleton.
-- Keep each recipe tight (about 5–7 steps) so all three return well within the time budget.
-- If the kitchen genuinely cannot support 3 good, distinct dishes, return as many as are genuinely good (1 or 2) — never pad with a forced or duplicate dish. Only return {"error":"no_recipe"} if not even one sensible dish is possible.
-
-EACH recipe object MUST additionally include:
-  "protein_anchor": "<the specific protein ingredient used as the anchor, exactly as it would be named, or 'vegetable-led' if none>",
-  "skeleton_id": "<the SK-NN id of the skeleton used, e.g. 'SK-06'>"
-
-RETURN FORMAT — valid JSON only, no markdown fences, no text before or after:
-{"recipes": [ <recipe>, <recipe>, <recipe> ]}
-where each <recipe> is exactly the recipe object described in the system prompt's RETURN FORMAT, PLUS the protein_anchor and skeleton_id fields.
-
-FINAL SELF-CHECK for the slate (in addition to the per-recipe self-check):
-[ ] All 3 recipes use different skeleton_ids.
-[ ] No two recipes share both the same protein_anchor and skeleton_id.
-[ ] Protein selection follows the count rule above for this kitchen.`;
-
-// Post-process one model recipe: drop it if malformed, otherwise normalise time
-// ranges and sanitise the "why" panel. Shared by single and slate modes.
-const TIME_RANGE_RE = /(\d+)\s*(?:[–—-]|to|or)\s*(\d+)(\s*(?:minutes?|mins?))/i;
-function postProcessRecipe(recipe: any): any | null {
-  if (!recipe || !recipe.name || !recipe.steps) return null;
-
-  const normalizeStepRange = (step: any) => {
-    if (typeof step?.instruction !== "string") return step;
-    const match = step.instruction.match(TIME_RANGE_RE);
-    if (!match) return step;
-    const upper = Number(match[2]);
-    return {
-      ...step,
-      instruction: step.instruction.replace(TIME_RANGE_RE, `${upper}${match[3]}`),
-      timerMinutes: Number.isInteger(step.timerMinutes) ? upper : step.timerMinutes,
-    };
-  };
-  if (Array.isArray(recipe.steps)) recipe.steps = recipe.steps.map(normalizeStepRange);
-
-  const asMeter = (v: unknown): "Low" | "Medium" | "High" | null => {
-    const s = String(v ?? "").trim().toLowerCase();
-    return s === "high" ? "High" : s === "medium" ? "Medium" : s === "low" ? "Low" : null;
-  };
-  const w = recipe.why;
-  if (w && typeof w === "object") {
-    const reasons = Array.isArray(w.reasons)
-      ? w.reasons.filter((r: unknown) => typeof r === "string" && r.trim()).map((r: string) => r.trim()).slice(0, 4)
-      : [];
-    const completion = asMeter(w.completion);
-    const effort = asMeter(w.effort);
-    const tasteNote = typeof w.tasteNote === "string" ? w.tasteNote.trim().slice(0, 140) : "";
-    const flavourRationale = typeof w.flavourRationale === "string" ? w.flavourRationale.trim().slice(0, 400) : "";
-    const prov = String(w.provenance ?? "").trim().toLowerCase();
-    const provenance = prov === "classic" ? "classic" : prov === "adapted" ? "adapted" : prov === "original" ? "original" : undefined;
-    recipe.why = reasons.length && completion && effort && tasteNote
-      ? { reasons, completion, effort, tasteNote, flavourRationale: flavourRationale || undefined, provenance }
-      : undefined;
-  } else {
-    recipe.why = undefined;
-  }
-  return recipe;
-}
-
 // ── CORS ─────────────────────────────────────────────────────────────────────
 // Never wildcard a paid, unauthenticated endpoint — reflect only our own origins
 // so a third-party page can't spend the API budget from a user's browser.
@@ -395,9 +317,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: "API key not configured" });
   }
 
-  const { inventory, session, excludeName, avoidRecipes, mealType, slate } = req.body ?? {};
+  const { inventory, session, excludeName, avoidRecipes, mealType } = req.body ?? {};
   if (!inventory) return res.status(400).json({ error: "Missing inventory" });
-  const wantSlate = slate === true;
 
   // Time-of-day meal (computed client-side from the user's local clock).
   const meal: string | null = ["breakfast", "lunch", "dinner"].includes(mealType) ? mealType : null;
@@ -431,10 +352,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const vibeSteer = typeof vibeKey === "string" && VIBE_GUIDANCE[vibeKey] ? VIBE_GUIDANCE[vibeKey] : "";
 
   // ── Dynamic user message (changes per request — not cached) ────────────
-  // Shared kitchen context, composed into either a single-recipe request or a
-  // 3-recipe slate request.
-  const contextBlock =
-`AVAILABLE: ${ingredients.join(", ")}
+  const userMessage =
+    `Generate a recipe using the ingredients below.
+
+AVAILABLE: ${ingredients.join(", ")}
 APPLIANCES: ${(inventory.appliances || ["Hob/Stove"]).join(", ")}
 TIME: max ${session?.timeMinutes ?? 30} minutes
 SERVINGS: ${session?.servings ?? 2}
@@ -447,15 +368,9 @@ ${meal === "breakfast"
 - If the AVAILABLE list has NO breakfast-appropriate ingredients at all, do NOT force a weird dish — return exactly: {"error":"no_recipe"}`
   : meal
     ? `MEAL: It is currently ${meal} time. Generate a dish appropriate for ${meal} — a proper main. Feature the user's selected protein as the hero.`
-    : ""}`;
+    : ""}
 
-  const baseTail = `At lunch and dinner: if the user selected a meat, poultry or fish protein, it MUST be the hero of the dish. At breakfast the MEAL rule above wins — breakfast ingredients take priority over dinner proteins. You do NOT need to use every ingredient — choose the combination that makes the best single dish. Treat different cuts of the same meat as interchangeable (e.g. lamb chops, lamb diced and lamb mince are all just "lamb"); the cut should not change which dish you pick.`;
-  const excludeClause = excludeName ? `\n\nDo NOT generate "${excludeName}" — the user has already seen that recipe and wants something different.` : "";
-  const avoidClause = avoidList.length ? `\n\nThe user has RECENTLY COOKED the dishes below. You MUST generate something clearly different — a different cooking method, flavour profile, or cuisine. Do not produce a near-duplicate or a minor variation of any of these, even if a different cut of the same protein is now selected:\n${avoidList.map(n => `- ${n}`).join("\n")}` : "";
-
-  const userMessage = wantSlate
-    ? `${SLATE_INSTRUCTIONS}\n\n${contextBlock}\n\n${baseTail}${avoidClause}`
-    : `Generate a recipe using the ingredients below.\n\n${contextBlock}\n\n${baseTail}${excludeClause}${avoidClause}`;
+At lunch and dinner: if the user selected a meat, poultry or fish protein, it MUST be the hero of the dish. At breakfast the MEAL rule above wins — breakfast ingredients take priority over dinner proteins. You do NOT need to use every ingredient — choose the combination that makes the best single dish. Treat different cuts of the same meat as interchangeable (e.g. lamb chops, lamb diced and lamb mince are all just "lamb"); the cut should not change which dish you pick.${excludeName ? `\n\nDo NOT generate "${excludeName}" — the user has already seen that recipe and wants something different.` : ""}${avoidList.length ? `\n\nThe user has RECENTLY COOKED the dishes below. You MUST generate something clearly different — a different cooking method, flavour profile, or cuisine. Do not produce a near-duplicate or a minor variation of any of these, even if a different cut of the same protein is now selected:\n${avoidList.map(n => `- ${n}`).join("\n")}` : ""}`;
 
   // Hourly circuit breaker — checked/incremented only here, after validation and
   // right before the paid call, so malformed/empty requests can't burn the budget.
@@ -488,9 +403,8 @@ ${meal === "breakfast"
         model: "claude-sonnet-4-6",
         // Headroom for the full response: recipe + per-step summaries + the
         // "why" panel. 2500 truncated longer/vibe-driven recipes, producing
-        // invalid JSON and a misleading "kitchen unreachable" error. The slate
-        // returns three recipes in one response, so it needs ~3× the budget.
-        max_tokens: wantSlate ? 9000 : 4000,
+        // invalid JSON and a misleading "kitchen unreachable" error.
+        max_tokens: 4000,
         // Stream the generation: a long (30-50s) non-streaming request held open
         // is prone to network timeouts. Streaming keeps the connection healthy so
         // the full recipe reliably comes back within the budget.
@@ -562,27 +476,68 @@ ${meal === "breakfast"
 
     const raw = text.replace(/```json|```/g, "").trim();
 
-    let parsed;
-    try { parsed = JSON.parse(raw); }
+    let recipe;
+    try { recipe = JSON.parse(raw); }
     catch { return res.status(502).json({ error: "Invalid JSON from model" }); }
 
     // Model honestly declined (e.g. no breakfast-appropriate ingredients).
-    if (parsed?.error === "no_recipe") {
+    if (recipe?.error === "no_recipe") {
       return res.status(200).json({ error: "no_recipe" });
     }
 
-    // postProcessRecipe validates shape, collapses any stray time ranges to the
-    // upper (safer-cooked) bound, and sanitises the "why" panel.
-    if (wantSlate) {
-      const arr = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.recipes) ? parsed.recipes : null;
-      if (!arr) return res.status(502).json({ error: "Invalid slate shape" });
-      const recipes = arr.map(postProcessRecipe).filter(Boolean);
-      if (recipes.length === 0) return res.status(502).json({ error: "Invalid recipe shape" });
-      return res.status(200).json({ recipes });
+    if (!recipe.name || !recipe.steps) {
+      return res.status(502).json({ error: "Invalid recipe shape" });
     }
 
-    const recipe = postProcessRecipe(parsed);
-    if (!recipe) return res.status(502).json({ error: "Invalid recipe shape" });
+    // Safety net: the prompt forbids time ranges, but if one slips through,
+    // collapse it to the upper (safer-cooked) bound so the UI never shows
+    // "5–6 minutes" beside a single timer. Anchored on a trailing time unit so
+    // temperatures like "74°C / 165°F" and "52°C to 63°C" are left untouched.
+    const TIME_RANGE_RE =
+      /(\d+)\s*(?:[–—-]|to|or)\s*(\d+)(\s*(?:minutes?|mins?))/i;
+
+    const normalizeStepRange = (step: any) => {
+      if (typeof step?.instruction !== "string") return step;
+      const match = step.instruction.match(TIME_RANGE_RE);
+      if (!match) return step;
+
+      const upper = Number(match[2]);
+      return {
+        ...step,
+        instruction: step.instruction.replace(TIME_RANGE_RE, `${upper}${match[3]}`),
+        timerMinutes: Number.isInteger(step.timerMinutes) ? upper : step.timerMinutes,
+      };
+    };
+    if (Array.isArray(recipe.steps)) {
+      recipe.steps = recipe.steps.map(normalizeStepRange);
+    }
+
+    // Sanitise the model's "why" panel so a malformed field can never break the
+    // client. Meters are clamped to the three allowed levels; reasons are capped
+    // to 4 short strings. If it's unusable we drop it — the client then derives
+    // its own fallback from the recipe + kitchen.
+    const asMeter = (v: unknown): "Low" | "Medium" | "High" | null => {
+      const s = String(v ?? "").trim().toLowerCase();
+      return s === "high" ? "High" : s === "medium" ? "Medium" : s === "low" ? "Low" : null;
+    };
+    const w = recipe.why;
+    if (w && typeof w === "object") {
+      const reasons = Array.isArray(w.reasons)
+        ? w.reasons.filter((r: unknown) => typeof r === "string" && r.trim()).map((r: string) => r.trim()).slice(0, 4)
+        : [];
+      const completion = asMeter(w.completion);
+      const effort = asMeter(w.effort);
+      const tasteNote = typeof w.tasteNote === "string" ? w.tasteNote.trim().slice(0, 140) : "";
+      const flavourRationale = typeof w.flavourRationale === "string" ? w.flavourRationale.trim().slice(0, 400) : "";
+      const prov = String(w.provenance ?? "").trim().toLowerCase();
+      const provenance = prov === "classic" ? "classic" : prov === "adapted" ? "adapted" : prov === "original" ? "original" : undefined;
+      recipe.why = reasons.length && completion && effort && tasteNote
+        ? { reasons, completion, effort, tasteNote, flavourRationale: flavourRationale || undefined, provenance }
+        : undefined;
+    } else {
+      recipe.why = undefined;
+    }
+
     return res.status(200).json(recipe);
   } catch (err: any) {
     if (err?.name === "AbortError") {

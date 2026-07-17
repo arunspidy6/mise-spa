@@ -6,7 +6,8 @@ import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { useMise } from "@/store/mise";
-import { getSlateFromAPI } from "@/lib/generate-recipe";
+import { getRecipeFromAPI } from "@/lib/generate-recipe";
+import type { CookHistory } from "@/lib/generate-recipe";
 import { TIME_OPTIONS, VIBES } from "@/lib/mise-data";
 import { track } from "@/lib/analytics";
 import { playRecipeReady, primeAudio } from "@/lib/sound";
@@ -21,7 +22,7 @@ function SessionSetup() {
   const session = useMise(s => s.session);
   const setSession = useMise(s => s.setSession);
   const inventory = useMise(s => s.inventory);
-  const setBatch = useMise(s => s.setBatch);
+  const setRecipe = useMise(s => s.setRecipe);
   const history = useMise(s => s.history);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<ErrState | null>(null);
@@ -92,7 +93,7 @@ function SessionSetup() {
       // so the client must wait a touch longer than the server to receive its result.
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 58000);
-      let slate: Awaited<ReturnType<typeof getSlateFromAPI>> | null = null;
+      let recipe = null;
       // Names of dishes the user has already cooked — deduped, most recent first.
       // The API uses these to generate something genuinely different, so the same
       // dish isn't re-suggested just because a different cut of the same meat
@@ -100,9 +101,7 @@ function SessionSetup() {
       const avoidRecipes = [...new Set(history.map(h => h.name))].slice(0, 8);
       let apiFailure: "no_recipe" | "api_unreachable" | null = null;
       try {
-        // One request generates the whole 3-recipe slate, so "Not this" only ever
-        // advances through pre-generated recipes — never triggers another call.
-        slate = await getSlateFromAPI(inventory, session, controller.signal, avoidRecipes);
+        recipe = await getRecipeFromAPI(inventory, session, controller.signal, undefined, avoidRecipes);
       } catch (apiErr) {
         const m = apiErr instanceof Error ? apiErr.message : "";
         apiFailure = m === "no_recipe" ? "no_recipe" : "api_unreachable";
@@ -113,7 +112,7 @@ function SessionSetup() {
       if (genId !== genIdRef.current) return;
 
       // Honest failure — never silently substitute a random library recipe.
-      if (!slate || slate.length === 0) {
+      if (!recipe) {
         track("recipe_generation_failed", { error_type: apiFailure ?? "unknown" });
         setLoading(false);
         if (apiFailure === "no_recipe") {
@@ -131,12 +130,13 @@ function SessionSetup() {
       }
 
       if (genId !== genIdRef.current) return;
-      // The whole slate (1–3) is generated up front in a single request.
+      // One recipe is generated up front (the user waits on this); recipes 2–3
+      // are prefetched later on the recipe screen, so recipe_count is 1 here.
       track("recipe_generation_succeeded", {
-        recipe_count: slate.length,
+        recipe_count: 1,
         generation_time_ms: Date.now() - genStart,
       });
-      setBatch(slate);
+      setRecipe(recipe);
       playRecipeReady();
       navigate({ to: "/recipe" });
     } catch (e2) {
