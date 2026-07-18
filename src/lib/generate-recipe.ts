@@ -1122,35 +1122,6 @@ export async function getRecipeFromAPI(
   return data as Recipe;
 }
 
-// Generate the whole 3-recipe slate in a single request. The server builds all
-// three together with protein-anchor / skeleton variety, so "Not this" only ever
-// advances through pre-generated recipes — it never triggers another API call.
-// Returns 1–3 recipes; the client shows the first and cycles through the rest,
-// then surfaces the exhausted-pool state (no silent regeneration).
-export async function getSlateFromAPI(
-  inventory: Inventory,
-  session: SessionPayload,
-  signal?: AbortSignal,
-  avoidRecipes: string[] = [],
-): Promise<Recipe[]> {
-  const res = await fetch(`${API_BASE}/api/generate-recipe`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "X-Device-ID": getDeviceId(), ...appHeaders() },
-    body: JSON.stringify({ inventory, session, avoidRecipes, mealType: currentMealType(), slate: true }),
-    signal,
-  });
-  if (!res.ok) throw new Error("api_failed");
-  const data = await res.json();
-  if (data?.error === "no_recipe") throw new Error("no_recipe");
-  const recipes = Array.isArray(data?.recipes) ? data.recipes : null;
-  if (!recipes || recipes.length === 0) throw new Error("api_failed");
-  // Keep only well-formed recipes; if the model returned junk for some, we still
-  // proceed with whatever is valid (at least one, guaranteed by the check below).
-  const valid = recipes.filter((r: any) => r && r.name && Array.isArray(r.steps) && r.steps.length);
-  if (valid.length === 0) throw new Error("api_failed");
-  return valid.slice(0, 3) as Recipe[];
-}
-
 // Legacy exports for any existing imports
 export class RecipeError extends Error {
   constructor(public readonly reason: string = "unknown") {

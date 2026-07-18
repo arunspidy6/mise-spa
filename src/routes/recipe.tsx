@@ -6,9 +6,11 @@ import { MobileFrame } from "@/components/mise/MobileFrame";
 import { KeyboardAwareFooter } from "@/components/mise/KeyboardAwareFooter";
 import { EmberButton } from "@/components/mise/EmberButton";
 import { RecipeImage } from "@/components/mise/RecipeImage";
+import { RecipeLoaderContent } from "@/components/mise/RecipeLoader";
 import { WhyThisDish } from "@/components/mise/WhyThisDish";
 import { RecipePreview } from "@/components/mise/RecipePreview";
 import { useMise } from "@/store/mise";
+import { getRecipeFromAPI } from "@/lib/generate-recipe";
 import { track } from "@/lib/analytics";
 import { pickMealSlot, describeSlot, scheduleRecipeReminder, cancelRecipeReminder } from "@/lib/reminders";
 
@@ -22,13 +24,16 @@ function RecipeCard() {
   const session = useMise(s => s.session);
   const recipeBatch = useMise(s => s.recipeBatch);
   const batchIndex = useMise(s => s.batchIndex);
+  const pushRecipe = useMise(s => s.pushRecipe);
+  const appendToBatch = useMise(s => s.appendToBatch);
   const cycleRecipe = useMise(s => s.cycleRecipe);
+  const history = useMise(s => s.history);
   const saved = useMise(s => s.saved);
   const saveRecipe = useMise(s => s.saveRecipe);
   const unsaveRecipe = useMise(s => s.unsaveRecipe);
   const backTo = "/session" as const;
-  // Set once the user has rejected every recipe in the pre-generated slate.
-  const [exhausted, setExhausted] = useState(false);
+  const [rerolling, setRerolling] = useState(false);
+  const [errMsg, setErrMsg] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [whyOpen, setWhyOpen] = useState(false);
   const [saveToast, setSaveToast] = useState<string | null>(null);
@@ -62,6 +67,36 @@ function RecipeCard() {
     poolExhaustedRef.current = true;
     track("recipe_pool_exhausted", { recipe_count: recipeBatch.length });
   };
+
+  // Background prefetch: while the user reads recipe 1, quietly generate the
+  // next couple (one at a time) so "Not this" is instant. Silent — appended to
+  // the batch without changing what's on screen. Best-effort; on-demand swap
+  // covers any that don't arrive in time.
+  const prefetchStarted = useRef(false);
+  useEffect(() => {
+    if (prefetchStarted.current) return;
+    prefetchStarted.current = true;
+    (async () => {
+      while (useMise.getState().recipeBatch.length < 3) {
+        const batch = useMise.getState().recipeBatch;
+        if (batch.length === 0) break;
+        const avoid = [...new Set([...batch.map(r => r.name), ...history.map(h => h.name)])];
+        try {
+          const controller = new AbortController();
+          const t = setTimeout(() => controller.abort(), 58000);
+          let next: any = null;
+          try {
+            next = await getRecipeFromAPI(inventory, session, controller.signal, batch[batch.length - 1].name, avoid);
+          } finally { clearTimeout(t); }
+          if (!next) break;
+          appendToBatch(next);
+        } catch {
+          break; // prefetch failed — leave it; on-demand swap will handle later
+        }
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openWhy = () => {
     if (!recipe) return;
@@ -112,57 +147,76 @@ function RecipeCard() {
     );
   }
 
-  // Exhausted-pool state — the user has rejected every recipe in the slate. We
-  // never silently regenerate a repeat; instead we point them at the two levers
-  // that actually unlock new dishes: more ingredients, or more time.
-  if (exhausted) {
-    const count = recipeBatch.length;
-    return (
-      <MobileFrame>
-        <div className="flex flex-col h-full px-6 pt-5 pb-safe overflow-hidden">
-          <button onClick={() => navigate({ to: backTo })} aria-label="Back"
-            className="w-10 h-10 -ml-2 flex items-center justify-center text-text-secondary active:scale-90">
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-          <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 -mt-6">
-            <span className="text-[52px] leading-none">🍽️</span>
-            <h1 className="font-display text-[26px] font-light text-text-primary leading-tight">
-              That's every idea for this kitchen
-            </h1>
-            <p className="text-[14px] text-text-secondary leading-relaxed max-w-[300px]">
-              You've seen {count === 1 ? "the recipe" : `all ${count} recipes`} we could make from what you've
-              got right now. Add an ingredient or give yourself a little more time to unlock new ones.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 pb-4">
-            <EmberButton size="lg" className="w-full" onClick={() => navigate({ to: "/inventory" })}>
-              Update my kitchen <ArrowRight className="w-4 h-4" />
-            </EmberButton>
-            <button onClick={() => navigate({ to: "/session" })}
-              className="w-full h-12 rounded-xl bg-bg-surface border border-border-default text-text-secondary text-[14px] font-medium active:scale-[0.98] transition">
-              Adjust time or servings
-            </button>
-          </div>
-        </div>
-      </MobileFrame>
-    );
-  }
-
   const swaps = recipe.requiredSwaps ?? [];
   const optional = recipe.optionalMissing ?? [];
   const allGood = swaps.length === 0 && optional.length === 0;
 
-  // "Not this" only ever advances through the pre-generated slate — no API call.
-  // Once every recipe in the slate has been rejected, we surface the exhausted-
-  // pool state rather than looping or silently regenerating a repeat.
-  const swap = () => {
+  const swap = async () => {
+    setErrMsg(null);
     track("recipe_rejected", { recipe_index: Math.min(batchIndex + 1, 3) });
+
+    // A fresh, not-yet-seen recipe is already prefetched — advance instantly.
     if (batchIndex + 1 < recipeBatch.length) {
       cycleRecipe();
       return;
     }
-    firePoolExhausted();
-    setExhausted(true);
+    // The batch is full (3) but there's nothing new past this point — "Not this"
+    // now loops back over recipes already seen: the pool is exhausted.
+    if (recipeBatch.length >= 3) {
+      firePoolExhausted();
+      cycleRecipe();
+      return;
+    }
+
+    // Otherwise generate the next one on demand (prefetch hasn't caught up yet).
+    setRerolling(true);
+    let next = null;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 58000);
+      // Don't repeat anything already in the batch (or recently cooked dishes).
+      const avoidRecipes = [...new Set([
+        ...recipeBatch.map(r => r.name),
+        ...history.map(h => h.name),
+      ])];
+      let apiFailure: "no_recipe" | "api_unreachable" | null = null;
+      try {
+        next = await getRecipeFromAPI(inventory, session, controller.signal, recipe.name, avoidRecipes);
+      } catch (apiErr) {
+        const m = apiErr instanceof Error ? apiErr.message : "";
+        apiFailure = m === "no_recipe" ? "no_recipe" : "api_unreachable";
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      // Honest failure — keep the current recipe and say so, never a random one.
+      if (!next) {
+        // If the kitchen genuinely can't yield another distinct dish but we
+        // already have a couple, don't dead-end — loop the ones we have.
+        if (apiFailure === "no_recipe" && recipeBatch.length >= 2) {
+          firePoolExhausted();
+          cycleRecipe();
+          return;
+        }
+        setErrMsg(
+          apiFailure === "no_recipe"
+            ? "We couldn't find a different recipe for these ingredients right now. Try updating your kitchen."
+            : "Couldn't reach the recipe kitchen. Check your connection and try again."
+        );
+        return;
+      }
+
+      pushRecipe(next);
+    } catch (e: any) {
+      const reason = (e.message ?? "").split("|")[0];
+      if (reason === "no_more_recipes") {
+        setErrMsg("You've seen all recipes for your kitchen. Add more ingredients to unlock new options.");
+      } else {
+        setErrMsg("Couldn't find another recipe. Try adjusting your kitchen.");
+      }
+    } finally {
+      setRerolling(false);
+    }
   };
 
   return (
@@ -192,6 +246,19 @@ function RecipeCard() {
             <ArrowLeft className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Reroll loader — always in DOM, opacity driven by rerolling state.
+            No AnimatePresence: pointer-events is set in the same React render
+            as the fade so the overlay never blocks clicks while fading out. */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: rerolling ? 1 : 0 }}
+          transition={{ duration: 0.25 }}
+          style={{ pointerEvents: rerolling ? "auto" : "none" }}
+          className="absolute inset-0 bg-bg-base/96 z-50"
+        >
+          {rerolling && <RecipeLoaderContent subtitle="" />}
+        </motion.div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
         <motion.div key={recipe.name}
@@ -292,13 +359,25 @@ function RecipeCard() {
             </span>
             <span className="text-[11px] text-text-tertiary">{recipe.steps?.length ?? 0} steps →</span>
           </button>
+
+          {errMsg && (
+            <div className="rounded-xl bg-bg-surface border border-border-default p-4 text-center space-y-2">
+              <p className="text-[13px] text-text-secondary">{errMsg}</p>
+              <button
+                onClick={() => navigate({ to: "/inventory" })}
+                className="text-[12px] font-semibold text-ember underline underline-offset-2 active:opacity-70"
+              >
+                Update my kitchen →
+              </button>
+            </div>
+          )}
         </motion.div>
         </div>{/* end scroll */}
 
         {/* Sticky bottom CTAs — always visible */}
         <KeyboardAwareFooter className="space-y-2">
           <div className="flex gap-3">
-            <button onClick={swap}
+            <button onClick={swap} disabled={rerolling}
               className="flex-1 h-14 rounded-xl bg-bg-surface border border-border-default text-text-secondary flex items-center justify-center gap-2 text-[14px] active:scale-95 transition disabled:opacity-50">
               <RotateCw className="w-4 h-4" />
               Not this

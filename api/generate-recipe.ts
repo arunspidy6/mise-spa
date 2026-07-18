@@ -285,196 +285,6 @@ function setCors(req: VercelRequest, res: VercelResponse) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type, X-Device-ID, X-App-Attest");
 }
 
-// ── Slate: protein anchors & skeleton groups ───────────────────────────────
-// The 3-recipe slate is generated as THREE PARALLEL single-recipe calls rather
-// than one big call: three recipes in one response blew the 55s cap (measured
-// 504 at 55.3s), whereas parallel calls finish in about the time of one (~25-35s).
-//
-// Variety is therefore guaranteed in CODE, not by asking one model call to
-// self-dedupe: each call is handed a protein anchor (per the compatibility
-// rules) and a DISJOINT group of skeletons to choose from — so two recipes can
-// never land on the same skeleton, and no two can share protein_anchor +
-// skeleton_id.
-
-// Core protein family for an inventory item. Two proteins are COMPATIBLE only
-// if they map to the same family (e.g. chicken breast + chicken thighs).
-function proteinFamily(item: string): string | null {
-  const l = item.toLowerCase();
-  if (/chicken|turkey/.test(l)) return "chicken";
-  if (/beef|steak|mince\b(?!.*(pork|lamb|chicken))/.test(l) && !/pork|lamb|chicken/.test(l)) return "beef";
-  if (/pork|bacon|sausage|ham\b|gammon/.test(l)) return "pork";
-  if (/lamb|mutton/.test(l)) return "lamb";
-  if (/salmon/.test(l)) return "salmon";
-  if (/prawn|shrimp/.test(l)) return "prawns";
-  if (/tuna/.test(l)) return "tuna";
-  if (/cod|haddock|pollock|sea bass|plaice|coley|white fish|mackerel|sardine|herring|\bfish\b/.test(l)) return "fish";
-  if (/\begg/.test(l)) return "eggs";
-  if (/tofu|tempeh/.test(l)) return "tofu";
-  if (/chickpea|garbanzo/.test(l)) return "chickpeas";
-  if (/lentil|\bdal\b|daal/.test(l)) return "lentils";
-  if (/bean|pulse/.test(l)) return "beans";
-  return null;
-}
-
-// Assign the anchor for each of the 3 slate recipes, per the slate rules.
-// Returns 3 human-readable anchor descriptors handed to each parallel call.
-function assignAnchors(proteins: string[]): string[] {
-  // Group the user's proteins by core family, preserving selection order.
-  const families: { family: string; items: string[] }[] = [];
-  for (const p of proteins) {
-    const f = proteinFamily(p);
-    if (!f) continue;
-    const existing = families.find(x => x.family === f);
-    if (existing) existing.items.push(p);
-    else families.push({ family: f, items: [p] });
-  }
-
-  // 0 proteins → vegetables are the anchor for all three.
-  if (families.length === 0) return ["vegetable-led", "vegetable-led", "vegetable-led"];
-
-  // 1 family (incl. 2 COMPATIBLE cuts) → all 3 anchor on it; the cuts may be
-  // combined or used individually. Skeleton variety keeps the slate distinct.
-  if (families.length === 1) {
-    const d = families[0].items.length > 1
-      ? `${families[0].items.join(" and ")} (same core protein — combine them or use either)`
-      : families[0].items[0];
-    return [d, d, d];
-  }
-
-  // 2+ NON-COMPATIBLE families → one per recipe, no priority between them.
-  // With 2 families, recipe 3 reuses the first family on a different skeleton.
-  const d = (i: number) => families[i].items.join(" and ");
-  if (families.length === 2) return [d(0), d(1), d(0)];
-  // 3+ families → the first three; it is expected that some proteins don't appear.
-  return [d(0), d(1), d(2)];
-}
-
-// Three DISJOINT skeleton groups. Each parallel call picks the best-fitting
-// skeleton from its own group, so the slate can never repeat a skeleton.
-const SKELETON_GROUPS: string[][] = [
-  ["SK-06 Pan-sear + pan sauce", "SK-01 Stir-fry", "SK-02 Fried rice"],
-  ["SK-04 Curry", "SK-10 Chilli / quick braise", "SK-03 Tomato-base pasta", "SK-07 Soup"],
-  ["SK-05 Traybake", "SK-09 Noodle bowl", "SK-11 Grain bowl", "SK-08 Frittata / omelette-bake", "SK-12 Risotto-method"],
-];
-
-// One streamed Anthropic call → raw text. Shared by single and slate modes.
-async function callModel(
-  apiKey: string,
-  userMessage: string,
-  maxTokens: number,
-  signal: AbortSignal,
-): Promise<{ text: string; usage: any; stopReason: string | null }> {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    signal,
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-beta": "prompt-caching-2024-07-31",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: maxTokens,
-      stream: true,
-      system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-      messages: [{ role: "user", content: userMessage }],
-    }),
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    console.error("Anthropic error:", response.status, err);
-    throw new Error("generation_failed");
-  }
-
-  let text = "";
-  let stopReason: string | null = null;
-  let usage: any = {};
-  const reader = response.body?.getReader();
-  if (reader) {
-    const decoder = new TextDecoder();
-    let buffer = "";
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-      for (const line of lines) {
-        const s = line.trim();
-        if (!s.startsWith("data:")) continue;
-        const payload = s.slice(5).trim();
-        if (!payload || payload === "[DONE]") continue;
-        let evt: any;
-        try { evt = JSON.parse(payload); } catch { continue; }
-        if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
-          text += evt.delta.text;
-        } else if (evt.type === "message_start") {
-          usage = { ...usage, ...(evt.message?.usage ?? {}) };
-        } else if (evt.type === "message_delta") {
-          if (evt.delta?.stop_reason) stopReason = evt.delta.stop_reason;
-          if (evt.usage) usage = { ...usage, ...evt.usage };
-        } else if (evt.type === "error") {
-          console.error("Anthropic stream error:", JSON.stringify(evt.error));
-        }
-      }
-    }
-  }
-  return { text, usage, stopReason };
-}
-
-// Post-process one model recipe: drop it if malformed, otherwise normalise time
-// ranges and sanitise the "why" panel. Shared by single and slate modes.
-const TIME_RANGE_RE = /(\d+)\s*(?:[–—-]|to|or)\s*(\d+)(\s*(?:minutes?|mins?))/i;
-function postProcessRecipe(recipe: any): any | null {
-  if (!recipe || !recipe.name || !recipe.steps) return null;
-
-  const normalizeStepRange = (step: any) => {
-    if (typeof step?.instruction !== "string") return step;
-    const match = step.instruction.match(TIME_RANGE_RE);
-    if (!match) return step;
-    const upper = Number(match[2]);
-    return {
-      ...step,
-      instruction: step.instruction.replace(TIME_RANGE_RE, `${upper}${match[3]}`),
-      timerMinutes: Number.isInteger(step.timerMinutes) ? upper : step.timerMinutes,
-    };
-  };
-  if (Array.isArray(recipe.steps)) recipe.steps = recipe.steps.map(normalizeStepRange);
-
-  const asMeter = (v: unknown): "Low" | "Medium" | "High" | null => {
-    const s = String(v ?? "").trim().toLowerCase();
-    return s === "high" ? "High" : s === "medium" ? "Medium" : s === "low" ? "Low" : null;
-  };
-  const w = recipe.why;
-  if (w && typeof w === "object") {
-    const reasons = Array.isArray(w.reasons)
-      ? w.reasons.filter((r: unknown) => typeof r === "string" && r.trim()).map((r: string) => r.trim()).slice(0, 4)
-      : [];
-    const completion = asMeter(w.completion);
-    const effort = asMeter(w.effort);
-    const tasteNote = typeof w.tasteNote === "string" ? w.tasteNote.trim().slice(0, 140) : "";
-    const flavourRationale = typeof w.flavourRationale === "string" ? w.flavourRationale.trim().slice(0, 400) : "";
-    const prov = String(w.provenance ?? "").trim().toLowerCase();
-    const provenance = prov === "classic" ? "classic" : prov === "adapted" ? "adapted" : prov === "original" ? "original" : undefined;
-    recipe.why = reasons.length && completion && effort && tasteNote
-      ? { reasons, completion, effort, tasteNote, flavourRationale: flavourRationale || undefined, provenance }
-      : undefined;
-  } else {
-    recipe.why = undefined;
-  }
-  return recipe;
-}
-
-function parseRecipeText(raw: string): any | null {
-  const cleaned = raw.replace(/```json|```/g, "").trim();
-  let parsed: any;
-  try { parsed = JSON.parse(cleaned); } catch { return null; }
-  if (parsed?.error === "no_recipe") return { error: "no_recipe" };
-  return postProcessRecipe(parsed);
-}
-
 // ── Handler ────────────────────────────────────────────────────────────────
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -507,9 +317,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: "API key not configured" });
   }
 
-  const { inventory, session, excludeName, avoidRecipes, mealType, slate } = req.body ?? {};
+  const { inventory, session, excludeName, avoidRecipes, mealType } = req.body ?? {};
   if (!inventory) return res.status(400).json({ error: "Missing inventory" });
-  const wantSlate = slate === true;
 
   // Time-of-day meal (computed client-side from the user's local clock).
   const meal: string | null = ["breakfast", "lunch", "dinner"].includes(mealType) ? mealType : null;
@@ -543,10 +352,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const vibeSteer = typeof vibeKey === "string" && VIBE_GUIDANCE[vibeKey] ? VIBE_GUIDANCE[vibeKey] : "";
 
   // ── Dynamic user message (changes per request — not cached) ────────────
-  // Shared kitchen context, composed into a single-recipe request or into each
-  // of the 3 parallel slate requests.
-  const contextBlock =
-    `AVAILABLE: ${ingredients.join(", ")}
+  const userMessage =
+    `Generate a recipe using the ingredients below.
+
+AVAILABLE: ${ingredients.join(", ")}
 APPLIANCES: ${(inventory.appliances || ["Hob/Stove"]).join(", ")}
 TIME: max ${session?.timeMinutes ?? 30} minutes
 SERVINGS: ${session?.servings ?? 2}
@@ -559,35 +368,9 @@ ${meal === "breakfast"
 - If the AVAILABLE list has NO breakfast-appropriate ingredients at all, do NOT force a weird dish — return exactly: {"error":"no_recipe"}`
   : meal
     ? `MEAL: It is currently ${meal} time. Generate a dish appropriate for ${meal} — a proper main. Feature the user's selected protein as the hero.`
-    : ""}`;
+    : ""}
 
-  const baseTail = `At lunch and dinner: if the user selected a meat, poultry or fish protein, it MUST be the hero of the dish. At breakfast the MEAL rule above wins — breakfast ingredients take priority over dinner proteins. You do NOT need to use every ingredient — choose the combination that makes the best single dish. Treat different cuts of the same meat as interchangeable (e.g. lamb chops, lamb diced and lamb mince are all just "lamb"); the cut should not change which dish you pick.`;
-  const excludeClause = excludeName ? `\n\nDo NOT generate "${excludeName}" — the user has already seen that recipe and wants something different.` : "";
-  const avoidClause = avoidList.length ? `\n\nThe user has RECENTLY COOKED the dishes below. You MUST generate something clearly different — a different cooking method, flavour profile, or cuisine. Do not produce a near-duplicate or a minor variation of any of these, even if a different cut of the same protein is now selected:\n${avoidList.map(n => `- ${n}`).join("\n")}` : ""}`;
-
-  const userMessage =
-    `Generate a recipe using the ingredients below.\n\n${contextBlock}\n\n${baseTail}${excludeClause}${avoidClause}`;
-
-  // One slate recipe's brief: a fixed protein anchor + a disjoint skeleton group,
-  // so the three parallel calls can't collide on protein_anchor + skeleton_id.
-  const slateMessage = (anchor: string, group: string[]) =>
-    `Generate ONE recipe using the ingredients below. It is one of three alternatives being offered together, so it MUST follow the two constraints here exactly.
-
-ANCHOR: ${anchor === "vegetable-led"
-      ? "Build this dish around vegetables (no meat/fish hero) — it is vegetable-led."
-      : `Build this dish around ${anchor}. That is the hero of this recipe.`}
-
-SKELETON: choose the ONE best-fitting skeleton for this kitchen from THIS list only — ${group.join(" · ")}. Do not use any skeleton outside this list; pick whichever of them fits the AVAILABLE ingredients and APPLIANCES best, and follow it.
-
-${contextBlock}
-
-${baseTail}${avoidClause}
-
-In addition to every field in the system prompt's RETURN FORMAT, this recipe object MUST also include:
-  "protein_anchor": "${anchor === "vegetable-led" ? "vegetable-led" : "<the specific protein ingredient you used as the hero>"}",
-  "skeleton_id": "<the SK-NN id of the skeleton you used, e.g. SK-06>"
-
-Return the single recipe JSON object only — no markdown fences, no text before or after.`;
+At lunch and dinner: if the user selected a meat, poultry or fish protein, it MUST be the hero of the dish. At breakfast the MEAL rule above wins — breakfast ingredients take priority over dinner proteins. You do NOT need to use every ingredient — choose the combination that makes the best single dish. Treat different cuts of the same meat as interchangeable (e.g. lamb chops, lamb diced and lamb mince are all just "lamb"); the cut should not change which dish you pick.${excludeName ? `\n\nDo NOT generate "${excludeName}" — the user has already seen that recipe and wants something different.` : ""}${avoidList.length ? `\n\nThe user has RECENTLY COOKED the dishes below. You MUST generate something clearly different — a different cooking method, flavour profile, or cuisine. Do not produce a near-duplicate or a minor variation of any of these, even if a different cut of the same protein is now selected:\n${avoidList.map(n => `- ${n}`).join("\n")}` : ""}`;
 
   // Hourly circuit breaker — checked/incremented only here, after validation and
   // right before the paid call, so malformed/empty requests can't burn the budget.
@@ -598,7 +381,7 @@ Return the single recipe JSON object only — no markdown fences, no text before
     });
   }
 
-  // ── Anthropic call(s) with prompt caching ──────────────────────────────
+  // ── Anthropic call with prompt caching ─────────────────────────────────
   // The system block is sent with cache_control so Anthropic caches it after
   // the first request. Subsequent calls with the same system text pay only for
   // the cache read (10% of normal input cost) instead of full token ingestion.
@@ -607,69 +390,159 @@ Return the single recipe JSON object only — no markdown fences, no text before
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 55000); // < 60s maxDuration
   try {
-    if (wantSlate) {
-      // Three recipes as three PARALLEL single-recipe calls. Wall time is the
-      // SLOWEST call (~25-35s), not the sum — asking one call to produce all
-      // three overshot the 55s cap. Each call gets a fixed protein anchor and a
-      // disjoint skeleton group, so slate variety is guaranteed in code rather
-      // than by hoping one model call self-dedupes.
-      const anchors = assignAnchors(inventory.proteins || []);
-      // This request costs three generations — take two more cap slots.
-      globalCapReached(); globalCapReached();
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        // Headroom for the full response: recipe + per-step summaries + the
+        // "why" panel. 2500 truncated longer/vibe-driven recipes, producing
+        // invalid JSON and a misleading "kitchen unreachable" error.
+        max_tokens: 4000,
+        // Stream the generation: a long (30-50s) non-streaming request held open
+        // is prone to network timeouts. Streaming keeps the connection healthy so
+        // the full recipe reliably comes back within the budget.
+        stream: true,
+        system: [
+          {
+            type: "text",
+            text: SYSTEM_PROMPT,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+        messages: [
+          { role: "user", content: userMessage },
+        ],
+      }),
+    });
 
-      const settled = await Promise.allSettled(
-        anchors.map((anchor, i) =>
-          callModel(apiKey, slateMessage(anchor, SKELETON_GROUPS[i]), 4000, controller.signal),
-        ),
-      );
-
-      const recipes: any[] = [];
-      const seen = new Set<string>();
-      for (const r of settled) {
-        if (r.status !== "fulfilled") {
-          console.error("Slate call failed:", r.reason);
-          continue;
-        }
-        logUsage(req, "generate", "claude-sonnet-4-6", r.value.usage);
-        if (r.value.stopReason === "max_tokens") {
-          console.error("Slate recipe hit max_tokens — JSON truncated.");
-        }
-        const parsed = parseRecipeText(r.value.text);
-        if (!parsed || parsed.error === "no_recipe") continue;
-        // Belt and braces: the anchor + disjoint-skeleton assignment should
-        // already make every pair unique, but never return two recipes sharing
-        // the same protein_anchor AND skeleton_id.
-        const key = `${String(parsed.protein_anchor ?? "").toLowerCase()}|${String(parsed.skeleton_id ?? "").toUpperCase()}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        recipes.push(parsed);
-      }
-
-      // Every call failed — report honestly rather than returning an empty slate.
-      if (recipes.length === 0) return res.status(502).json({ error: "Generation failed" });
-      return res.status(200).json({ recipes });
+    if (!response.ok) {
+      const err = await response.text();
+      console.error("Anthropic error:", response.status, err);
+      return res.status(502).json({ error: "Generation failed" });
     }
 
-    const { text, usage, stopReason } = await callModel(apiKey, userMessage, 4000, controller.signal);
+    // Read the streamed SSE response, accumulating the model's text and picking
+    // up stop_reason + usage from the stream events.
+    let text = "";
+    let stopReason: string | null = null;
+    let usage: any = {};
+    const reader = response.body?.getReader();
+    if (reader) {
+      const decoder = new TextDecoder();
+      let buffer = "";
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+        for (const line of lines) {
+          const s = line.trim();
+          if (!s.startsWith("data:")) continue;
+          const payload = s.slice(5).trim();
+          if (!payload || payload === "[DONE]") continue;
+          let evt: any;
+          try { evt = JSON.parse(payload); } catch { continue; }
+          if (evt.type === "content_block_delta" && evt.delta?.type === "text_delta") {
+            text += evt.delta.text;
+          } else if (evt.type === "message_start") {
+            usage = { ...usage, ...(evt.message?.usage ?? {}) };
+          } else if (evt.type === "message_delta") {
+            if (evt.delta?.stop_reason) stopReason = evt.delta.stop_reason;
+            if (evt.usage) usage = { ...usage, ...evt.usage };
+          } else if (evt.type === "error") {
+            console.error("Anthropic stream error:", JSON.stringify(evt.error));
+          }
+        }
+      }
+    }
+
+    // Per-request usage + cost, attributed to the device. One structured line
+    // per call (grep "MISE_USAGE" in Vercel logs, or drain to analytics).
     logUsage(req, "generate", "claude-sonnet-4-6", usage);
-    // Truncation guard: if the model ran out of output budget the JSON is cut
-    // off — surface it in logs instead of a mystery parse error.
+
+    // Truncation guard: if the model ran out of output budget, the JSON is
+    // cut off — surface it clearly in logs instead of a mystery parse error.
     if (stopReason === "max_tokens") {
       console.error("Anthropic response hit max_tokens — recipe JSON truncated.");
     }
-    const recipe = parseRecipeText(text);
-    if (!recipe) return res.status(502).json({ error: "Invalid JSON from model" });
+
+    const raw = text.replace(/```json|```/g, "").trim();
+
+    let recipe;
+    try { recipe = JSON.parse(raw); }
+    catch { return res.status(502).json({ error: "Invalid JSON from model" }); }
+
     // Model honestly declined (e.g. no breakfast-appropriate ingredients).
-    if (recipe.error === "no_recipe") return res.status(200).json({ error: "no_recipe" });
+    if (recipe?.error === "no_recipe") {
+      return res.status(200).json({ error: "no_recipe" });
+    }
+
+    if (!recipe.name || !recipe.steps) {
+      return res.status(502).json({ error: "Invalid recipe shape" });
+    }
+
+    // Safety net: the prompt forbids time ranges, but if one slips through,
+    // collapse it to the upper (safer-cooked) bound so the UI never shows
+    // "5–6 minutes" beside a single timer. Anchored on a trailing time unit so
+    // temperatures like "74°C / 165°F" and "52°C to 63°C" are left untouched.
+    const TIME_RANGE_RE =
+      /(\d+)\s*(?:[–—-]|to|or)\s*(\d+)(\s*(?:minutes?|mins?))/i;
+
+    const normalizeStepRange = (step: any) => {
+      if (typeof step?.instruction !== "string") return step;
+      const match = step.instruction.match(TIME_RANGE_RE);
+      if (!match) return step;
+
+      const upper = Number(match[2]);
+      return {
+        ...step,
+        instruction: step.instruction.replace(TIME_RANGE_RE, `${upper}${match[3]}`),
+        timerMinutes: Number.isInteger(step.timerMinutes) ? upper : step.timerMinutes,
+      };
+    };
+    if (Array.isArray(recipe.steps)) {
+      recipe.steps = recipe.steps.map(normalizeStepRange);
+    }
+
+    // Sanitise the model's "why" panel so a malformed field can never break the
+    // client. Meters are clamped to the three allowed levels; reasons are capped
+    // to 4 short strings. If it's unusable we drop it — the client then derives
+    // its own fallback from the recipe + kitchen.
+    const asMeter = (v: unknown): "Low" | "Medium" | "High" | null => {
+      const s = String(v ?? "").trim().toLowerCase();
+      return s === "high" ? "High" : s === "medium" ? "Medium" : s === "low" ? "Low" : null;
+    };
+    const w = recipe.why;
+    if (w && typeof w === "object") {
+      const reasons = Array.isArray(w.reasons)
+        ? w.reasons.filter((r: unknown) => typeof r === "string" && r.trim()).map((r: string) => r.trim()).slice(0, 4)
+        : [];
+      const completion = asMeter(w.completion);
+      const effort = asMeter(w.effort);
+      const tasteNote = typeof w.tasteNote === "string" ? w.tasteNote.trim().slice(0, 140) : "";
+      const flavourRationale = typeof w.flavourRationale === "string" ? w.flavourRationale.trim().slice(0, 400) : "";
+      const prov = String(w.provenance ?? "").trim().toLowerCase();
+      const provenance = prov === "classic" ? "classic" : prov === "adapted" ? "adapted" : prov === "original" ? "original" : undefined;
+      recipe.why = reasons.length && completion && effort && tasteNote
+        ? { reasons, completion, effort, tasteNote, flavourRationale: flavourRationale || undefined, provenance }
+        : undefined;
+    } else {
+      recipe.why = undefined;
+    }
+
     return res.status(200).json(recipe);
   } catch (err: any) {
     if (err?.name === "AbortError") {
       console.error("Anthropic request timed out");
       return res.status(504).json({ error: "Generation timed out — please try again." });
-    }
-    // Upstream (Anthropic) returned a non-2xx — surfaced by callModel.
-    if (err?.message === "generation_failed") {
-      return res.status(502).json({ error: "Generation failed" });
     }
     console.error("Handler error:", err);
     return res.status(500).json({ error: "Internal error" });

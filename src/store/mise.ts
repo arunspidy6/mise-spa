@@ -104,8 +104,6 @@ type Store = {
   setSession: (s: Partial<Session>) => void;
   // setRecipe starts a fresh batch (a new generation or opening a saved recipe).
   setRecipe: (r: Recipe | null) => void;
-  // Set a whole pre-generated slate (up to 3) as the batch; shows the first.
-  setBatch: (rs: Recipe[]) => void;
   // Append a freshly generated alternative to the batch and show it (caps at 3).
   pushRecipe: (r: Recipe) => void;
   // Append to the batch WITHOUT changing the shown recipe (background prefetch).
@@ -159,14 +157,6 @@ export const useMise = create<Store>()(
       // A fresh recipe (new generation / opened from cookbook) starts a new
       // batch containing just that recipe.
       setRecipe: (r) => set({ recipe: r, recipeBatch: r ? [r] : [], batchIndex: 0 }),
-      // A whole pre-generated slate (up to 3) becomes the batch in one go — the
-      // first recipe is shown, "Not this" advances through the rest. No further
-      // generation happens per rejection.
-      setBatch: (rs) =>
-        set(() => {
-          const batch = (rs ?? []).slice(0, 3);
-          return { recipe: batch[0] ?? null, recipeBatch: batch, batchIndex: 0 };
-        }),
       pushRecipe: (r) =>
         set((s) => {
           const batch = [...s.recipeBatch, r].slice(0, 3);
