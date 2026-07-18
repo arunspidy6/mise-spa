@@ -358,8 +358,18 @@ const SKELETON_GROUPS: string[][] = [
 ];
 
 // One streamed Anthropic call → raw text. Shared by single and slate modes.
+// Models this endpoint is allowed to use. Sonnet is the default and what the
+// app ships with; the allowlist exists so a `model` override in the request can
+// never point at an arbitrary (or more expensive) model.
+const MODEL_ALLOW: Record<string, string> = {
+  sonnet: "claude-sonnet-4-6",
+  haiku: "claude-haiku-4-5-20251001",
+};
+const DEFAULT_MODEL = "claude-sonnet-4-6";
+
 async function callModel(
   apiKey: string,
+  model: string,
   userMessage: string,
   maxTokens: number,
   signal: AbortSignal,
@@ -374,7 +384,7 @@ async function callModel(
       "anthropic-beta": "prompt-caching-2024-07-31",
     },
     body: JSON.stringify({
-      model: "claude-sonnet-4-6",
+      model,
       max_tokens: maxTokens,
       stream: true,
       system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
@@ -507,9 +517,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(500).json({ error: "API key not configured" });
   }
 
-  const { inventory, session, excludeName, avoidRecipes, mealType, slate } = req.body ?? {};
+  const { inventory, session, excludeName, avoidRecipes, mealType, slate, model } = req.body ?? {};
   if (!inventory) return res.status(400).json({ error: "Missing inventory" });
   const wantSlate = slate === true;
+  // Optional model override, allowlisted. The app never sends this — it exists
+  // so model quality/latency can be compared against production traffic shape.
+  const chosenModel = (typeof model === "string" && MODEL_ALLOW[model]) || DEFAULT_MODEL;
 
   // Time-of-day meal (computed client-side from the user's local clock).
   const meal: string | null = ["breakfast", "lunch", "dinner"].includes(mealType) ? mealType : null;
@@ -619,7 +632,7 @@ Return the single recipe JSON object only — no markdown fences, no text before
 
       const settled = await Promise.allSettled(
         anchors.map((anchor, i) =>
-          callModel(apiKey, slateMessage(anchor, SKELETON_GROUPS[i]), 4000, controller.signal),
+          callModel(apiKey, chosenModel, slateMessage(anchor, SKELETON_GROUPS[i]), 4000, controller.signal),
         ),
       );
 
@@ -630,7 +643,7 @@ Return the single recipe JSON object only — no markdown fences, no text before
           console.error("Slate call failed:", r.reason);
           continue;
         }
-        logUsage(req, "generate", "claude-sonnet-4-6", r.value.usage);
+        logUsage(req, "generate", chosenModel, r.value.usage);
         if (r.value.stopReason === "max_tokens") {
           console.error("Slate recipe hit max_tokens — JSON truncated.");
         }
@@ -650,8 +663,8 @@ Return the single recipe JSON object only — no markdown fences, no text before
       return res.status(200).json({ recipes });
     }
 
-    const { text, usage, stopReason } = await callModel(apiKey, userMessage, 4000, controller.signal);
-    logUsage(req, "generate", "claude-sonnet-4-6", usage);
+    const { text, usage, stopReason } = await callModel(apiKey, chosenModel, userMessage, 4000, controller.signal);
+    logUsage(req, "generate", chosenModel, usage);
     // Truncation guard: if the model ran out of output budget the JSON is cut
     // off — surface it in logs instead of a mystery parse error.
     if (stopReason === "max_tokens") {
