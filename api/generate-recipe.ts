@@ -583,14 +583,31 @@ ${meal === "breakfast"
 
   // One slate recipe's brief: a fixed protein anchor + a disjoint skeleton group,
   // so the three parallel calls can't collide on protein_anchor + skeleton_id.
-  const slateMessage = (anchor: string, group: string[]) =>
-    `Generate ONE recipe using the ingredients below. It is one of three alternatives being offered together, so it MUST follow the two constraints here exactly.
+  // `forceSkeleton` is used on a retry when the model ignored its allowed group:
+  // instead of offering a choice we name the one skeleton it must use.
+  const slateMessage = (anchor: string, group: string[], forceSkeleton?: string) => {
+    const ids = group.map(g => g.split(" ")[0]);
+    return `Generate ONE recipe using the ingredients below. It is one of three alternatives shown together, so the HARD CONSTRAINTS below are not suggestions — a recipe that breaks any of them is rejected.
 
-ANCHOR: ${anchor === "vegetable-led"
-      ? "Build this dish around vegetables (no meat/fish hero) — it is vegetable-led."
-      : `Build this dish around ${anchor}. That is the hero of this recipe.`}
+━━ HARD CONSTRAINT 1 — SKELETON ━━
+${forceSkeleton
+      ? `You MUST use exactly this skeleton: ${forceSkeleton}. Set "skeleton_id" to "${forceSkeleton.split(" ")[0]}". Do not use any other skeleton.`
+      : `You MUST build this recipe on ONE skeleton from this list and NOTHING else:
+${group.map(g => `    • ${g}`).join("\n")}
+Allowed values for "skeleton_id" are EXACTLY: ${ids.join(", ")}.
+Pick whichever of THOSE best fits the AVAILABLE ingredients and APPLIANCES, then follow its structure and ratios from the system prompt.
+Using any skeleton outside that list — however well it might fit — is an error. Before you answer, re-read your skeleton_id and confirm it is one of: ${ids.join(", ")}.`}
 
-SKELETON: choose the ONE best-fitting skeleton for this kitchen from THIS list only — ${group.join(" · ")}. Do not use any skeleton outside this list; pick whichever of them fits the AVAILABLE ingredients and APPLIANCES best, and follow it.
+━━ HARD CONSTRAINT 2 — ANCHOR ━━
+${anchor === "vegetable-led"
+      ? "Build this dish around vegetables. There is no meat/fish hero — it is vegetable-led."
+      : `Build this dish around ${anchor}. That is the hero and must be the centre of the dish.`}
+
+━━ HARD CONSTRAINT 3 — TIMERS ━━
+This app runs a countdown per step, so timers are the product, not decoration.
+EVERY step with any wait — searing, frying, sautéing, simmering, boiling, roasting, baking, braising, reducing, resting — MUST have an integer "timerMinutes".
+Only pure off-heat prep (chopping, measuring, mixing, plating) may use null.
+Write 7 to 9 steps. Typically 5 or more of them are timed. A cooking step with "timerMinutes": null is an error.
 
 ${contextBlock}
 
@@ -598,9 +615,10 @@ ${baseTail}${avoidClause}
 
 In addition to every field in the system prompt's RETURN FORMAT, this recipe object MUST also include:
   "protein_anchor": "${anchor === "vegetable-led" ? "vegetable-led" : "<the specific protein ingredient you used as the hero>"}",
-  "skeleton_id": "<the SK-NN id of the skeleton you used, e.g. SK-06>"
+  "skeleton_id": "<the SK-NN id you used — must be ${forceSkeleton ? forceSkeleton.split(" ")[0] : `one of ${ids.join(", ")}`}>"
 
 Return the single recipe JSON object only — no markdown fences, no text before or after.`;
+  };
 
   // Hourly circuit breaker — checked/incremented only here, after validation and
   // right before the paid call, so malformed/empty requests can't burn the budget.
@@ -630,28 +648,64 @@ Return the single recipe JSON object only — no markdown fences, no text before
       // This request costs three generations — take two more cap slots.
       globalCapReached(); globalCapReached();
 
-      const settled = await Promise.allSettled(
-        anchors.map((anchor, i) =>
-          callModel(apiKey, chosenModel, slateMessage(anchor, SKELETON_GROUPS[i]), 4000, controller.signal),
-        ),
-      );
+      // Run one round of the three calls; `force` pins a specific skeleton on a
+      // retry. Returns the parsed recipe per slot (null where it failed).
+      const runRound = async (force: (string | undefined)[]) => {
+        const settled = await Promise.allSettled(
+          anchors.map((anchor, i) =>
+            force[i] === "skip"
+              ? Promise.resolve(null as any)
+              : callModel(apiKey, chosenModel, slateMessage(anchor, SKELETON_GROUPS[i], force[i]), 4000, controller.signal),
+          ),
+        );
+        return settled.map((r) => {
+          if (r.status !== "fulfilled" || !r.value) {
+            if (r.status === "rejected") console.error("Slate call failed:", r.reason);
+            return null;
+          }
+          logUsage(req, "generate", chosenModel, r.value.usage);
+          if (r.value.stopReason === "max_tokens") {
+            console.error("Slate recipe hit max_tokens — JSON truncated.");
+          }
+          const parsed = parseRecipeText(r.value.text);
+          return !parsed || parsed.error === "no_recipe" ? null : parsed;
+        });
+      };
+
+      const allowedIds = SKELETON_GROUPS.map(g => g.map(s => s.split(" ")[0]));
+      const inGroup = (r: any, i: number) =>
+        !!r && allowedIds[i].includes(String(r.skeleton_id ?? "").toUpperCase());
+
+      let slots = await runRound([undefined, undefined, undefined]);
+
+      // Weaker models sometimes ignore their allowed skeleton list, which
+      // collapses the slate's variety (two near-identical dishes). Rather than
+      // trust the prompt, verify: any slot whose skeleton_id is out of its group
+      // is regenerated ONCE with a single skeleton pinned — one that no other
+      // slot is already using, so the slate still ends up with three distinct
+      // structures. Bounded to one retry round so latency stays predictable.
+      const needsRetry = slots.map((r, i) => r !== null && !inGroup(r, i));
+      if (needsRetry.some(Boolean)) {
+        const taken = new Set(
+          slots.filter((r, i) => inGroup(r, i)).map(r => String(r.skeleton_id).toUpperCase()),
+        );
+        const force = slots.map((_, i) => {
+          if (!needsRetry[i]) return "skip";
+          const pick = SKELETON_GROUPS[i].find(s => !taken.has(s.split(" ")[0])) ?? SKELETON_GROUPS[i][0];
+          taken.add(pick.split(" ")[0]);
+          console.warn(`Slate slot ${i}: skeleton ${slots[i].skeleton_id} out of group — retrying pinned to ${pick.split(" ")[0]}`);
+          return pick;
+        });
+        const retried = await runRound(force);
+        slots = slots.map((r, i) => (needsRetry[i] && retried[i] ? retried[i] : r));
+      }
 
       const recipes: any[] = [];
       const seen = new Set<string>();
-      for (const r of settled) {
-        if (r.status !== "fulfilled") {
-          console.error("Slate call failed:", r.reason);
-          continue;
-        }
-        logUsage(req, "generate", chosenModel, r.value.usage);
-        if (r.value.stopReason === "max_tokens") {
-          console.error("Slate recipe hit max_tokens — JSON truncated.");
-        }
-        const parsed = parseRecipeText(r.value.text);
-        if (!parsed || parsed.error === "no_recipe") continue;
-        // Belt and braces: the anchor + disjoint-skeleton assignment should
-        // already make every pair unique, but never return two recipes sharing
-        // the same protein_anchor AND skeleton_id.
+      for (const parsed of slots) {
+        if (!parsed) continue;
+        // Belt and braces: never return two recipes sharing the same
+        // protein_anchor AND skeleton_id.
         const key = `${String(parsed.protein_anchor ?? "").toLowerCase()}|${String(parsed.skeleton_id ?? "").toUpperCase()}`;
         if (seen.has(key)) continue;
         seen.add(key);
