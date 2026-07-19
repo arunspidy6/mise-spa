@@ -434,6 +434,21 @@ async function callModel(
   return { text, usage, stopReason };
 }
 
+// Cap a string's length WITHOUT leaving a half-finished sentence on screen.
+// A blunt slice() used to cut the "why these flavours work" copy mid-word at
+// exactly 400 chars. Prefer the last complete sentence that fits; if there
+// isn't one, fall back to a word boundary with an ellipsis so it reads as
+// deliberately shortened rather than broken.
+function clampToSentence(raw: string, max: number): string {
+  const s = raw.trim();
+  if (s.length <= max) return s;
+  const cut = s.slice(0, max);
+  const lastEnd = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
+  if (lastEnd > max * 0.4) return cut.slice(0, lastEnd + 1).trim();
+  const lastSpace = cut.lastIndexOf(" ");
+  return `${(lastSpace > 0 ? cut.slice(0, lastSpace) : cut).trim()}…`;
+}
+
 // Post-process one model recipe: drop it if malformed, otherwise normalise time
 // ranges and sanitise the "why" panel. Shared by single and slate modes.
 const TIME_RANGE_RE = /(\d+)\s*(?:[–—-]|to|or)\s*(\d+)(\s*(?:minutes?|mins?))/i;
@@ -464,8 +479,8 @@ function postProcessRecipe(recipe: any): any | null {
       : [];
     const completion = asMeter(w.completion);
     const effort = asMeter(w.effort);
-    const tasteNote = typeof w.tasteNote === "string" ? w.tasteNote.trim().slice(0, 140) : "";
-    const flavourRationale = typeof w.flavourRationale === "string" ? w.flavourRationale.trim().slice(0, 400) : "";
+    const tasteNote = typeof w.tasteNote === "string" ? clampToSentence(w.tasteNote, 200) : "";
+    const flavourRationale = typeof w.flavourRationale === "string" ? clampToSentence(w.flavourRationale, 700) : "";
     const prov = String(w.provenance ?? "").trim().toLowerCase();
     const provenance = prov === "classic" ? "classic" : prov === "adapted" ? "adapted" : prov === "original" ? "original" : undefined;
     recipe.why = reasons.length && completion && effort && tasteNote

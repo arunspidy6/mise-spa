@@ -77,7 +77,7 @@ export function WhyThisDish({
               transition={{ type: "spring", stiffness: 380, damping: 34 }}
               className="absolute inset-x-0 bottom-0 z-50 max-h-[88%] flex flex-col rounded-t-3xl bg-bg-surface border-t border-border-default shadow-2xl"
             >
-              <div className="px-5 pt-3 pb-6 flex-1 min-h-0 overflow-y-auto overscroll-contain">
+              <div className="px-5 pt-3 pb-6 flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y">
                 {/* Grab handle */}
                 <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border-default" />
 
@@ -127,7 +127,7 @@ export function WhyThisDish({
                       <Sparkles className="w-3.5 h-3.5" />
                       <p className="label-eyebrow leading-none">Why these flavours work</p>
                     </div>
-                    <p className="mt-2 text-[15px] text-text-primary leading-relaxed">{why.flavourRationale}</p>
+                    <p className="mt-2 text-[15px] text-text-primary leading-relaxed break-words">{why.flavourRationale}</p>
                   </>
                 )}
 

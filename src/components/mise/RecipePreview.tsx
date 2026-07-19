@@ -60,7 +60,7 @@ export function RecipePreview({
               </div>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-5 pb-6 pt-4">
+            <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y px-5 pb-6 pt-4">
               {/* Ingredients — with quantities */}
               {ingredients.length > 0 && (
                 <div className="mb-6">

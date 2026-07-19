@@ -193,7 +193,7 @@ function RecipeCard() {
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain touch-pan-y">
         <motion.div key={recipe.name}
           initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
           className="px-4 space-y-4 pt-2 pb-4">
@@ -232,11 +232,11 @@ function RecipeCard() {
                 </button>
               </div>
               {/* Tier 2 — the hero title, full width */}
-              <h2 className="font-display text-[22px] font-normal text-text-primary leading-[1.12] tracking-tight">
+              <h2 className="font-display text-[22px] font-normal text-text-primary leading-[1.12] tracking-tight break-words">
                 {recipe.name}
               </h2>
               {/* Tier 3 — supporting caption */}
-              <p className="text-[13px] text-text-tertiary leading-relaxed">{recipe.description}</p>
+              <p className="text-[13px] text-text-tertiary leading-relaxed break-words">{recipe.description}</p>
 
               {swaps.length > 0 && (
                 <div className="rounded-lg border border-ember-dim bg-ember-glow p-3 space-y-2">
