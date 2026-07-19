@@ -78,6 +78,15 @@ type HistoryEntry = {
   ts: number;
 };
 
+// A recipe name the user was SHOWN by generation — regardless of whether they
+// went on to cook it. `history` only gets an entry once a cook is finished/
+// rated, so generating a slate, looking it over, and closing the app leaves no
+// record anywhere; regenerating later from the same kitchen then had nothing
+// to avoid and could return the exact same slate. This list is the fix: every
+// generation records its recipe names here so the next one avoids repeating
+// them, cooked or not.
+type ShownEntry = { name: string; ts: number };
+
 // A recipe the user saved to cook later. Holds the full recipe so it can be
 // re-opened straight from the cookbook, plus the meal-time reminder slot.
 export type SavedRecipe = {
@@ -97,6 +106,8 @@ type Store = {
   recipeBatch: Recipe[];
   batchIndex: number;
   history: HistoryEntry[];
+  // Every recipe name returned by any generation, cooked or not — see ShownEntry.
+  recentlyShown: ShownEntry[];
   saved: SavedRecipe[];
   setInventory: (i: Partial<Inventory>) => void;
   toggleItem: (cat: keyof Omit<Inventory, "lastUpdated" | "customItems" | "customTokenMap">, item: string) => void;
@@ -113,6 +124,9 @@ type Store = {
   // Advance to the next recipe in the full batch, wrapping around. No API call.
   cycleRecipe: () => void;
   addHistory: (e: HistoryEntry) => void;
+  // Records that these recipe names were just shown by a generation, so a later
+  // generation from the same kitchen doesn't reproduce them (see ShownEntry).
+  recordShown: (names: string[]) => void;
   // Save a recipe to cook later (dedupes by name).
   saveRecipe: (entry: SavedRecipe) => void;
   // Remove a saved recipe — on manual un-save, or once it's been cooked.
@@ -143,6 +157,7 @@ export const useMise = create<Store>()(
       recipeBatch: [],
       batchIndex: 0,
       history: [],
+      recentlyShown: [],
       saved: [],
       setInventory: (i) => set((s) => ({ inventory: { ...s.inventory, ...i } })),
       toggleItem: (cat, item) =>
@@ -198,6 +213,15 @@ export const useMise = create<Store>()(
             return { history: next };
           }
           return { history: [e, ...s.history].slice(0, 50) };
+        }),
+      recordShown: (names) =>
+        set((s) => {
+          const now = Date.now();
+          const fresh = [...new Set(names)].map((name) => ({ name, ts: now }));
+          // New entries win over older ones for the same name (keeps the most
+          // recent "shown" time), then cap so this can't grow unbounded.
+          const rest = s.recentlyShown.filter((e) => !names.includes(e.name));
+          return { recentlyShown: [...fresh, ...rest].slice(0, 60) };
         }),
       saveRecipe: (entry) =>
         set((s) => ({

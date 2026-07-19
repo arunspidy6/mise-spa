@@ -23,6 +23,8 @@ function SessionSetup() {
   const inventory = useMise(s => s.inventory);
   const setBatch = useMise(s => s.setBatch);
   const history = useMise(s => s.history);
+  const recentlyShown = useMise(s => s.recentlyShown);
+  const recordShown = useMise(s => s.recordShown);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<ErrState | null>(null);
   const [vibeOpen, setVibeOpen] = useState(false);
@@ -93,11 +95,17 @@ function SessionSetup() {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 58000);
       let slate: Awaited<ReturnType<typeof getSlateFromAPI>> | null = null;
-      // Names of dishes the user has already cooked — deduped, most recent first.
-      // The API uses these to generate something genuinely different, so the same
-      // dish isn't re-suggested just because a different cut of the same meat
-      // (e.g. lamb diced vs lamb chops) was selected.
-      const avoidRecipes = [...new Set(history.map(h => h.name))].slice(0, 8);
+      // Dishes to steer away from: ones actually cooked, PLUS ones merely shown
+      // by a previous generation (whether or not the user went on to cook one).
+      // Without the "shown" half, regenerating from an unchanged kitchen had
+      // nothing to avoid and could return the exact same slate it gave last
+      // time — recentlyShown is what lets "same kitchen, days later" produce
+      // something new. 14-day window matches the shown list's own relevance.
+      const SHOWN_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+      const recentShownNames = recentlyShown
+        .filter(e => Date.now() - e.ts < SHOWN_WINDOW_MS)
+        .map(e => e.name);
+      const avoidRecipes = [...new Set([...history.map(h => h.name), ...recentShownNames])].slice(0, 14);
       let apiFailure: "no_recipe" | "api_unreachable" | null = null;
       try {
         // One request generates the whole 3-recipe slate, so "Not this" only ever
@@ -136,6 +144,9 @@ function SessionSetup() {
         recipe_count: slate.length,
         generation_time_ms: Date.now() - genStart,
       });
+      // Record every recipe in the slate as shown — cooked or not — so a later
+      // generation from this kitchen won't reproduce it (see recentlyShown).
+      recordShown(slate.map(r => r.name));
       setBatch(slate);
       playRecipeReady();
       navigate({ to: "/recipe" });
