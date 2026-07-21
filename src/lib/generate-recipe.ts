@@ -1114,6 +1114,7 @@ export async function getRecipeFromAPI(
   });
   if (!res.ok) throw new Error("api_failed");
   const data = await res.json();
+  if (data?.error === "paused") throw new Error("paused");
   if (data?.error === "no_recipe") throw new Error("no_recipe");
   if (data.error || !data.name || !data.steps) throw new Error("api_failed");
   // NOTE: recipe_generated is fired by the recipe screen when a recipe is
@@ -1141,6 +1142,7 @@ export async function getSlateFromAPI(
   });
   if (!res.ok) throw new Error("api_failed");
   const data = await res.json();
+  if (data?.error === "paused") throw new Error("paused");
   if (data?.error === "no_recipe") throw new Error("no_recipe");
   const recipes = Array.isArray(data?.recipes) ? data.recipes : null;
   if (!recipes || recipes.length === 0) throw new Error("api_failed");

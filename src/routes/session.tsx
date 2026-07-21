@@ -106,14 +106,14 @@ function SessionSetup() {
         .filter(e => Date.now() - e.ts < SHOWN_WINDOW_MS)
         .map(e => e.name);
       const avoidRecipes = [...new Set([...history.map(h => h.name), ...recentShownNames])].slice(0, 14);
-      let apiFailure: "no_recipe" | "api_unreachable" | null = null;
+      let apiFailure: "no_recipe" | "api_unreachable" | "paused" | null = null;
       try {
         // One request generates the whole 3-recipe slate, so "Not this" only ever
         // advances through pre-generated recipes — never triggers another call.
         slate = await getSlateFromAPI(inventory, session, controller.signal, avoidRecipes);
       } catch (apiErr) {
         const m = apiErr instanceof Error ? apiErr.message : "";
-        apiFailure = m === "no_recipe" ? "no_recipe" : "api_unreachable";
+        apiFailure = m === "no_recipe" ? "no_recipe" : m === "paused" ? "paused" : "api_unreachable";
       } finally {
         clearTimeout(timeout);
       }
@@ -124,7 +124,12 @@ function SessionSetup() {
       if (!slate || slate.length === 0) {
         track("recipe_generation_failed", { error_type: apiFailure ?? "unknown" });
         setLoading(false);
-        if (apiFailure === "no_recipe") {
+        if (apiFailure === "paused") {
+          setErr({
+            reason: "paused",
+            detail: "Recipe generation is paused right now. Your kitchen is saved — check back soon.",
+          });
+        } else if (apiFailure === "no_recipe") {
           setErr({
             reason: "no_recipe",
             detail: "We couldn't make a good recipe from these ingredients right now. At breakfast time, things like bacon, sausages, eggs, oats or bread work best — try adding some, or come back at lunch.",

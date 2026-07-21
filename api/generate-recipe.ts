@@ -303,6 +303,15 @@ function setCors(req: VercelRequest, res: VercelResponse) {
 // never land on the same skeleton, and no two can share protein_anchor +
 // skeleton_id.
 
+// ── Generation kill switch ──────────────────────────────────────────────────
+// Paused at the owner's request to stop ALL Anthropic spend after the monthly
+// usage cap was hit. While paused, the endpoint returns a clean "paused"
+// response BEFORE any model call, so nothing is spent on any client — web or
+// the iOS build already installed, cached or fresh — even once the cap resets.
+// To resume: set the env var GENERATION_ENABLED=true in Vercel (no code change
+// needed), or flip this default to false and redeploy.
+const GENERATION_PAUSED = process.env.GENERATION_ENABLED !== "true";
+
 // Core protein family for an inventory item. Two proteins are COMPATIBLE only
 // if they map to the same family (e.g. chicken breast + chicken thighs).
 function proteinFamily(item: string): string | null {
@@ -514,6 +523,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+
+  // Kill switch — short-circuit before any paid work when generation is paused.
+  if (GENERATION_PAUSED) {
+    return res.status(200).json({ error: "paused", message: "Recipe generation is paused right now." });
+  }
 
   // ── Rate limit ──────────────────────────────────────────────────────────
   const ip =
