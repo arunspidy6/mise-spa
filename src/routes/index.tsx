@@ -4,6 +4,7 @@ import { Package, Clock, ArrowRight } from "lucide-react";
 import { MobileFrame } from "@/components/mise/MobileFrame";
 import { useMise } from "@/store/mise";
 import { hasOnboarded } from "@/lib/onboarding";
+import { MAINTENANCE_MODE } from "@/lib/maintenance";
 
 export const Route = createFileRoute("/")({
   // First launch → show the intro before the home screen paints.
@@ -51,7 +52,9 @@ function Home() {
   const mainCTASub        = hasSetup
     ? "Best match from your pantry"
     : "First, let's see what you've got";
-  const caption = hasSetup ? "What are you cooking?" : "Let's get you cooking.";
+  const caption = MAINTENANCE_MODE
+    ? "We'll be back soon."
+    : hasSetup ? "What are you cooking?" : "Let's get you cooking.";
 
   return (
     <MobileFrame>
@@ -78,6 +81,29 @@ function Home() {
             </div>
           </motion.div>
 
+          {/* Maintenance notice — replaces the Cook CTA while generation is
+              paused, so users are told up front instead of hitting an error
+              after setting up a kitchen. */}
+          {MAINTENANCE_MODE ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ ...SPRING, delay: 0.16 }}
+            >
+              <div className="rounded-2xl bg-bg-surface border border-border-default px-5 py-5 flex items-start gap-4">
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 text-[24px] leading-none bg-bg-raised">
+                  🛠️
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-display text-[20px] font-light leading-tight text-text-primary">Under maintenance</p>
+                  <p className="text-[13px] text-text-secondary mt-1.5 leading-snug">
+                    Recipe generation is paused while we make some improvements. Your kitchen and saved recipes are safe — check back soon.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          ) : (
+          <>
           {/* Primary CTA — flat shadow only, no coloured glow */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -141,6 +167,8 @@ function Home() {
                 </motion.div>
               </Link>
             </motion.div>
+          )}
+          </>
           )}
 
         </div>{/* end centre block */}
