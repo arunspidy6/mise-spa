@@ -31,8 +31,9 @@ function Onboarding() {
     setOnboarded();
     track("onboarding_completed");
     // Replace so onboarding leaves no history entry — a back-swipe from the
-    // setup flow must never land the user back on the intro.
-    navigate({ to: "/inventory", replace: true });
+    // setup flow must never land the user back on the intro. First-run users
+    // land on the chooser: voice dump vs the manual wizard.
+    navigate({ to: "/setup", replace: true });
   };
 
   return (

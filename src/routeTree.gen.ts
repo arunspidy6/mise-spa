@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SetupRouteImport } from './routes/setup'
 import { Route as SessionRouteImport } from './routes/session'
 import { Route as RecipeRouteImport } from './routes/recipe'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -16,9 +17,15 @@ import { Route as KitchenRouteImport } from './routes/kitchen'
 import { Route as InventoryRouteImport } from './routes/inventory'
 import { Route as HistoryRouteImport } from './routes/history'
 import { Route as FeedbackRouteImport } from './routes/feedback'
+import { Route as DumpRouteImport } from './routes/dump'
 import { Route as CookRouteImport } from './routes/cook'
 import { Route as IndexRouteImport } from './routes/index'
 
+const SetupRoute = SetupRouteImport.update({
+  id: '/setup',
+  path: '/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SessionRoute = SessionRouteImport.update({
   id: '/session',
   path: '/session',
@@ -54,6 +61,11 @@ const FeedbackRoute = FeedbackRouteImport.update({
   path: '/feedback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DumpRoute = DumpRouteImport.update({
+  id: '/dump',
+  path: '/dump',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CookRoute = CookRouteImport.update({
   id: '/cook',
   path: '/cook',
@@ -68,6 +80,7 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/cook': typeof CookRoute
+  '/dump': typeof DumpRoute
   '/feedback': typeof FeedbackRoute
   '/history': typeof HistoryRoute
   '/inventory': typeof InventoryRoute
@@ -75,10 +88,12 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/recipe': typeof RecipeRoute
   '/session': typeof SessionRoute
+  '/setup': typeof SetupRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/cook': typeof CookRoute
+  '/dump': typeof DumpRoute
   '/feedback': typeof FeedbackRoute
   '/history': typeof HistoryRoute
   '/inventory': typeof InventoryRoute
@@ -86,11 +101,13 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/recipe': typeof RecipeRoute
   '/session': typeof SessionRoute
+  '/setup': typeof SetupRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/cook': typeof CookRoute
+  '/dump': typeof DumpRoute
   '/feedback': typeof FeedbackRoute
   '/history': typeof HistoryRoute
   '/inventory': typeof InventoryRoute
@@ -98,12 +115,14 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/recipe': typeof RecipeRoute
   '/session': typeof SessionRoute
+  '/setup': typeof SetupRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/cook'
+    | '/dump'
     | '/feedback'
     | '/history'
     | '/inventory'
@@ -111,10 +130,12 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/recipe'
     | '/session'
+    | '/setup'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/cook'
+    | '/dump'
     | '/feedback'
     | '/history'
     | '/inventory'
@@ -122,10 +143,12 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/recipe'
     | '/session'
+    | '/setup'
   id:
     | '__root__'
     | '/'
     | '/cook'
+    | '/dump'
     | '/feedback'
     | '/history'
     | '/inventory'
@@ -133,11 +156,13 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/recipe'
     | '/session'
+    | '/setup'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CookRoute: typeof CookRoute
+  DumpRoute: typeof DumpRoute
   FeedbackRoute: typeof FeedbackRoute
   HistoryRoute: typeof HistoryRoute
   InventoryRoute: typeof InventoryRoute
@@ -145,10 +170,18 @@ export interface RootRouteChildren {
   OnboardingRoute: typeof OnboardingRoute
   RecipeRoute: typeof RecipeRoute
   SessionRoute: typeof SessionRoute
+  SetupRoute: typeof SetupRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/setup': {
+      id: '/setup'
+      path: '/setup'
+      fullPath: '/setup'
+      preLoaderRoute: typeof SetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/session': {
       id: '/session'
       path: '/session'
@@ -198,6 +231,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeedbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dump': {
+      id: '/dump'
+      path: '/dump'
+      fullPath: '/dump'
+      preLoaderRoute: typeof DumpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cook': {
       id: '/cook'
       path: '/cook'
@@ -218,6 +258,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CookRoute: CookRoute,
+  DumpRoute: DumpRoute,
   FeedbackRoute: FeedbackRoute,
   HistoryRoute: HistoryRoute,
   InventoryRoute: InventoryRoute,
@@ -225,6 +266,7 @@ const rootRouteChildren: RootRouteChildren = {
   OnboardingRoute: OnboardingRoute,
   RecipeRoute: RecipeRoute,
   SessionRoute: SessionRoute,
+  SetupRoute: SetupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
